@@ -1,0 +1,449 @@
+# Production Guide
+
+Quick reference for choosing the right spatial index implementation.
+
+---
+
+## Simple Decision Tree
+
+```
+START
+  ↓
+Is bundle size critical?
+  ├─ YES → Compact linear scan (~1.2KB)
+  └─ NO  → Continue
+       ↓
+     n < 100?
+       ├─ YES → Hilbert spatial locality
+       └─ NO  → R-tree (R* split)
+```
+
+_See sections below for specific implementation names and import statements._
+
+---
+
+## Detailed Recommendations
+
+### HilbertLinearScanImpl ✅ Most Common
+
+n < 100 (typical spreadsheet use). 2x faster via spatial locality.
+
+Performance: 6.9µs @ n=50, 9.5ms @ n=2500
+
+```typescript
+import HilbertLinearScanImpl from './src/implementations/hilbertlinearscan.ts';
+
+const backgroundColors = new HilbertLinearScanImpl<string>();
+const fontWeights = new HilbertLinearScanImpl<string>();
+const dataValidation = new HilbertLinearScanImpl<ValidationRule>();
+```
+
+---
+
+### RTreeImpl ✅ Large Datasets
+
+n ≥ 100. O(log n) hierarchical indexing, R* split algorithm.
+
+Performance: 20.0µs @ n=50, 1.92ms @ n=2500
+
+```typescript
+import RTreeImpl from './src/implementations/rtree.ts';
+
+// Large dataset scenario
+const largeBackgroundIndex = new RTreeImpl<string>();
+
+// Batch import
+for (const range of thousandsOfRanges) {
+	largeBackgroundIndex.insert(range, color);
+}
+```
+
+---
+
+### CompactLinearScanImpl (Bundle Size Critical)
+
+Smallest implementation (~1.2KB minified). Slower than Hilbert but acceptable for n < 100.
+
+```typescript
+import CompactLinearScanImpl from './src/implementations/compactlinearscan.ts';
+
+// Bundle-constrained environment
+const index = new CompactLinearScanImpl<string>();
+```
+
+---
+
+## Performance Comparison
+
+**Empirical measurements** (from [BENCHMARKS.md](./BENCHMARKS.md)):
+
+| Implementation        | n=50   | n=2500 | Best For              |
+| --------------------- | ------ | ------ | --------------------- |
+| HilbertLinearScanImpl | 6.9µs  | 9.5ms  | Sparse data (n < 100) |
+| RTreeImpl             | 20µs   | 1.9ms  | Large data (n ≥ 100)  |
+| CompactLinearScanImpl | 10.7µs | N/A    | Bundle size critical  |
+
+**Measurement Confidence**:
+
+- All measurements: **5 runs × Deno's internal sampling** (50-500 iterations total)
+- CV% (variability): **<5% for all stable scenarios**
+- Performance differences **>10%** represent large effect sizes with stable measurements
+- All recommendations based on **>20% performance differences** (well above noise)
+- See [benchmark-statistics.md](./docs/analyses/benchmark-statistics.md) for methodology
+
+**Note**: We report effect sizes and measurement stability rather than statistical significance (p-values from hypothesis tests). For microbenchmarks, magnitude matters more than statistical hypothesis testing.
+
+**Machine-Specific Variance**:
+
+- Expect ±10-20% absolute performance variation across different CPUs/OSes
+- **Relative rankings stable**: "Which is fastest" holds across systems
+- Crossover point (n=100) validated on multiple architectures
+
+---
+
+## Workload-Specific Guidance
+
+| Workload                              | n < 100                  | n ≥ 100           | Notes                                                             |
+| ------------------------------------- | ------------------------ | ----------------- | ----------------------------------------------------------------- |
+| **Write-Heavy** (editing, formatting) | Hilbert spatial locality | R-tree (R* split) | R-tree overhead amortizes at scale                                |
+| **Read-Heavy** (rendering, scrolling) | Hilbert spatial locality | R-tree (R* split) | R* split workload-dependent: equiv sequential, faster overlapping |
+| **Mixed** (collaborative editing)     | Hilbert spatial locality | R-tree (R* split) | Transition zone 100-600: both competitive                         |
+| **Bundle-Constrained** (<2KB limit)   | Compact linear scan      | N/A               | 1.2KB minified, 10-15% slower, n<100 only                         |
+
+**Transition Zone (100 < n < 600)**: If uncertain, use R-tree - scales better as data grows. See section headers above for specific implementation names to import. See `docs/analyses/transition-zone-analysis.md` for crossover points.
+
+---
+
+## Common Patterns
+
+### Single Property Index (Typical)
+
+```typescript
+import HilbertLinearScanImpl from './src/implementations/hilbertlinearscan.ts';
+
+class SpreadsheetProperties {
+	private backgrounds = new HilbertLinearScanImpl<string>();
+	private fonts = new HilbertLinearScanImpl<string>();
+	private validation = new HilbertLinearScanImpl<Rule>();
+
+	setBackground(range: GridRange, color: string) {
+		this.backgrounds.insert(range, color);
+	}
+
+	getBackgrounds(range: GridRange) {
+		return this.backgrounds.query(range);
+	}
+}
+```
+
+### Large Dataset (Batch Operations)
+
+```typescript
+import RTreeImpl from './src/implementations/rtree.ts';
+
+class BulkImporter {
+	private index = new RTreeImpl<CellData>();
+
+	async importCSV(rows: Row[]) {
+		for (const row of rows) {
+			this.index.insert(row.range, row.data);
+		}
+	}
+}
+```
+
+### Bundle-Constrained
+
+```typescript
+import CompactLinearScanImpl from './src/implementations/compactlinearscan.ts';
+
+// Google Apps Script add-on with size limits
+const colors = new CompactLinearScanImpl<string>();
+```
+
+---
+
+## API Reference
+
+All implementations follow the `SpatialIndex<T>` interface:
+
+```typescript
+interface SpatialIndex<T> {
+	// Insert a range with a value (last-writer-wins)
+	insert(gridRange: GridRange, value: T): void;
+
+	// Query ranges that intersect with the given range
+	query(gridRange: GridRange): Array<{ gridRange: GridRange; value: T }>;
+
+	// Get all ranges (for export/serialization)
+	getAllRanges(): Array<{ gridRange: GridRange; value: T }>;
+
+	// Check if index is empty
+	get isEmpty(): boolean;
+}
+```
+
+---
+
+## Migration Guide
+
+### When to Migrate
+
+**Upward migration** (LinearScan → RTree): When n consistently exceeds 100-200 ranges per property index.
+
+**Downward migration** (RTree → LinearScan): Rare. If data size shrinks permanently below n=50.
+
+**⚠️ Avoid premature optimization**: Don't migrate unless profiling shows spatial index is a bottleneck. Most spreadsheet use cases stay under n=100 per property type.
+
+---
+
+### Migration Procedure
+
+All implementations share the `SpatialIndex<T>` interface, making migration straightforward:
+
+**1. Export existing data**:
+
+```typescript
+const oldIndex = new HilbertLinearScanImpl<string>();
+// ... populate with data ...
+
+const data = oldIndex.getAllRanges();
+```
+
+**2. Create new index and bulk import**:
+
+```typescript
+const newIndex = new RTreeImpl<string>();
+
+for (const { gridRange, value } of data) {
+	newIndex.insert(gridRange, value);
+}
+```
+
+**3. Swap references**:
+
+```typescript
+// Replace old index with new one
+this.backgroundColors = newIndex;
+```
+
+**Performance Impact**:
+
+- Export (`getAllRanges`): O(n) - negligible for n < 10,000
+- Bulk import: O(n log n) for RTree, O(n²) for LinearScan
+- Total downtime: <100ms for n=1000
+
+---
+
+### Specific Migration Paths
+
+#### From HilbertLinearScan to RTree (Scaling Up)
+
+**Trigger**: n consistently > 100-200, performance degrading
+
+```typescript
+// Before: n=50-200, using Hilbert
+class SpreadsheetProperties {
+	private backgrounds = new HilbertLinearScanImpl<string>();
+}
+
+// After: n > 200, migrate to RTree
+class SpreadsheetProperties {
+	private backgrounds: SpatialIndex<string>;
+
+	constructor() {
+		// Start with Hilbert
+		this.backgrounds = new HilbertLinearScanImpl<string>();
+	}
+
+	migrateToRTree() {
+		const data = this.backgrounds.getAllRanges();
+		const newIndex = new RTreeImpl<string>();
+
+		for (const { gridRange, value } of data) {
+			newIndex.insert(gridRange, value);
+		}
+
+		this.backgrounds = newIndex;
+		console.log(`Migrated ${data.length} ranges to RTree`);
+	}
+}
+```
+
+**Performance gain**: At n=200, RTree is ~5-10x faster than Hilbert.
+
+---
+
+#### From OptimizedLinearScan to HilbertLinearScan (Optimization)
+
+**Trigger**: Free 2x speedup, no downside
+
+```diff
+- import OptimizedLinearScanImpl from './src/implementations/optimizedlinearscan.ts';
++ import HilbertLinearScanImpl from './src/implementations/hilbertlinearscan.ts';
+
+- const index = new OptimizedLinearScanImpl<string>();
++ const index = new HilbertLinearScanImpl<string>();
+```
+
+API is identical, just swap the class name.
+
+**Performance gain**: 2x faster (202.7µs → 104.5µs at n=100)
+
+---
+
+#### Dynamic Switching (Advanced)
+
+For applications with variable data size, switch implementation based on n:
+
+```typescript
+class AdaptiveSpatialIndex<T> implements SpatialIndex<T> {
+	private index: SpatialIndex<T>;
+	private threshold = 150;
+
+	constructor() {
+		this.index = new HilbertLinearScanImpl<T>();
+	}
+
+	insert(gridRange: GridRange, value: T): void {
+		this.index.insert(gridRange, value);
+		this.checkMigration();
+	}
+
+	private checkMigration() {
+		const n = this.index.getAllRanges().length;
+
+		// Migrate up if n exceeds threshold
+		if (n > this.threshold && !(this.index instanceof RTreeImpl)) {
+			const data = this.index.getAllRanges();
+			this.index = new RTreeImpl<T>();
+			for (const { gridRange, value } of data) {
+				this.index.insert(gridRange, value);
+			}
+			console.log(`Auto-migrated to RTree at n=${n}`);
+		}
+	}
+
+	query(gridRange: GridRange) {
+		return this.index.query(gridRange);
+	}
+
+	getAllRanges() {
+		return this.index.getAllRanges();
+	}
+
+	get isEmpty() {
+		return this.index.isEmpty;
+	}
+}
+```
+
+**⚠️ Note**: Adds complexity. Only use if n varies dramatically (e.g., user imports large dataset).
+
+---
+
+### Zero-Downtime Migration
+
+For production systems that can't pause:
+
+```typescript
+class LiveMigration<T> {
+	private oldIndex: SpatialIndex<T>;
+	private newIndex: SpatialIndex<T> | null = null;
+	private migrating = false;
+
+	async migrateInBackground() {
+		if (this.migrating) return;
+		this.migrating = true;
+
+		// Create new index
+		this.newIndex = new RTreeImpl<T>();
+
+		// Copy existing data
+		const data = this.oldIndex.getAllRanges();
+		for (const { gridRange, value } of data) {
+			this.newIndex.insert(gridRange, value);
+
+			// Yield to event loop every 100 items
+			if (data.indexOf({ gridRange, value }) % 100 === 0) {
+				await new Promise((resolve) => setTimeout(resolve, 0));
+			}
+		}
+
+		// Atomic swap
+		this.oldIndex = this.newIndex;
+		this.newIndex = null;
+		this.migrating = false;
+	}
+
+	query(gridRange: GridRange) {
+		// Use new index if migration complete
+		return this.oldIndex.query(gridRange);
+	}
+}
+```
+
+**Use case**: Large datasets (n > 5000) where bulk import takes >100ms.
+
+---
+
+### Data Preservation
+
+**What's preserved**: All `(gridRange, value)` pairs exactly as stored.
+
+**What changes**: Internal storage order (not observable through API).
+
+**Validation** (optional but recommended):
+
+```typescript
+function validateMigration<T>(oldIndex: SpatialIndex<T>, newIndex: SpatialIndex<T>) {
+	const oldData = oldIndex.getAllRanges();
+	const newData = newIndex.getAllRanges();
+
+	if (oldData.length !== newData.length) {
+		throw new Error(`Size mismatch: ${oldData.length} → ${newData.length}`);
+	}
+
+	// Check all ranges preserved (order may differ)
+	for (const oldEntry of oldData) {
+		const found = newData.some((newEntry) =>
+			rangesEqual(oldEntry.gridRange, newEntry.gridRange) &&
+			oldEntry.value === newEntry.value
+		);
+		if (!found) {
+			throw new Error(`Missing entry: ${JSON.stringify(oldEntry)}`);
+		}
+	}
+
+	console.log(`✅ Migration validated: ${oldData.length} ranges preserved`);
+}
+```
+
+---
+
+## FAQ
+
+**Q: R-tree vs linear scan?**\
+A: Hilbert for n < 100, R-tree for n ≥ 100.
+
+**Q: Don't know n?**\
+A: Use Hilbert (optimal for typical n < 100).
+
+**Q: CompactLinearScan?**\
+A: Only if bundle size critical. Hilbert is faster.
+
+**Q: ArrayBuffer implementations?**\
+A: Research only. Hilbert supersedes them.
+
+**Q: Switch implementations later?**\
+A: Yes, same `SpatialIndex<T>` interface.
+
+---
+
+## See Also
+
+- [BENCHMARKS.md](./BENCHMARKS.md) - Full performance data
+- [README.md](./README.md) - Project overview
+- [docs/analyses/sparse-data-analysis.md](./docs/analyses/sparse-data-analysis.md) - Why linear scan wins for sparse data
+- [docs/analyses/hilbert-curve-analysis.md](./docs/analyses/hilbert-curve-analysis.md) - Why Hilbert ordering provides 2x speedup
+- [docs/core/RESEARCH-SUMMARY.md](./docs/core/RESEARCH-SUMMARY.md) - Complete research findings

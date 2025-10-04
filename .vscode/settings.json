@@ -1,0 +1,22 @@
+{
+	"deno.enable": true,
+	"deno.lint": true,
+	"deno.config": "./deno.json",
+
+	// Editor settings
+	"editor.insertSpaces": false,
+	"editor.detectIndentation": false,
+	"editor.rulers": [120],
+	"editor.formatOnSave": true,
+	"editor.codeActionsOnSave": { "source.organizeImports": "explicit" },
+
+	// Deno formatter
+	"[typescript]": { "editor.defaultFormatter": "denoland.vscode-deno" },
+	"[javascript]": { "editor.defaultFormatter": "denoland.vscode-deno" },
+	"[json]": { "editor.defaultFormatter": "denoland.vscode-deno" },
+	"[markdown]": { "editor.defaultFormatter": "denoland.vscode-deno" },
+
+	// Project-specific
+	"cSpell.words": ["rtree", "xmax", "xmin", "ymax", "ymin"],
+	"files.exclude": { "**/deno.lock": true }
+}

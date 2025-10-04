@@ -1,0 +1,519 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) and Cursor IDE when working with code in this repository.
+
+**Purpose**: Comprehensive reference + enforcement of project conventions and workflows.
+
+## Project Overview
+
+Spatial indexing research for 2D range decomposition in spreadsheet systems. Maintains non-overlapping ranges with last-writer-wins semantics using half-open intervals `[start, end)`.
+
+**Core Problem**: Insert overlapping 2D rectangles, automatically decompose into disjoint fragments (≤4 per overlap).
+
+**Target Environment**: Google Apps Script (limits: no WASM, no SharedArrayBuffer, TypedArrays OK)
+
+**Project Philosophy**: Active research with rigorous documentation. Archive failed experiments (research asset), maintain reproducibility, distinguish empirical findings from hypotheses.
+
+## Common Commands
+
+### Testing
+
+```bash
+deno task test                    # Run all active tests (101 tests)
+deno task test:watch              # Watch mode
+deno task test:hilbert            # Test specific implementation
+deno task test:rtree              # Test specific implementation
+deno task test:adversarial        # Worst-case fragmentation tests
+deno test test/specific.test.ts   # Run single test file
+```
+
+### Benchmarking
+
+```bash
+deno task bench                                      # Run active implementations only (default)
+deno task bench:archived                             # Include archived implementations (opt-in)
+deno task bench:update                               # Regenerate BENCHMARKS.md (auto-discovers implementations)
+deno task bench:analyze <runs> <output-file>         # Statistical analysis (e.g., 5 runs, ~4-5 min)
+
+# Advanced options
+deno task bench -- --exclude=CompactRTree            # Exclude specific impl
+deno task bench -- --include-archived                # Same as bench:archived
+```
+
+**Benchmark Philosophy**: "Active by default, archived by choice"
+
+- Auto-discovers from `src/implementations/` (no manual registration)
+- Archived implementations require `--include-archived` flag
+- Use `--exclude=` for selective filtering during development
+
+### Code Quality
+
+```bash
+deno task fmt                     # Format code (tabs, width 120, single quotes)
+deno task lint                    # Lint
+deno task check                   # Type check entire project (includes archive/)
+```
+
+### Implementation Management
+
+```bash
+deno task archive:impl <name> <category>    # Archive an implementation
+deno task unarchive:impl <name>             # Restore from archive
+```
+
+## Architecture
+
+### Core Interfaces
+
+**`SpatialIndex<T>`** (src/conformance/testsuite.ts:5-10) - All implementations must implement this interface:
+
+- `insert(gridRange: GridRange, value: T): void` - Last-writer-wins semantics
+- `query(gridRange: GridRange): Array<...>` - Find intersecting ranges
+- `getAllRanges(): Array<...>` - Export all ranges
+- `isEmpty: boolean` - Check if empty
+
+**`GridRange`** - Google Apps Script type for 2D ranges (half-open intervals):
+
+- `startRowIndex` (included), `endRowIndex` (excluded)
+- `startColumnIndex` (included), `endColumnIndex` (excluded)
+
+### Implementation Families
+
+**Current active implementations** (see `src/implementations/` directory):
+
+- **Spatial locality optimized linear scan** - Production choice for sparse data (n < 100), uses Hilbert curve for 2x speedup
+- **Compact linear scan** - Smallest bundle size (~1.2KB), acceptable performance
+- __R-Tree with R_ split_* - Production choice for large data (n ≥ 100), O(log n) hierarchical indexing
+
+**Archived implementations** (see `archive/src/implementations/` for historical research):
+
+- Reference implementations (test oracles)
+- Superseded optimizations
+- Failed experiments (TypedArray approaches, alternative split algorithms)
+- Educational/minimal implementations
+
+All implementations are auto-discovered by benchmarks from their filesystem location.
+
+### Testing Framework
+
+**Conformance tests** (src/conformance/testsuite.ts):
+
+- 13 axioms validate mathematical correctness (empty state, LWW semantics, overlap resolution, disjointness)
+- Every implementation must pass all axioms
+- Reference implementation: Naive linear scan (test oracle, archived)
+
+**Adversarial tests** (test/adversarial.test.ts):
+
+- Pathological patterns to validate O(n) fragmentation bound
+- Concentric, diagonal, checkerboard, random patterns
+- Validates geometric bounds under worst-case inputs
+
+### Key Invariants
+
+After every operation, these must hold:
+
+1. **Consistency**: `isEmpty ⟺ getAllRanges().length === 0`
+2. **Non-duplication**: No duplicate (bounds, value) pairs
+3. **Disjointness**: No overlapping rectangles (∀ i≠j: rᵢ ∩ rⱼ = ∅)
+
+Validated by `assertInvariants()` in conformance tests.
+
+## Development Workflow
+
+### Adding a New Implementation
+
+1. Create `src/implementations/newimpl.ts` implementing `SpatialIndex<T>`
+2. Create `test/newimpl.test.ts` with conformance tests
+3. Run `deno task test && deno task bench:update && deno task check`
+4. Benchmarks auto-discover from `src/implementations/`
+
+See docs/IMPLEMENTATION-LIFECYCLE.md for details.
+
+### Archiving an Implementation
+
+Use the automated script:
+
+```bash
+deno task archive:impl <name> <category>
+deno task bench:update  # Regenerate BENCHMARKS.md to remove archived impl
+```
+
+This moves files, fixes imports, and verifies type-checking. Manual archiving:
+
+1. Move `src/implementations/X.ts` → `archive/src/implementations/<category>/X.ts`
+2. Move `test/X.test.ts` → `archive/test/X.test.ts`
+3. Add header comment explaining why archived
+4. Run `deno task bench:update` to regenerate BENCHMARKS.md
+5. Update archive README if needed
+
+Benchmarks automatically exclude archived implementations (based on filesystem location).
+
+### Experiment Workflow (MANDATORY)
+
+**CRITICAL RULE**: `docs/active/experiments/` must be **EMPTY** after experiment completion.
+
+**Why this matters**:
+
+- `docs/active/` is a **workspace**, not storage
+- Empty workspace = clear research state
+- Completed work goes to `analyses/` or `archive/`
+- Only in-progress experiments stay in `active/`
+
+**Experiment lifecycle**:
+
+```
+1. Create hypothesis → docs/active/experiments/[name]-experiment.md
+2. Run benchmarks → docs/active/experiments/[name]-results.md
+3. Analyze results → Update experiment.md with status
+4. Resolution:
+   ✅ VALIDATED → Move findings to docs/analyses/
+   ❌ REJECTED → Move full docs to archive/docs/experiments/
+5. Clean workspace → DELETE from docs/active/experiments/
+```
+
+**Full workflow**:
+
+1. **Start experiment**: Create `docs/active/experiments/[name]-experiment.md` with hypothesis
+2. **Implement**: Create `src/implementations/[name].ts` + `test/[name].test.ts` + add to benchmarks
+3. **Run analysis**: `deno task bench:analyze 5 docs/active/experiments/[name]-results.md`
+4. **Update status**: Mark experiment doc with ✅ VALIDATED or ❌ REJECTED
+5. **Resolution**:
+   - ✅ **VALIDATED**: Create `docs/analyses/[name]-analysis.md`, update `docs/core/RESEARCH-SUMMARY.md`, keep implementation active
+   - ❌ **REJECTED (moving on)**: Move experiment docs to `archive/docs/experiments/`, archive implementation
+   - ❌ **REJECTED (might revisit)**: Leave in `active/experiments/` with notes
+6. **Clean workspace**: **DELETE completed experiments from `docs/active/experiments/`**
+
+**Before ending any experiment, verify**:
+
+- [ ] Results documented
+- [ ] Findings integrated OR archived
+- [ ] Files removed from `docs/active/experiments/`
+- [ ] `ls docs/active/experiments/` shows ONLY in-progress work
+
+**Example**:
+
+```bash
+# WRONG - Completed experiments still in active/
+docs/active/experiments/
+├── experiment-1.md (COMPLETED)
+├── experiment-1-results.md
+├── experiment-2.md (IN PROGRESS)
+
+# CORRECT - Only active work
+docs/active/experiments/
+└── experiment-2.md (IN PROGRESS)
+
+# Completed work properly archived
+docs/analyses/experiment-1-analysis.md
+archive/docs/experiments/failed-experiment-1.md
+```
+
+**Mental model**: `docs/active/` is your scratch pad (work in progress), everything else is permanent record.
+
+See docs/active/README.md for full workflow details.
+
+### Documentation Rules (CRITICAL)
+
+**Generated files** (NEVER edit directly):
+
+- `BENCHMARKS.md` - Generated by `deno task bench:update`
+- `docs/analyses/benchmark-statistics.md` - Generated by `deno task bench:analyze`
+- Always update the script, not the output
+
+**Document process, not state**:
+
+- ❌ **BAD**: List all current implementations by name in structural docs
+- ✅ **GOOD**: Describe algorithm families and optimization strategies, point to `src/implementations/`
+- ❌ **BAD**: "HilbertLinearScanImpl is the production implementation"
+- ✅ **GOOD**: "Spatial locality optimization is the production approach"
+
+**When to use specific implementation names**:
+
+- ✅ **Analysis files** (`docs/analyses/*.md`) - Report experimental results with specific names
+- ✅ **Example code** - Show concrete usage examples
+- ✅ **Operational guides** (PRODUCTION-GUIDE sections) - Show what to import
+- ✅ **Diagram files** - Explain specific algorithm details
+- ✅ **Experimental data** - "HilbertLinearScanImpl achieved 6.9µs" (factual measurement)
+- ❌ **Structural docs** (README, summaries) - Use generic terms in prescriptive sections
+- ❌ **Decision tables** - Use algorithm approaches, not class names
+
+**Why this matters**: When implementations are added/removed/renamed, only `src/implementations/` and generated files need updating. Documentation stays valid without edits.
+
+**Source of truth**: `src/implementations/` directory = current active implementations
+
+**After archiving implementations**: Run `deno task bench:update` to regenerate BENCHMARKS.md
+
+**Research tone**: This is an ACTIVE research project
+
+- Use present tense for ongoing work
+- Use past tense only for completed/archived experiments
+- Avoid "completed", "final", "finished" language in active docs
+- Frame findings as "current understanding" not "conclusions"
+
+## Important Concepts
+
+### Half-Open Intervals
+
+**Critical**: This library uses `[start, end)` where `end` is **excluded**.
+
+```typescript
+// startRowIndex: 0, endRowIndex: 5 means rows 0, 1, 2, 3, 4 (NOT 5!)
+[0, 5) = [0, 1, 2, 3, 4]
+```
+
+Common mistake: Assuming `endRowIndex: 5` includes row 5. It doesn't!
+
+### Rectangle Decomposition
+
+Insert algorithm (A \ B → ≤4 fragments):
+
+- Given existing rectangle A and new rectangle B (overlap)
+- Decompose A into ≤4 non-overlapping fragments
+- Store B (last-writer-wins)
+- Maintains disjointness invariant
+
+### Hilbert Curve Optimization
+
+**Empirical Finding** (validated): 2x speedup over naive linear scan (6.9µs vs 20.9µs @ n=50)
+
+**Hypothesized Mechanism** (not validated): Hilbert space-filling curve maps 2D coordinates to 1D while preserving spatial locality. Keeping rectangles sorted by Hilbert index may improve cache utilization and hardware prefetching, but this has not been validated through cache profiling.
+
+**Limitation**: MAX_COORD = 65,536 (2^16). Coordinates ≥65K wrap/collide but algorithm remains correct (spatial locality may degrade).
+
+See docs/analyses/hilbert-curve-analysis.md for full analysis and distinction between empirical results vs hypothesized mechanisms.
+
+### Performance Guidelines
+
+| Ranges          | Use                                  | Performance                     |
+| --------------- | ------------------------------------ | ------------------------------- |
+| < 100           | Spatial locality optimized (Hilbert) | ~7µs @ n=50                     |
+| ≥ 100           | R-Tree with R* split                 | ~20µs @ n=50, ~2ms @ n=2500     |
+| Bundle-critical | Compact linear scan                  | Smallest size, acceptable speed |
+
+See PRODUCTION-GUIDE.md and BENCHMARKS.md for detailed decision tree and current performance data.
+
+### Statistical Interpretation
+
+When analyzing benchmark results (from `deno task bench:analyze`):
+
+**Metrics**:
+
+- **Mean (μ)**: Average performance
+- **CV%**: Coefficient of Variation = `(σ/μ) × 100`
+  - CV% <5% = Stable ✅
+  - CV% >5% = Variable ⚠️
+- **Sample size**: 5 runs × Deno's 10-100 internal iterations = 50-500 total iterations
+
+**When to trust differences**:
+
+- Report differences **>10%** with CV% <5% (large effect size + stable measurement)
+- Expect ±10-20% absolute variance across different machines (relative rankings stay stable)
+- All major findings (e.g., "2x faster") show >20% differences, well above noise
+
+**Philosophy**: Focus on **effect size** (magnitude) over statistical significance (p-values)
+
+- In microbenchmarks: "2x faster" matters, "2% faster" doesn't
+- We measure magnitude and stability, not hypothesis testing
+
+See docs/analyses/benchmark-statistics.md for full methodology.
+
+## Code Conventions
+
+**Formatting** (enforced by `deno fmt`):
+
+- Tabs (width 4), line width 120
+- Semicolons, single quotes
+
+**Type Safety**:
+
+- No `any` types in source code
+- All implementations must `implements SpatialIndex<T>`
+- All public APIs need JSDoc comments
+
+**Imports**:
+
+```typescript
+✅ import HilbertLinearScanImpl from '../src/implementations/hilbertlinearscan.ts';
+✅ import HybridRTree from '../archive/src/implementations/failed-experiments/hybridrtree.ts';
+```
+
+## Research Integrity & Archive Management
+
+**Philosophy**: Archive is a **research asset**, not trash. Failed experiments teach as much as successful ones.
+
+**Why we keep archives**:
+
+1. **Reproducibility**: All experiments remain runnable
+2. **Historical comparison**: Benchmark against archived baselines
+3. **Research continuity**: Document why approaches were abandoned
+4. **Learning**: Failed hypotheses prevent repeated mistakes
+
+**Hypothesis vs Validation**:
+
+- **Empirical findings** (validated): What we measured (e.g., "2x faster")
+- **Hypothesized mechanisms** (not validated): Why we think it works (e.g., "cache locality")
+- Always distinguish between observation and inference
+
+**Archive management**:
+
+- Archived code must remain runnable
+- Document WHY archived (performance data, validation failure, superseded by what)
+- Keep tests with archived implementations
+- Maintain import paths for reproducibility
+
+**Running archived tests** (opt-in, may include failures from failed experiments):
+
+```bash
+deno test archive/test/specific.test.ts    # Specific test
+deno test archive/test/                    # All archived tests
+```
+
+**Note**: Archived tests may fail (e.g., failed experiments) - this is expected and documented. Use `deno task test` or `deno test test/` for active tests only.
+
+See archive/README.md for full archive philosophy and management.
+
+## Quick Reference
+
+### Common Scenarios
+
+| Task                        | Commands                                                                                                                                                                                       |
+| --------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Add new implementation**  | 1. Create `src/implementations/name.ts` + `test/name.test.ts`<br>2. `deno task test && deno task bench:update && deno task check`                                                              |
+| **Run experiment**          | 1. Create `docs/active/experiments/name-experiment.md`<br>2. Implement + test<br>3. `deno task bench:analyze 5 docs/active/experiments/name-results.md`<br>4. Resolve and clean `docs/active/` |
+| **Archive implementation**  | `deno task archive:impl <name> <superseded\|failed-experiments>`                                                                                                                               |
+| **Compare vs archived**     | `deno task bench:archived`                                                                                                                                                                     |
+| **Focus on specific impls** | `deno task bench -- --exclude=X --exclude=Y`                                                                                                                                                   |
+| **Validate adversarial**    | `deno task test:adversarial`                                                                                                                                                                   |
+| **Statistical analysis**    | `deno task bench:analyze 5 output.md`                                                                                                                                                          |
+
+### Directory Structure
+
+```
+src/implementations/     # Active implementations (auto-discovered by benchmarks)
+test/                    # Active tests (all passing)
+docs/
+├── active/experiments/  # In-progress work (MUST be empty when done)
+├── analyses/            # Validated findings
+└── core/                # Research summary + theory
+archive/
+├── src/implementations/ # Archived impls (opt-in via --include-archived)
+├── test/                # Archived tests (may include failures)
+├── benchmarks/          # One-off experiment benchmarks
+└── docs/experiments/    # Rejected experiment documentation
+scripts/                 # Automation (update-benchmarks.ts, analyze-benchmarks.ts)
+benchmarks/              # Benchmark suites (performance.ts)
+```
+
+### Scripts vs Benchmarks
+
+- **scripts/**: Automation tools you `deno run` (generators, analyzers, archiving)
+- **benchmarks/**: Benchmark suites you `deno bench` (performance measurements)
+
+## Temporary Workspace
+
+**`.temp/` directory** - For AI assistant work-in-progress documents:
+
+- Gitignored ephemeral workspace
+- Use for temporary summaries, analysis docs, planning notes
+- No pressure to clean up (but can delete when done)
+- NOT for research findings (use `docs/active/experiments/`)
+
+**Example use cases**:
+
+- Multi-step review summaries
+- Intermediate analysis results
+- Scratch benchmarks
+- Planning documents
+
+---
+
+## AI Assistant Auto-Sync Protocol
+
+**CRITICAL**: After implementations, tests, or benchmarks change, run `deno task sync-docs` BEFORE responding to user.
+
+### When to Run `sync-docs`
+
+**Trigger patterns**:
+
+- Archived/unarchived implementation → `deno task sync-docs`
+- Modified `src/implementations/*.ts` → `deno task sync-docs`
+- Added/removed test axioms in `src/conformance/testsuite.ts` → `deno task sync-docs`
+- Changed active implementation count → `deno task sync-docs`
+
+**What it does**:
+
+- Detects changed files (implementations, tests)
+- Regenerates `BENCHMARKS.md` if implementations changed
+- Reports test axiom count if tests changed
+
+**Example workflow**:
+
+```
+1. User: "Archive OptimizedLinearScan"
+2. You: [runs archive command]
+3. You: [runs `deno task sync-docs` - regenerates BENCHMARKS.md]
+4. You: "✅ Archived OptimizedLinearScan. Updated BENCHMARKS.md (now 3 implementations)"
+```
+
+### Response Template
+
+When `sync-docs` updates files, mention it:
+
+```
+✅ [Task completed]
+📝 Updated: BENCHMARKS.md (auto-discovered N implementations)
+```
+
+This prevents user frustration ("why is X still in the docs?").
+
+---
+
+## Pre-Commit Checklist
+
+Before committing:
+
+- [ ] All tests pass: `deno task test`
+- [ ] Code formatted: `deno task fmt`
+- [ ] Linted: `deno task lint`
+- [ ] **Type-checked (ENTIRE PROJECT)**: `deno check` (no args - includes archive)
+- [ ] Docs updated if behavior changed
+- [ ] No `any` types in source code
+- [ ] All public APIs have JSDoc comments
+- [ ] `docs/active/experiments/` is EMPTY (or only has in-progress work)
+- [ ] `.temp/` cleaned up (optional, but nice)
+- [ ] If archiving: reason documented in archived file header
+
+## Key Documentation
+
+### For Users
+
+- **README.md** - Project overview and quick start
+- **PRODUCTION-GUIDE.md** - Decision tree for choosing implementations
+- **BENCHMARKS.md** - Performance data (auto-generated)
+
+### For Researchers
+
+- **docs/core/RESEARCH-SUMMARY.md** - Executive summary of all findings
+- **docs/core/theoretical-foundation.md** - Mathematical model, proofs, complexity analysis
+- **docs/analyses/** - Individual experiment results
+  - `hilbert-curve-analysis.md` - Spatial locality breakthrough (2x speedup)
+  - `adversarial-patterns.md` - Worst-case fragmentation validation
+  - `benchmark-statistics.md` - Statistical methodology and results
+  - `r-star-analysis.md` - Split algorithm comparison
+  - `sparse-data-analysis.md` - Why linear scan wins for n<100
+
+### For Contributors
+
+- **docs/IMPLEMENTATION-LIFECYCLE.md** - Adding/archiving implementations
+- **docs/BENCHMARK-FRAMEWORK.md** - Benchmark auto-discovery and philosophy
+- **docs/active/README.md** - Experiment workflow
+- **archive/README.md** - Archive philosophy and management
+- **CLAUDE.md** (this file) - AI assistant context and project conventions
+
+### Reading Paths
+
+| Goal                    | Start                                                            | Then                  |
+| ----------------------- | ---------------------------------------------------------------- | --------------------- |
+| **Use this library**    | README.md → PRODUCTION-GUIDE.md                                  | BENCHMARKS.md         |
+| **Understand research** | docs/core/theoretical-foundation.md                              | docs/analyses/        |
+| **Contribute**          | docs/core/RESEARCH-SUMMARY.md → docs/IMPLEMENTATION-LIFECYCLE.md | docs/active/README.md |
