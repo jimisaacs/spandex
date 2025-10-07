@@ -17,7 +17,7 @@ Collect real-world usage metrics to validate optimization decisions.
 
 ```typescript
 import { TelemetryCollector } from './src/telemetry/index.ts';
-import MortonLinearScanImpl from './src/implementations/hilbertlinearscan.ts';
+import MortonLinearScanImpl from './src/implementations/mortonlinearscan.ts';
 
 // 1. Create telemetry collector
 const telemetry = new TelemetryCollector({

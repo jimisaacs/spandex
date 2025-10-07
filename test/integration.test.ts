@@ -1,14 +1,14 @@
 /// <reference types="@types/google-apps-script" />
 
-import CompactLinearScanImpl from '../src/implementations/compactlinearscan.ts';
-import LinearScanImpl from '../archive/src/implementations/superseded/linearscan.ts';
-import OptimizedLinearScanImpl from '../archive/src/implementations/superseded/optimizedlinearscan.ts';
+import MortonLinearScanImpl from '../src/implementations/mortonlinearscan.ts';
+import CompactMortonLinearScanImpl from '../src/implementations/compactmortonlinearscan.ts';
+import RTreeImpl from '../src/implementations/rtree.ts';
 
 Deno.test('All implementations produce identical results', () => {
 	const implementations = [
-		{ name: 'LinearScan', Class: LinearScanImpl },
-		{ name: 'CompactLinearScan', Class: CompactLinearScanImpl },
-		{ name: 'OptimizedLinearScan', Class: OptimizedLinearScanImpl },
+		{ name: 'MortonLinearScan', Class: MortonLinearScanImpl },
+		{ name: 'CompactMortonLinearScan', Class: CompactMortonLinearScanImpl },
+		{ name: 'RTree', Class: RTreeImpl },
 	];
 
 	const operations = [
@@ -22,16 +22,32 @@ Deno.test('All implementations produce identical results', () => {
 	const results = implementations.map(({ name, Class }) => {
 		const index = new Class<string>();
 		operations.forEach((op) => index.insert(op.range, op.value));
-		const ranges = index.getAllRanges().sort((a: { gridRange: unknown }, b: { gridRange: unknown }) =>
-			JSON.stringify(a.gridRange).localeCompare(JSON.stringify(b.gridRange))
-		);
+		const ranges = index.getAllRanges();
 		return { name, ranges };
 	});
 
-	const referenceResult = JSON.stringify(results[0].ranges);
+	// Normalize GridRange for comparison (property order doesn't matter)
+	const normalize = (range: { gridRange: GoogleAppsScript.Sheets.Schema.GridRange; value: string }) => {
+		const g = range.gridRange;
+		return {
+			startRowIndex: g.startRowIndex,
+			endRowIndex: g.endRowIndex,
+			startColumnIndex: g.startColumnIndex,
+			endColumnIndex: g.endColumnIndex,
+			value: range.value,
+		};
+	};
 
-	for (const result of results) {
-		if (JSON.stringify(result.ranges) !== referenceResult) {
+	const sortKey = (r: ReturnType<typeof normalize>) =>
+		`${r.startRowIndex ?? 0},${r.endRowIndex ?? Infinity},${r.startColumnIndex ?? 0},${
+			r.endColumnIndex ?? Infinity
+		},${r.value}`;
+
+	const referenceNormalized = results[0].ranges.map(normalize).sort((a, b) => sortKey(a).localeCompare(sortKey(b)));
+
+	for (const result of results.slice(1)) {
+		const resultNormalized = result.ranges.map(normalize).sort((a, b) => sortKey(a).localeCompare(sortKey(b)));
+		if (JSON.stringify(resultNormalized) !== JSON.stringify(referenceNormalized)) {
 			throw new Error(`${result.name} produced different results than ${results[0].name}`);
 		}
 	}
@@ -43,9 +59,9 @@ Deno.test('All implementations produce identical results', () => {
 
 Deno.test('Performance comparison across implementations', () => {
 	const implementations = [
-		{ name: 'LinearScan', Class: LinearScanImpl },
-		{ name: 'CompactLinearScan', Class: CompactLinearScanImpl },
-		{ name: 'OptimizedLinearScan', Class: OptimizedLinearScanImpl },
+		{ name: 'MortonLinearScan', Class: MortonLinearScanImpl },
+		{ name: 'CompactMortonLinearScan', Class: CompactMortonLinearScanImpl },
+		{ name: 'RTree', Class: RTreeImpl },
 	];
 
 	const operations = Array.from({ length: 100 }, (_, i) => ({
@@ -81,9 +97,9 @@ Deno.test('Performance comparison across implementations', () => {
 
 Deno.test('Memory efficiency validation', () => {
 	const implementations = [
-		{ name: 'LinearScan', Class: LinearScanImpl },
-		{ name: 'CompactLinearScan', Class: CompactLinearScanImpl },
-		{ name: 'OptimizedLinearScan', Class: OptimizedLinearScanImpl },
+		{ name: 'MortonLinearScan', Class: MortonLinearScanImpl },
+		{ name: 'CompactMortonLinearScan', Class: CompactMortonLinearScanImpl },
+		{ name: 'RTree', Class: RTreeImpl },
 	];
 
 	const operations = Array.from({ length: 200 }, (_, i) => ({

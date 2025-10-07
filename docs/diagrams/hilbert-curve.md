@@ -154,6 +154,7 @@ x = (x | (x << 1)) & 0x55555555;
 ```
 
 See:
+
 - **Production**: `src/implementations/mortonlinearscan.ts`
 - **Archived**: `archive/src/implementations/superseded/hilbertlinearscan.ts`
 - **Analysis**: `docs/analyses/morton-vs-hilbert-analysis.md`

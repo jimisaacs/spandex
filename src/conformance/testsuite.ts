@@ -445,6 +445,96 @@ export function testSpatialIndexAxioms(config: TestConfig): void {
 			throw new Error('Small coordinate range lost after large insertion');
 		}
 	});
+
+	// ========================================================================
+	// FRAGMENT COUNT VERIFICATION (Canonical correctness check)
+	// ========================================================================
+
+	Deno.test(`${name} - Fragment count correctness (large-overlapping scenario)`, () => {
+		// This scenario is deterministic and MUST produce exactly 1375 fragments
+		// for correct implementations. Any deviation indicates a coordinate bug
+		// or algorithmic issue.
+		const EXPECTED_FRAGMENT_COUNT = 1375;
+
+		const largeOverlapping = Array.from({ length: 1250 }, (_, i) => ({
+			range: {
+				startRowIndex: Math.floor(i / 5),
+				endRowIndex: Math.floor(i / 5) + 5,
+				startColumnIndex: i % 10,
+				endColumnIndex: (i % 10) + 5,
+			},
+			value: `overlap_${i}`,
+		}));
+
+		const index = new IndexClass();
+		largeOverlapping.forEach((op) => index.insert(op.range, op.value));
+
+		const fragmentCount = index.getAllRanges().length;
+
+		if (fragmentCount !== EXPECTED_FRAGMENT_COUNT) {
+			throw new Error(
+				`Fragment count mismatch! Expected ${EXPECTED_FRAGMENT_COUNT} but got ${fragmentCount}.\n` +
+					`This indicates a coordinate swap bug or incorrect geometric subtraction.\n` +
+					`All correct implementations must produce exactly ${EXPECTED_FRAGMENT_COUNT} fragments.`,
+			);
+		}
+
+		assertInvariants(index, 'large-overlapping scenario');
+		console.log(`✓ Fragment count correct: ${fragmentCount} (matches canonical reference)`);
+	});
+
+	Deno.test(`${name} - Cross-implementation fragment consistency`, () => {
+		// Verify this implementation produces the same fragment count as reference
+		// This catches subtle algorithmic differences that might not violate invariants
+		// but produce different decompositions.
+
+		const testScenarios = [
+			{
+				name: 'small-overlapping',
+				ops: Array.from({ length: 50 }, (_, i) => ({
+					range: {
+						startRowIndex: Math.floor(i / 3),
+						endRowIndex: Math.floor(i / 3) + 3,
+						startColumnIndex: i % 5,
+						endColumnIndex: (i % 5) + 3,
+					},
+					value: `s_${i}`,
+				})),
+			},
+			{
+				name: 'diagonal-pattern',
+				ops: Array.from({ length: 20 }, (_, i) => ({
+					range: {
+						startRowIndex: i * 2,
+						endRowIndex: i * 2 + 5,
+						startColumnIndex: i * 2,
+						endColumnIndex: i * 2 + 5,
+					},
+					value: `d_${i}`,
+				})),
+			},
+		];
+
+		for (const scenario of testScenarios) {
+			const refIndex = new config.reference();
+			scenario.ops.forEach((op) => refIndex.insert(op.range, op.value));
+			const refCount = refIndex.getAllRanges().length;
+
+			const implIndex = new IndexClass();
+			scenario.ops.forEach((op) => implIndex.insert(op.range, op.value));
+			const implCount = implIndex.getAllRanges().length;
+
+			if (refCount !== implCount) {
+				throw new Error(
+					`Fragment count mismatch in ${scenario.name} scenario!\n` +
+						`Reference produced ${refCount} fragments, but ${name} produced ${implCount}.\n` +
+						`Implementations must produce identical fragment counts for correctness.`,
+				);
+			}
+		}
+
+		console.log(`✓ Fragment counts match reference implementation across all test scenarios`);
+	});
 }
 
 export function testImplementationEquivalence(config: TestConfig): void {

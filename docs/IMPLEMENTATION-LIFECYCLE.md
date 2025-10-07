@@ -116,7 +116,7 @@ You can create one-off benchmarks that compare active vs archived implementation
 /// <reference types="@types/google-apps-script" />
 
 // Import active implementations directly
-import MortonLinearScanImpl from '../../src/implementations/hilbertlinearscan.ts';
+import MortonLinearScanImpl from '../../src/implementations/mortonlinearscan.ts';
 import RTreeImpl from '../../src/implementations/rtree.ts';
 
 // Import archived implementation directly

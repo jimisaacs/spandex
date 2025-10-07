@@ -39,6 +39,7 @@ archive/docs/           # Rejected experiments
 
 | File                     | Finding                                             |
 | ------------------------ | --------------------------------------------------- |
+| compact-morton-analysis  | Simplified encoding beats complex Morton by 20%     |
 | hilbert-curve-analysis   | Spatial locality → 2x speedup                       |
 | sparse-data-analysis     | Linear scan wins for n<100                          |
 | transition-zone-analysis | Crossover points vary by workload                   |

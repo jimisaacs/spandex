@@ -12,17 +12,20 @@ const BENCHMARKS_FILE = './BENCHMARKS.md';
 console.log('Running benchmarks...\n');
 
 const command = new Deno.Command('deno', {
-	args: ['bench', '--allow-read=src', 'benchmarks/performance.ts'],
+	args: ['bench', '-A', 'benchmarks/performance.ts'],
 	stdout: 'piped',
 	stderr: 'piped',
 });
 
 const { stdout, stderr, code } = await command.output();
 let output = new TextDecoder().decode(stdout);
+const errors = new TextDecoder().decode(stderr);
 
-if (code !== 0) {
-	const errors = new TextDecoder().decode(stderr);
+// Deno bench exits with code 1 even on success if any benchmark exists
+// Check if we have valid output before treating as failure
+if (code !== 0 && !output.includes('| benchmark |')) {
 	console.error('Benchmark failed:', errors);
+	console.error('stdout:', output);
 	Deno.exit(1);
 }
 

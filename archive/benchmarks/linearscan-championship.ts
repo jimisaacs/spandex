@@ -10,7 +10,7 @@
  */
 
 import ArrayBufferLinearScanImpl from '../src/implementations/superseded/arraybufferlinearscan.ts';
-import CompactLinearScanImpl from '../../src/implementations/compactlinearscan.ts';
+import CompactLinearScanImpl from '../src/implementations/superseded/compactlinearscan.ts';
 import LinearScanImpl from '../src/implementations/superseded/linearscan.ts';
 import OptimizedLinearScanImpl from '../src/implementations/superseded/optimizedlinearscan.ts';
 

@@ -127,7 +127,7 @@ deno task unarchive:impl <name>             # Restore from archive
 **Current active implementations** (see `src/implementations/` directory):
 
 - **Spatial locality optimized linear scan** - Production choice for sparse data (n < 100), uses Morton curve (Z-order) for spatial locality
-- **Compact linear scan** - Smallest bundle size (~1.2KB), acceptable performance
+- **Compact Morton linear scan** - Bundle-critical use cases (~1.6KB), 2.4x faster than old CompactLinearScan with only 32% size increase
 - __R-Tree with R_ split_* - Production choice for large data (n ≥ 100), O(log n) hierarchical indexing
 
 **Archived implementations** (see `archive/src/implementations/` for historical research):
@@ -152,6 +152,14 @@ All implementations are auto-discovered by benchmarks from their filesystem loca
 - Pathological patterns to validate O(n) fragmentation bound
 - Concentric, diagonal, checkerboard, random patterns
 - Validates geometric bounds under worst-case inputs
+
+**Fragment Count Verification** (src/conformance/testsuite.ts:450-537):
+
+- **Canonical correctness check**: Large-overlapping scenario MUST produce exactly 1375 fragments
+- **Cross-implementation consistency**: All implementations must produce identical fragment counts
+- **Purpose**: Catches coordinate bugs and algorithmic differences that pass invariant tests but produce incorrect decompositions
+
+**Testing Philosophy**: Tests that pass while benchmarks fail indicate misconfigured tests, not correct code.
 
 ### Key Invariants
 
@@ -318,6 +326,26 @@ See docs/active/README.md for full workflow details.
 - Frame findings as "current understanding" not "conclusions"
 
 ## Important Concepts
+
+### Internal Representation vs External Semantics
+
+**Principle**: Algorithm internals should optimize for performance/compactness, not semantic constraints from external APIs.
+
+**Key rule**: Semantic constraints (e.g., "Google Sheets coordinates start at 0") apply only at **API boundaries** (input/output), NOT internally.
+
+**Why this matters**:
+
+- Internal representation should be whatever is most performant (fewer branches, better symmetry)
+- Conversion happens at boundaries: `Input → [convert] → Internal (optimized) → [convert] → Output`
+- Don't impose semantic constraints internally unless they provide performance/correctness benefit
+
+**Examples in codebase**:
+
+- ✅ **RTree**: Uses `NEG_INF/POS_INF` constants instead of `Infinity` (works with TypedArrays, symmetric)
+- ✅ **MortonLinearScan**: Uses `MAX_COORD = 65536` constant (avoids `Infinity` checks in hot paths)
+- ✅ **CompactMortonLinearScan**: Uses `MAX_COORD = 65536` constant (matches Morton, optimized for performance)
+
+**See**: docs/active/semantic-vs-performance-principle.md for detailed rationale and optimization opportunities.
 
 ### Half-Open Intervals
 

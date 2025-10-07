@@ -10,9 +10,8 @@
 
 import { assertLess } from '@std/assert';
 import MortonLinearScanImpl from '../src/implementations/mortonlinearscan.ts';
+import CompactMortonLinearScanImpl from '../src/implementations/compactmortonlinearscan.ts';
 import RTreeImpl from '../src/implementations/rtree.ts';
-
-type GridRange = GoogleAppsScript.Sheets.Schema.GridRange;
 
 Deno.test('Adversarial: Concentric rectangles (maximize overlaps)', () => {
 	const index = new MortonLinearScanImpl<string>();
@@ -109,6 +108,39 @@ Deno.test('Adversarial: Checkerboard (maximize decomposition)', () => {
 
 	// 60 total inserts → should have < 240 ranges (4x factor)
 	assertLess(afterHoles, 240, `Expected O(n), got ${afterHoles} ranges from 60 inserts`);
+});
+
+Deno.test('Adversarial: CompactMorton under same patterns', () => {
+	const index = new CompactMortonLinearScanImpl<string>();
+	const fragmentCounts: number[] = [];
+
+	// Same concentric pattern as MortonLinearScan test
+	for (let i = 0; i < 100; i++) {
+		const size = 100 - i; // Shrinking from outside-in
+		index.insert({
+			startRowIndex: i,
+			endRowIndex: 100 - i,
+			startColumnIndex: i,
+			endColumnIndex: 100 - i,
+		}, `value${i}`);
+
+		fragmentCounts.push(index.size);
+	}
+
+	const finalCount = fragmentCounts[99];
+	const avgFragments = finalCount / 100;
+
+	console.log(
+		`CompactMorton concentric pattern: ${finalCount} final ranges, ${avgFragments.toFixed(2)}x avg fragmentation`,
+	);
+
+	// Same O(n) bound should apply
+	assertLess(
+		finalCount,
+		400,
+		`CompactMorton should have O(n) fragmentation, got ${finalCount} ranges after 100 inserts`,
+	);
+	assertLess(avgFragments, 5, 'CompactMorton fragmentation should be bounded');
 });
 
 Deno.test('Adversarial: RTree under same patterns', () => {

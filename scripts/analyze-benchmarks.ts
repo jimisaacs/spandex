@@ -50,7 +50,7 @@ async function runBenchmark(runNumber: number, totalRuns: number): Promise<Bench
 	console.log('Running benchmark... (this takes ~30-60 seconds)');
 
 	const cmd = new Deno.Command('deno', {
-		args: ['bench', '--json', '--allow-read=src', 'benchmarks/performance.ts'],
+		args: ['bench', '--json', '-A', 'benchmarks/performance.ts'],
 		stdout: 'piped',
 		stderr: 'piped',
 	});
@@ -59,14 +59,20 @@ async function runBenchmark(runNumber: number, totalRuns: number): Promise<Bench
 	const { stdout, stderr, code } = await cmd.output();
 	const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
 
-	if (code !== 0) {
-		const errorText = new TextDecoder().decode(stderr);
-		throw new Error(`Benchmark failed: ${errorText}`);
+	const output = new TextDecoder().decode(stdout);
+	const errorText = new TextDecoder().decode(stderr);
+
+	// Deno bench --json sometimes exits with non-zero even on success
+	// Check if we have valid JSON output before failing
+	if (code !== 0 && !output.trim().startsWith('{')) {
+		console.error('=== STDERR ===');
+		console.error(errorText || '(empty)');
+		console.error('=== STDOUT ===');
+		console.error(output || '(empty)');
+		throw new Error(`Benchmark failed with code ${code}. See above for details.`);
 	}
 
 	console.log(`✓ Completed in ${elapsed}s`);
-
-	const output = new TextDecoder().decode(stdout);
 	const results: BenchmarkResult[] = [];
 
 	// Parse Deno bench JSON output

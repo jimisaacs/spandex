@@ -181,19 +181,22 @@ export default class MortonLinearScanImpl<T> implements SpatialIndex<T> {
 
 	private toInclusive(gridRange: GridRange): Rectangle {
 		return [
-			gridRange.startRowIndex ?? 0,
 			gridRange.startColumnIndex ?? 0,
-			(gridRange.endRowIndex ?? MAX_COORD) - 1,
+			gridRange.startRowIndex ?? 0,
 			(gridRange.endColumnIndex ?? MAX_COORD) - 1,
+			(gridRange.endRowIndex ?? MAX_COORD) - 1,
 		];
 	}
 
 	private toExclusive(rect: Rectangle): GridRange {
+		// Convert internal MAX_COORD back to undefined (represents infinite range)
+		const endCol = rect[2] + 1;
+		const endRow = rect[3] + 1;
 		return {
-			startRowIndex: rect[0],
-			startColumnIndex: rect[1],
-			endRowIndex: rect[2] + 1,
-			endColumnIndex: rect[3] + 1,
+			startColumnIndex: rect[0] === 0 ? undefined : rect[0],
+			startRowIndex: rect[1] === 0 ? undefined : rect[1],
+			endColumnIndex: endCol === MAX_COORD ? undefined : endCol,
+			endRowIndex: endRow === MAX_COORD ? undefined : endRow,
 		};
 	}
 
@@ -207,10 +210,14 @@ export default class MortonLinearScanImpl<T> implements SpatialIndex<T> {
 
 		const fragments: Rectangle[] = [];
 
-		if (ax1 < bx1) fragments.push([ax1, ay1, Math.min(bx1 - 1, ax2), ay2]);
-		if (ax2 > bx2) fragments.push([Math.max(bx2 + 1, ax1), ay1, ax2, ay2]);
-		if (ay1 < by1) fragments.push([Math.max(ax1, bx1), ay1, Math.min(ax2, bx2), Math.min(by1 - 1, ay2)]);
-		if (ay2 > by2) fragments.push([Math.max(ax1, bx1), Math.max(by2 + 1, ay1), Math.min(ax2, bx2), ay2]);
+		// Top strip (before B starts in y direction)
+		if (ay1 < by1) fragments.push([ax1, ay1, ax2, by1 - 1]);
+		// Bottom strip (after B ends in y direction)
+		if (ay2 > by2) fragments.push([ax1, by2 + 1, ax2, ay2]);
+		// Left strip
+		if (ax1 < bx1) fragments.push([ax1, Math.max(ay1, by1), bx1 - 1, Math.min(ay2, by2)]);
+		// Right strip
+		if (ax2 > bx2) fragments.push([bx2 + 1, Math.max(ay1, by1), ax2, Math.min(ay2, by2)]);
 
 		return fragments.filter((f) => f[0] <= f[2] && f[1] <= f[3]);
 	}

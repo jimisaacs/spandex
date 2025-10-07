@@ -130,10 +130,8 @@ deno task test               # All tests
 deno task bench              # Run benchmarks
 deno task bench:update       # Regenerate BENCHMARKS.md
 deno task bench:analyze      # Statistical analysis (5 runs, ~4-5 min)
-deno task test:linearscan    # Test specific implementation
-deno task test:hilbert       # ...
-deno task test:compact       # ...
-deno task test:optimized     # ...
+deno task test:morton        # Test specific implementation
+deno task test:compactmorton # ...
 deno task test:rtree         # ...
 deno task fmt                # Format
 deno task lint               # Lint
@@ -153,9 +151,9 @@ deno task check              # Type check
 ```
 src/
 ├── implementations/        # Active implementations (see directory for current list)
-│   ├── hilbertlinearscan.ts          # ✅ Production: O(n), n<100
-│   ├── rtree.ts                      # ✅ Production: O(log n), n≥100
-│   └── compactlinearscan.ts          # ✅ Production: smallest bundle
+│   ├── mortonlinearscan.ts           # ✅ Production: O(n), n<100
+│   ├── compactmortonlinearscan.ts    # ✅ Production: smallest bundle
+│   └── rtree.ts                      # ✅ Production: O(log n), n≥100
 └── conformance/            # Axiom-based testing
     ├── testsuite.ts                  # Test axioms + property tests
     └── mod.ts                        # Exports
