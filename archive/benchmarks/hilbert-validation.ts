@@ -7,7 +7,7 @@
  */
 
 import ArrayBufferLinearScanImpl from '../src/implementations/superseded/arraybufferlinearscan.ts';
-import HilbertLinearScanImpl from '../../src/implementations/hilbertlinearscan.ts';
+import HilbertLinearScanImpl from '../src/implementations/superseded/hilbertlinearscan.ts';
 import RTreeImpl from '../../src/implementations/rtree.ts';
 
 type GridRange = GoogleAppsScript.Sheets.Schema.GridRange;

@@ -12,7 +12,7 @@
 type GridRange = GoogleAppsScript.Sheets.Schema.GridRange;
 
 // Active implementations
-import HilbertLinearScanImpl from '../src/implementations/hilbertlinearscan.ts';
+import MortonLinearScanImpl from '../src/implementations/mortonlinearscan.ts';
 import RTreeImpl from '../src/implementations/rtree.ts';
 
 // Archived implementations
@@ -21,7 +21,7 @@ import ArrayBufferRTreeImpl from '../archive/src/implementations/superseded/arra
 import HybridRTreeImpl from '../archive/src/implementations/failed-experiments/hybridrtree.ts';
 
 const implementations = [
-	{ name: 'HilbertLinearScan (active)', Class: HilbertLinearScanImpl, category: 'active' },
+	{ name: 'MortonLinearScan (active)', Class: MortonLinearScanImpl, category: 'active' },
 	{ name: 'LinearScan (archived-superseded)', Class: LinearScanImpl, category: 'archived' },
 	{ name: 'RTree (active)', Class: RTreeImpl, category: 'active' },
 	{ name: 'ArrayBufferRTree (archived-superseded)', Class: ArrayBufferRTreeImpl, category: 'archived' },

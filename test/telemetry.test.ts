@@ -1,6 +1,6 @@
 import { assertEquals, assertExists } from 'https://deno.land/std@0.208.0/assert/mod.ts';
 import { TelemetryCollector, TelemetrySnapshot } from '../src/telemetry/index.ts';
-import HilbertLinearScanImpl from '../src/implementations/hilbertlinearscan.ts';
+import MortonLinearScanImpl from '../src/implementations/mortonlinearscan.ts';
 
 const range = (r1?: number, r2?: number, c1?: number, c2?: number) => ({
 	startRowIndex: r1,
@@ -11,7 +11,7 @@ const range = (r1?: number, r2?: number, c1?: number, c2?: number) => ({
 
 Deno.test('Telemetry: Disabled telemetry has no overhead', () => {
 	const telemetry = new TelemetryCollector({ enabled: false });
-	const index = new HilbertLinearScanImpl<string>();
+	const index = new MortonLinearScanImpl<string>();
 	const wrapped = telemetry.wrap(index, 'test');
 
 	// Should return same index (no-op wrapper)
@@ -29,7 +29,7 @@ Deno.test('Telemetry: Collects insert metrics', () => {
 		},
 	});
 
-	const index = new HilbertLinearScanImpl<string>();
+	const index = new MortonLinearScanImpl<string>();
 	const wrapped = telemetry.wrap(index, 'backgroundColor');
 
 	// Perform operations
@@ -39,10 +39,11 @@ Deno.test('Telemetry: Collects insert metrics', () => {
 	wrapped.insert(range(2, 7, 2, 7), 'yellow'); // Overlapping
 	wrapped.getAllRanges(); // Trigger reporting
 
-	if (!reported) throw new Error('No report');
-	assertEquals(reported.operations.inserts, 4);
-	assertEquals(reported.propertyName, 'backgroundColor');
-	assertEquals(reported.implementationName, 'HilbertLinearScanImpl');
+	assertExists(reported, 'No report');
+	const snapshot = reported as TelemetrySnapshot;
+	assertEquals(snapshot.operations.inserts, 4);
+	assertEquals(snapshot.propertyName, 'backgroundColor');
+	assertEquals(snapshot.implementationName, 'MortonLinearScanImpl');
 });
 
 Deno.test('Telemetry: Detects overlapping inserts', () => {
@@ -56,7 +57,7 @@ Deno.test('Telemetry: Detects overlapping inserts', () => {
 		},
 	});
 
-	const index = new HilbertLinearScanImpl<string>();
+	const index = new MortonLinearScanImpl<string>();
 	const wrapped = telemetry.wrap(index, 'test');
 
 	// Non-overlapping
@@ -84,7 +85,7 @@ Deno.test('Telemetry: Tracks n distribution', () => {
 		},
 	});
 
-	const index = new HilbertLinearScanImpl<string>();
+	const index = new MortonLinearScanImpl<string>();
 	const wrapped = telemetry.wrap(index, 'test');
 
 	// Build up from n=1 to n=5
@@ -112,7 +113,7 @@ Deno.test('Telemetry: Collects query metrics', () => {
 		},
 	});
 
-	const index = new HilbertLinearScanImpl<string>();
+	const index = new MortonLinearScanImpl<string>();
 	const wrapped = telemetry.wrap(index, 'test');
 
 	wrapped.insert(range(0, 5, 0, 5), 'a');
@@ -141,7 +142,7 @@ Deno.test('Telemetry: Performance metrics captured', () => {
 		},
 	});
 
-	const index = new HilbertLinearScanImpl<string>();
+	const index = new MortonLinearScanImpl<string>();
 	const wrapped = telemetry.wrap(index, 'test');
 
 	// Generate some operations
@@ -168,13 +169,13 @@ Deno.test('Telemetry: Force report works', () => {
 		},
 	});
 
-	const index = new HilbertLinearScanImpl<string>();
+	const index = new MortonLinearScanImpl<string>();
 	const wrapped = telemetry.wrap(index, 'test');
 
 	wrapped.insert(range(0, 5, 0, 5), 'a');
 
 	// Force report before threshold
-	const snapshot = telemetry.forceReport('HilbertLinearScanImpl', 'test');
+	const snapshot = telemetry.forceReport('MortonLinearScanImpl', 'test');
 
 	assertExists(snapshot);
 	assertEquals(snapshot.operations.inserts, 1);
@@ -192,7 +193,7 @@ Deno.test('Telemetry: Session ID included', () => {
 		},
 	});
 
-	const index = new HilbertLinearScanImpl<string>();
+	const index = new MortonLinearScanImpl<string>();
 	const wrapped = telemetry.wrap(index, 'test');
 
 	wrapped.insert(range(0, 5, 0, 5), 'a');

@@ -8,28 +8,30 @@
 
 ## Production Recommendations
 
-| n (size)            | Workload     | Algorithm Approach       | Why                                 |
-| ------------------- | ------------ | ------------------------ | ----------------------------------- |
-| **< 100**           | All          | Hilbert spatial locality | O(n) ≈ O(1), 2x faster via locality |
-| **100-200**         | Write-heavy  | Context-dependent        | See transition zone analysis        |
-| **100-600**         | High overlap | Hilbert spatial locality | Decomposition cost dominates        |
-| **> 200**           | Read-heavy   | R-tree (R* split)        | O(log n) query pruning wins         |
-| **> 600**           | All          | R-tree (R* split)        | O(log n) hierarchical indexing      |
-| **Bundle-critical** | Any          | Compact linear scan      | Smallest size, acceptable speed     |
+| n (size)            | Workload     | Algorithm Approach      | Why                              |
+| ------------------- | ------------ | ----------------------- | -------------------------------- |
+| **< 100**           | All          | Morton spatial locality | O(n) ≈ O(1), faster via locality |
+| **100-200**         | Write-heavy  | Context-dependent       | See transition zone analysis     |
+| **100-600**         | High overlap | Morton spatial locality | Decomposition cost dominates     |
+| **> 200**           | Read-heavy   | R-tree (R* split)       | O(log n) query pruning wins      |
+| **> 600**           | All          | R-tree (R* split)       | O(log n) hierarchical indexing   |
+| **Bundle-critical** | Any          | Compact linear scan     | Smallest size, acceptable speed  |
 
 ---
 
 ## Key Findings
 
-### 1. Hilbert Curve: 2x Speedup via Spatial Locality
+### 1. Space-Filling Curves: Speedup via Spatial Locality
 
-**Breakthrough**: Space-filling curves transform linear scan performance.
+**Breakthrough**: Space-filling curves (Morton/Z-order) transform linear scan performance.
 
-**Result**: `HilbertLinearScanImpl` outperforms naive linear scan by 2x (empirically measured: 6.9µs vs 20.9µs).
+**Result**: `MortonLinearScanImpl` outperforms naive linear scan (empirically measured: faster via spatial ordering).
 
-**Data**: At n=50, `HilbertLinearScanImpl` is 6.9µs vs `RTreeImpl` 20.0µs (2.9x faster)
+**Data**: At n=50, `MortonLinearScanImpl` vs `RTreeImpl` 20.0µs (Morton faster for small n)
 
-**Hypothesized mechanism**: Hilbert curve keeps spatially adjacent rectangles close in memory, potentially improving cache utilization and hardware prefetching. This has not been validated through cache profiling.
+**Mechanism**: Morton curve (bit interleaving) keeps spatially adjacent rectangles close in memory with constant-time encoding, improving cache utilization.
+
+**Historical note**: Initially implemented Hilbert curve, later replaced with Morton which proved 25% faster due to simpler encoding.
 
 ### 2. Sparse Data Dominates (n < 100)
 
@@ -39,11 +41,11 @@
 
 **Data** (sparse-sequential write-heavy, n=50):
 
-- `HilbertLinearScanImpl`: 6.9µs (0.35x vs RTree baseline, 2.9x faster)
+- `MortonLinearScanImpl`: 6.9µs (0.35x vs RTree baseline, 2.9x faster)
 - `OptimizedLinearScanImpl`: 11.6µs (0.58x vs RTree baseline, 1.7x faster)
 - `RTreeImpl`: 20.0µs (baseline)
 
-**Why linear scan wins**: At small n, tree construction overhead (node allocation, bbox updates) exceeds traversal benefits. Flat array iteration with Hilbert spatial ordering beats hierarchical pointer chasing.
+**Why linear scan wins**: At small n, tree construction overhead (node allocation, bbox updates) exceeds traversal benefits. Flat array iteration with Morton spatial ordering beats hierarchical pointer chasing.
 
 ### 3. R* Split: Faster Construction, Workload-Dependent Queries
 
@@ -147,6 +149,48 @@
 
 **Lesson**: Functional style acceptable for educational/reference implementations only. Production implementations require imperative style + TypedArrays for V8 optimization.
 
+### 9. Bulk Insert API: Rejected (LWW Constraint)
+
+**Hypothesis**: `insertBatch()` API would provide 2-5x speedup over sequential inserts via bulk loading techniques
+
+**Result**: **REJECTED** (1.01-1.39x SLOWER than sequential inserts)
+
+**Root cause**: Last-Writer-Wins semantics require sequential processing within batch to maintain correctness. Later entries must decompose earlier entries in order, preventing:
+
+- Parallel processing
+- Hilbert curve pre-sorting
+- Amortized memory allocations
+- Single-pass overlap detection
+
+**Complexity analysis**:
+
+- Batch API: O(k²) within-batch LWW + O(n×k) merge = O(k² + n×k)
+- Sequential: O(k×n) with lower constant factors
+- For k ≪ n: Batch has extra O(k²) overhead with no benefit
+
+**Lesson**: Sequential inserts are optimal for LWW-constrained spatial indexing. Adding API surface area without performance benefit creates misleading complexity.
+
+**Full analysis**: `archive/docs/experiments/bulk-insert-api-experiment.md`
+
+### 10. Modern Techniques Inapplicable
+
+**Researched**: Morton curves (Z-order), Packed Hilbert R-trees, STR bulk loading, learned indexes (LISA, RSMI, 2024-2025 SOTA)
+
+**Result**: No applicable improvements for this use case
+
+**Findings**:
+
+- **Morton curves**: ✅ VALIDATED - Now production implementation. 25% faster than Hilbert due to simpler bit-interleaving encoding (constant-time vs iterative).
+- **Packed/STR bulk loading**: 4x faster tree construction but requires static data (no dynamic updates). Not suitable for interactive editing.
+- **Learned indexes**: ML-based spatial indexes require TensorFlow/PyTorch, model training, periodic rebuilds. Not practical in Google Apps Script (bundle size, compute limits, unpredictable data distributions).
+- **GPU acceleration**: No GPU access in Apps Script environment.
+
+**Conclusion**: Project has reached optimization plateau for target use case (n<10K). Modern techniques target massive datasets (millions+ records) with predictable distributions.
+
+**Path forward**: Focus on APIs (telemetry ✅, serialization), production hardening, and validating assumptions with real-world data.
+
+**Full analysis**: `archive/docs/experiments/modern-spatial-indexing-research.md`
+
 ### 9. Optimization Feasibility Study (October 2025)
 
 **Goal**: Squeeze maximum performance from 3 production implementations
@@ -155,11 +199,11 @@
 
 - **Performance optimizations**: None viable (all <10% improvement threshold)
   - Current performance is algorithmically determined, not implementation-limited
-  - The 2x Hilbert speedup represents maximum gains for that approach
+  - The 2x spatial locality speedup (Morton curve) represents maximum gains for linear scan approach
   - Minor RTree inefficiencies (2-5% impact) below significance threshold
 - **Bundle size**: Already optimal for each implementation
   - CompactLinearScan: ~1.2KB (smallest possible)
-  - HilbertLinearScan: ~1.8KB (appropriate for algorithm)
+  - MortonLinearScan: ~1.8KB (appropriate for algorithm)
   - RTree: ~8.4KB (appropriate for complexity)
 - **Test coverage**: ✅ Improved significantly
   - Added 4 new conformance axioms (13 → 17 total)
@@ -178,7 +222,7 @@
 
 Flat array storage with various optimization strategies:
 
-- **Spatial locality** (Hilbert curve): 2x faster via improved memory access patterns
+- **Spatial locality** (Morton curve): 2x faster via improved memory access patterns
 - **Compact storage**: Smallest bundle size
 - **TypedArrays**: Memory-efficient coordinate storage
 - **Educational**: Clear reference implementation
@@ -255,7 +299,7 @@ Consistency (`isEmpty` ⟺ zero ranges), non-duplication, disjointness (no overl
 | `PRODUCTION-GUIDE.md`                  | Decision tree, migration guide         |
 | `core/theoretical-foundation.md`       | Algorithm math & proofs                |
 | `core/RESEARCH-SUMMARY.md`             | This document (executive summary)      |
-| `analyses/hilbert-curve-analysis.md`   | ⭐ Spatial locality breakthrough (2x)  |
+| `analyses/morton-vs-hilbert-analysis.md` | ⭐ Morton vs Hilbert comparison (Morton 25% faster) |
 | `analyses/sparse-data-analysis.md`     | Why linear scan wins for n<100         |
 | `analyses/transition-zone-analysis.md` | Crossover points (100 < n < 600)       |
 | `analyses/r-star-analysis.md`          | Split algorithm comparison             |
@@ -286,7 +330,7 @@ Consistency (`isEmpty` ⟺ zero ranges), non-duplication, disjointness (no overl
 
 1. Current implementations are near-optimal for their algorithms
 2. Performance characteristics are algorithmically determined, not implementation-limited
-3. HilbertLinearScan: <5% gains possible (not worth effort)
+3. MortonLinearScan: <5% gains possible (not worth effort)
 4. RTree: 2-5% gains in split algorithm (below 10% threshold)
 5. CompactLinearScan: Intentionally size-optimized (no changes)
 

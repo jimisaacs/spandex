@@ -19,9 +19,9 @@ Spatial indexing research for 2D range decomposition in spreadsheet systems. Mai
 ### Testing
 
 ```bash
-deno task test                    # Run all active tests (101 tests)
+deno task test                    # Run all active tests (55 tests)
 deno task test:watch              # Watch mode
-deno task test:hilbert            # Test specific implementation
+deno task test:morton             # Test specific implementation
 deno task test:rtree              # Test specific implementation
 deno task test:adversarial        # Worst-case fragmentation tests
 deno test test/specific.test.ts   # Run single test file
@@ -33,11 +33,56 @@ deno test test/specific.test.ts   # Run single test file
 deno task bench                                      # Run active implementations only (default)
 deno task bench:archived                             # Include archived implementations (opt-in)
 deno task bench:update                               # Regenerate BENCHMARKS.md (auto-discovers implementations)
-deno task bench:analyze <runs> <output-file>         # Statistical analysis (e.g., 5 runs, ~4-5 min)
+deno task bench:analyze <runs> <output-file>         # Statistical analysis (WARNING: 20-30 min for 5 runs)
+
+# Statistical analysis - always overwrites benchmark-statistics.md
+deno task bench:analyze 5 docs/analyses/benchmark-statistics.md  # Standard (20-30 min)
+deno task bench:analyze 3 docs/analyses/benchmark-statistics.md  # Quick validation (10-15 min, less rigorous)
 
 # Advanced options
 deno task bench -- --exclude=CompactRTree            # Exclude specific impl
 deno task bench -- --include-archived                # Same as bench:archived
+```
+
+**⚠️ IMPORTANT: `bench:analyze` Output File**
+
+Always outputs to: `docs/analyses/benchmark-statistics.md`
+
+- **Purpose**: Statistical validation of current active implementations
+- **Usage**: `deno task bench:analyze 5 docs/analyses/benchmark-statistics.md`
+- **Behavior**: OVERWRITES existing file (this is the canonical stats file)
+- **When**: After replacing an implementation (e.g., Hilbert→Morton) or adding new active implementation
+- **Content**: Performance rankings, CV% stability, detailed scenario breakdowns for all active implementations
+
+**Note**: Don't create separate experiment result files - just overwrite `benchmark-statistics.md` when the experiment concludes and becomes production. The experiment hypothesis/methodology goes in `docs/analyses/[name]-analysis.md`, not in a separate stats file.
+
+**⚠️ IMPORTANT: `bench:analyze` Duration**
+
+The statistical analysis command runs VERY SLOWLY:
+
+- **5 runs**: 20-30 minutes (recommended minimum for statistical validity)
+- **3 runs**: 10-15 minutes (quick validation, less confidence)
+- Each run: ~90 seconds × (number of implementations × number of scenarios)
+- Includes 3-second cooldown between runs
+
+**When to run**:
+
+- ✅ After major implementation changes (e.g., replacing algorithm)
+- ✅ When comparing archived vs active implementations
+- ✅ For research experiments requiring statistical rigor (CV%, confidence intervals)
+- ❌ NOT for quick checks (use `deno task bench` instead - takes ~2 min)
+
+**Typical usage**:
+
+```bash
+# Run in background (recommended)
+nohup deno run --allow-read --allow-write --allow-run scripts/analyze-benchmarks.ts 5 output.md > /tmp/bench.log 2>&1 &
+
+# Monitor progress
+tail -f /tmp/bench.log
+
+# Quick 3-run analysis for validation (10-15 min)
+deno task bench:analyze 3 docs/analyses/quick-check.md
 ```
 
 **Benchmark Philosophy**: "Active by default, archived by choice"
@@ -81,7 +126,7 @@ deno task unarchive:impl <name>             # Restore from archive
 
 **Current active implementations** (see `src/implementations/` directory):
 
-- **Spatial locality optimized linear scan** - Production choice for sparse data (n < 100), uses Hilbert curve for 2x speedup
+- **Spatial locality optimized linear scan** - Production choice for sparse data (n < 100), uses Morton curve (Z-order) for spatial locality
 - **Compact linear scan** - Smallest bundle size (~1.2KB), acceptable performance
 - __R-Tree with R_ split_* - Production choice for large data (n ≥ 100), O(log n) hierarchical indexing
 
@@ -163,31 +208,43 @@ Benchmarks automatically exclude archived implementations (based on filesystem l
 
 ```
 1. Create hypothesis → docs/active/experiments/[name]-experiment.md
-2. Run benchmarks → docs/active/experiments/[name]-results.md
-3. Analyze results → Update experiment.md with status
+2. Run benchmarks → OVERWRITES docs/analyses/benchmark-statistics.md
+3. Document findings → docs/analyses/[name]-analysis.md
 4. Resolution:
-   ✅ VALIDATED → Move findings to docs/analyses/
-   ❌ REJECTED → Move full docs to archive/docs/experiments/
+   ✅ VALIDATED → Update RESEARCH-SUMMARY.md, DELETE experiment doc
+   ❌ REJECTED → Move experiment doc to archive/docs/experiments/
 5. Clean workspace → DELETE from docs/active/experiments/
 ```
+
+**Key insight**: `benchmark-statistics.md` is generic stats (win rates, CV%), not experiment-specific. Always overwrite it, don't create variants.
 
 **Full workflow**:
 
 1. **Start experiment**: Create `docs/active/experiments/[name]-experiment.md` with hypothesis
 2. **Implement**: Create `src/implementations/[name].ts` + `test/[name].test.ts` + add to benchmarks
-3. **Run analysis**: `deno task bench:analyze 5 docs/active/experiments/[name]-results.md`
-4. **Update status**: Mark experiment doc with ✅ VALIDATED or ❌ REJECTED
-5. **Resolution**:
-   - ✅ **VALIDATED**: Create `docs/analyses/[name]-analysis.md`, update `docs/core/RESEARCH-SUMMARY.md`, keep implementation active
+3. **Run analysis**: `deno task bench:analyze 5 docs/analyses/benchmark-statistics.md` (⚠️ 20-30 min)
+   - **CRITICAL**: Always outputs to `benchmark-statistics.md` (OVERWRITES, don't create experiment-specific files)
+   - The data is generic (win rates, CV%, scenarios) - same structure for all experiments
+4. **Document findings**: Create `docs/analyses/[name]-analysis.md` with hypothesis, methodology, outcome
+5. **Update status**: Mark experiment doc with ✅ VALIDATED or ❌ REJECTED
+6. **Resolution**:
+   - ✅ **VALIDATED**: Update `docs/core/RESEARCH-SUMMARY.md`, keep implementation active, DELETE experiment doc
    - ❌ **REJECTED (moving on)**: Move experiment docs to `archive/docs/experiments/`, archive implementation
    - ❌ **REJECTED (might revisit)**: Leave in `active/experiments/` with notes
-6. **Clean workspace**: **DELETE completed experiments from `docs/active/experiments/`**
+7. **Clean workspace**: **DELETE completed experiments from `docs/active/experiments/`**
+
+**File naming convention** (prevents confusion):
+
+- `docs/analyses/benchmark-statistics.md` - Statistical validation (ALWAYS this filename, always overwrite)
+- `docs/analyses/[name]-analysis.md` - Experiment narrative (hypothesis, methodology, findings)
+- `docs/active/experiments/[name]-experiment.md` - Work-in-progress tracking (DELETE when done)
 
 **Before ending any experiment, verify**:
 
-- [ ] Results documented
-- [ ] Findings integrated OR archived
-- [ ] Files removed from `docs/active/experiments/`
+- [ ] Stats regenerated in `benchmark-statistics.md` (overwritten, not created as new file)
+- [ ] Findings documented in `[name]-analysis.md`
+- [ ] Summary updated in `RESEARCH-SUMMARY.md`
+- [ ] Experiment files removed from `docs/active/experiments/`
 - [ ] `ls docs/active/experiments/` shows ONLY in-progress work
 
 **Example**:
@@ -216,15 +273,25 @@ See docs/active/README.md for full workflow details.
 
 **Generated files** (NEVER edit directly):
 
-- `BENCHMARKS.md` - Generated by `deno task bench:update`
-- `docs/analyses/benchmark-statistics.md` - Generated by `deno task bench:analyze`
-- Always update the script, not the output
+- `BENCHMARKS.md` - Generated by `deno task bench:update` (auto-discovers active implementations)
+- `docs/analyses/benchmark-statistics.md` - Generated by `deno task bench:analyze 5 docs/analyses/benchmark-statistics.md` (OVERWRITES existing file)
+
+**Why not edit these files?** Your changes will be lost on next regeneration. If you need to fix:
+
+- **Formatting/wording**: Edit `scripts/update-benchmarks.ts` or `scripts/analyze-benchmarks.ts` (the template generators)
+- **Wrong data**: Fix the source (implementation code, benchmark scenarios), then regenerate
+- **Missing info**: Add to the generating script's output template, then regenerate
+
+**When to regenerate**:
+
+- `BENCHMARKS.md`: After adding/removing/renaming implementations (`deno task bench:update`)
+- `benchmark-statistics.md`: After major implementation changes, to validate statistical properties (`deno task bench:analyze 5 docs/analyses/benchmark-statistics.md`)
 
 **Document process, not state**:
 
 - ❌ **BAD**: List all current implementations by name in structural docs
 - ✅ **GOOD**: Describe algorithm families and optimization strategies, point to `src/implementations/`
-- ❌ **BAD**: "HilbertLinearScanImpl is the production implementation"
+- ❌ **BAD**: "MortonLinearScanImpl is the production implementation"
 - ✅ **GOOD**: "Spatial locality optimization is the production approach"
 
 **When to use specific implementation names**:
@@ -233,7 +300,7 @@ See docs/active/README.md for full workflow details.
 - ✅ **Example code** - Show concrete usage examples
 - ✅ **Operational guides** (PRODUCTION-GUIDE sections) - Show what to import
 - ✅ **Diagram files** - Explain specific algorithm details
-- ✅ **Experimental data** - "HilbertLinearScanImpl achieved 6.9µs" (factual measurement)
+- ✅ **Experimental data** - "MortonLinearScanImpl achieved 6.9µs" (factual measurement)
 - ❌ **Structural docs** (README, summaries) - Use generic terms in prescriptive sections
 - ❌ **Decision tables** - Use algorithm approaches, not class names
 
@@ -272,23 +339,25 @@ Insert algorithm (A \ B → ≤4 fragments):
 - Store B (last-writer-wins)
 - Maintains disjointness invariant
 
-### Hilbert Curve Optimization
+### Space-Filling Curve Optimization
 
-**Empirical Finding** (validated): 2x speedup over naive linear scan (6.9µs vs 20.9µs @ n=50)
+**Current approach**: Morton curve (Z-order) via bit interleaving
 
-**Hypothesized Mechanism** (not validated): Hilbert space-filling curve maps 2D coordinates to 1D while preserving spatial locality. Keeping rectangles sorted by Hilbert index may improve cache utilization and hardware prefetching, but this has not been validated through cache profiling.
+**Empirical Finding** (validated): Morton provides spatial locality benefits with simpler encoding
+
+**Mechanism**: Bit interleaving maps 2D coordinates to 1D while preserving spatial locality. Constant-time encoding (vs iterative Hilbert) provides 25% speedup at small n.
 
 **Limitation**: MAX_COORD = 65,536 (2^16). Coordinates ≥65K wrap/collide but algorithm remains correct (spatial locality may degrade).
 
-See docs/analyses/hilbert-curve-analysis.md for full analysis and distinction between empirical results vs hypothesized mechanisms.
+**Historical note**: Originally used Hilbert curve, replaced with Morton after benchmarking showed 25% improvement. See docs/analyses/morton-vs-hilbert-analysis.md for full experimental analysis.
 
 ### Performance Guidelines
 
-| Ranges          | Use                                  | Performance                     |
-| --------------- | ------------------------------------ | ------------------------------- |
-| < 100           | Spatial locality optimized (Hilbert) | ~7µs @ n=50                     |
-| ≥ 100           | R-Tree with R* split                 | ~20µs @ n=50, ~2ms @ n=2500     |
-| Bundle-critical | Compact linear scan                  | Smallest size, acceptable speed |
+| Ranges          | Use                                 | Performance                     |
+| --------------- | ----------------------------------- | ------------------------------- |
+| < 100           | Spatial locality optimized (Morton) | ~6µs @ n=50                     |
+| ≥ 100           | R-Tree with R* split                | ~20µs @ n=50, ~2ms @ n=2500     |
+| Bundle-critical | Compact linear scan                 | Smallest size, acceptable speed |
 
 See PRODUCTION-GUIDE.md and BENCHMARKS.md for detailed decision tree and current performance data.
 
@@ -333,7 +402,7 @@ See docs/analyses/benchmark-statistics.md for full methodology.
 **Imports**:
 
 ```typescript
-✅ import HilbertLinearScanImpl from '../src/implementations/hilbertlinearscan.ts';
+✅ import MortonLinearScanImpl from '../src/implementations/mortonlinearscan.ts';
 ✅ import HybridRTree from '../archive/src/implementations/failed-experiments/hybridrtree.ts';
 ```
 

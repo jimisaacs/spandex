@@ -1,5 +1,7 @@
 # Optimization Feasibility Study (2025-10-07)
 
+**Historical Note**: This analysis examined HilbertLinearScanImpl (now superseded by MortonLinearScanImpl, which is 25% faster). The findings about optimization opportunities and test coverage improvements remain valid.
+
 ## Executive Summary
 
 Comprehensive analysis of all 3 active implementations for optimization opportunities across performance, bundle size, and test coverage. **Key finding**: Current implementations are near-optimal for their respective algorithms. Test coverage successfully improved with 4 new axioms, but performance optimizations do not meet the >10% improvement threshold.

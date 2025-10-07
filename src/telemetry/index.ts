@@ -1,5 +1,7 @@
 /// <reference types="@types/google-apps-script" />
 
+import type { SpatialIndex } from '../conformance/testsuite.ts';
+
 /**
  * Production Telemetry System
  *
@@ -23,7 +25,7 @@
  *   }
  * });
  *
- * const index = new HilbertLinearScanImpl<string>();
+ * const index = new MortonLinearScanImpl<string>();
  * telemetry.wrap(index, 'backgroundColor');
  * ```
  */
@@ -145,17 +147,16 @@ export class TelemetryCollector {
 	/**
 	 * Wrap a SpatialIndex implementation with telemetry
 	 */
-	wrap<T>(index: any, propertyName: string): any {
+	wrap<T>(index: SpatialIndex<T>, propertyName: string): SpatialIndex<T> {
 		if (!this.config.enabled) {
 			return index; // No-op wrapper if disabled
 		}
 
-		const self = this;
 		const implementationName = index.constructor.name;
 
 		return new Proxy(index, {
-			get(target: any, prop: string) {
-				const original = target[prop];
+			get: (target: SpatialIndex<T>, prop: string) => {
+				const original = target[prop as keyof SpatialIndex<T>];
 
 				if (typeof original !== 'function') {
 					return original;
@@ -163,22 +164,21 @@ export class TelemetryCollector {
 
 				// Intercept insert()
 				if (prop === 'insert') {
-					return function (gridRange: any, value: T) {
+					return (gridRange: GoogleAppsScript.Sheets.Schema.GridRange, value: T) => {
 						const start = performance.now();
-						const nBefore = target.getAllRanges().length;
 
 						// Check if this insert will cause overlap
 						const existingRanges = target.query(gridRange);
 						const hadOverlap = existingRanges.length > 0;
-						const overlapArea = hadOverlap ? self.calculateOverlapArea(gridRange, existingRanges) : 0;
+						const overlapArea = hadOverlap ? this.calculateOverlapArea(gridRange, existingRanges) : 0;
 
 						// Execute original insert
-						const result = original.call(target, gridRange, value);
+						const result = (original as SpatialIndex<T>['insert']).call(target, gridRange, value);
 
 						const duration = performance.now() - start;
 						const nAfter = target.getAllRanges().length;
 
-						self.recordInsert({
+						this.recordInsert({
 							timestamp: Date.now(),
 							durationMs: duration,
 							n: nAfter,
@@ -192,16 +192,16 @@ export class TelemetryCollector {
 
 				// Intercept query()
 				if (prop === 'query') {
-					return function (gridRange: any) {
+					return (gridRange: GoogleAppsScript.Sheets.Schema.GridRange) => {
 						const start = performance.now();
 						const n = target.getAllRanges().length;
-						const queryArea = self.calculateArea(gridRange);
+						const queryArea = this.calculateArea(gridRange);
 
-						const result = original.call(target, gridRange);
+						const result = (original as SpatialIndex<T>['query']).call(target, gridRange);
 
 						const duration = performance.now() - start;
 
-						self.recordQuery({
+						this.recordQuery({
 							timestamp: Date.now(),
 							durationMs: duration,
 							n,
@@ -214,11 +214,11 @@ export class TelemetryCollector {
 
 				// Intercept getAllRanges()
 				if (prop === 'getAllRanges') {
-					return function () {
-						self.getAllRangesCount++;
-						self.operationCount++;
-						self.checkReporting(implementationName, propertyName);
-						return original.call(target);
+					return () => {
+						this.getAllRangesCount++;
+						this.operationCount++;
+						this.checkReporting(implementationName, propertyName);
+						return (original as SpatialIndex<T>['getAllRanges']).call(target);
 					};
 				}
 
@@ -328,13 +328,16 @@ export class TelemetryCollector {
 		return sorted[Math.max(0, index)];
 	}
 
-	private calculateArea(gridRange: any): number {
+	private calculateArea(gridRange: GoogleAppsScript.Sheets.Schema.GridRange): number {
 		const rows = (gridRange.endRowIndex ?? Infinity) - (gridRange.startRowIndex ?? 0);
 		const cols = (gridRange.endColumnIndex ?? Infinity) - (gridRange.startColumnIndex ?? 0);
 		return rows * cols;
 	}
 
-	private calculateOverlapArea(newRange: any, existingRanges: any[]): number {
+	private calculateOverlapArea<T>(
+		newRange: GoogleAppsScript.Sheets.Schema.GridRange,
+		existingRanges: Array<{ gridRange: GoogleAppsScript.Sheets.Schema.GridRange; value: T }>,
+	): number {
 		// Calculate total area of overlap between newRange and existingRanges
 		let totalOverlap = 0;
 		for (const existing of existingRanges) {
@@ -343,7 +346,10 @@ export class TelemetryCollector {
 		return totalOverlap;
 	}
 
-	private calculateIntersectionArea(r1: any, r2: any): number {
+	private calculateIntersectionArea(
+		r1: GoogleAppsScript.Sheets.Schema.GridRange,
+		r2: GoogleAppsScript.Sheets.Schema.GridRange,
+	): number {
 		const r1Start = r1.startRowIndex ?? 0;
 		const r1End = r1.endRowIndex ?? Infinity;
 		const r1cStart = r1.startColumnIndex ?? 0;

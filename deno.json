@@ -11,7 +11,7 @@
 		"test": "deno test test/",
 		"test:watch": "deno test --watch test/",
 		"test:linearscan": "deno test test/linearscan.test.ts",
-		"test:hilbert": "deno test test/hilbertlinearscan.test.ts",
+		"test:morton": "deno test test/mortonlinearscan.test.ts",
 		"test:compact": "deno test test/compactlinearscan.test.ts",
 		"test:optimized": "deno test test/optimizedlinearscan.test.ts",
 		"test:arraybuffer": "deno test test/arraybufferlinearscan.test.ts",

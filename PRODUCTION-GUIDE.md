@@ -14,7 +14,7 @@ Is bundle size critical?
   └─ NO  → Continue
        ↓
      n < 100?
-       ├─ YES → Hilbert spatial locality
+       ├─ YES → Morton spatial locality
        └─ NO  → R-tree (R* split)
 ```
 
@@ -24,18 +24,18 @@ _See sections below for specific implementation names and import statements._
 
 ## Detailed Recommendations
 
-### HilbertLinearScanImpl ✅ Most Common
+### MortonLinearScanImpl ✅ Most Common
 
 n < 100 (typical spreadsheet use). 2x faster via spatial locality.
 
 Performance: 6.9µs @ n=50, 9.5ms @ n=2500
 
 ```typescript
-import HilbertLinearScanImpl from './src/implementations/hilbertlinearscan.ts';
+import MortonLinearScanImpl from './src/implementations/mortonlinearscan.ts';
 
-const backgroundColors = new HilbertLinearScanImpl<string>();
-const fontWeights = new HilbertLinearScanImpl<string>();
-const dataValidation = new HilbertLinearScanImpl<ValidationRule>();
+const backgroundColors = new MortonLinearScanImpl<string>();
+const fontWeights = new MortonLinearScanImpl<string>();
+const dataValidation = new MortonLinearScanImpl<ValidationRule>();
 ```
 
 ---
@@ -62,7 +62,7 @@ for (const range of thousandsOfRanges) {
 
 ### CompactLinearScanImpl (Bundle Size Critical)
 
-Smallest implementation (~1.2KB minified). Slower than Hilbert but acceptable for n < 100.
+Smallest implementation (~1.2KB minified). Slower than Morton but acceptable for n < 100.
 
 ```typescript
 import CompactLinearScanImpl from './src/implementations/compactlinearscan.ts';
@@ -79,7 +79,7 @@ const index = new CompactLinearScanImpl<string>();
 
 | Implementation        | n=50   | n=2500 | Best For              |
 | --------------------- | ------ | ------ | --------------------- |
-| HilbertLinearScanImpl | 6.9µs  | 9.5ms  | Sparse data (n < 100) |
+| MortonLinearScanImpl  | 6.9µs  | 9.5ms  | Sparse data (n < 100) |
 | RTreeImpl             | 20µs   | 1.9ms  | Large data (n ≥ 100)  |
 | CompactLinearScanImpl | 10.7µs | N/A    | Bundle size critical  |
 
@@ -105,9 +105,9 @@ const index = new CompactLinearScanImpl<string>();
 
 | Workload                              | n < 100                  | n ≥ 100           | Notes                                                             |
 | ------------------------------------- | ------------------------ | ----------------- | ----------------------------------------------------------------- |
-| **Write-Heavy** (editing, formatting) | Hilbert spatial locality | R-tree (R* split) | R-tree overhead amortizes at scale                                |
-| **Read-Heavy** (rendering, scrolling) | Hilbert spatial locality | R-tree (R* split) | R* split workload-dependent: equiv sequential, faster overlapping |
-| **Mixed** (collaborative editing)     | Hilbert spatial locality | R-tree (R* split) | Transition zone 100-600: both competitive                         |
+| **Write-Heavy** (editing, formatting) | Morton spatial locality  | R-tree (R* split) | R-tree overhead amortizes at scale                                |
+| **Read-Heavy** (rendering, scrolling) | Morton spatial locality  | R-tree (R* split) | R* split workload-dependent: equiv sequential, faster overlapping |
+| **Mixed** (collaborative editing)     | Morton spatial locality  | R-tree (R* split) | Transition zone 100-600: both competitive                         |
 | **Bundle-Constrained** (<2KB limit)   | Compact linear scan      | N/A               | 1.2KB minified, 10-15% slower, n<100 only                         |
 
 **Transition Zone (100 < n < 600)**: If uncertain, use R-tree - scales better as data grows. See section headers above for specific implementation names to import. See `docs/analyses/transition-zone-analysis.md` for crossover points.
@@ -119,12 +119,12 @@ const index = new CompactLinearScanImpl<string>();
 ### Single Property Index (Typical)
 
 ```typescript
-import HilbertLinearScanImpl from './src/implementations/hilbertlinearscan.ts';
+import MortonLinearScanImpl from './src/implementations/mortonlinearscan.ts';
 
 class SpreadsheetProperties {
-	private backgrounds = new HilbertLinearScanImpl<string>();
-	private fonts = new HilbertLinearScanImpl<string>();
-	private validation = new HilbertLinearScanImpl<Rule>();
+	private backgrounds = new MortonLinearScanImpl<string>();
+	private fonts = new MortonLinearScanImpl<string>();
+	private validation = new MortonLinearScanImpl<Rule>();
 
 	setBackground(range: GridRange, color: string) {
 		this.backgrounds.insert(range, color);
@@ -204,7 +204,7 @@ All implementations share the `SpatialIndex<T>` interface, making migration stra
 **1. Export existing data**:
 
 ```typescript
-const oldIndex = new HilbertLinearScanImpl<string>();
+const oldIndex = new MortonLinearScanImpl<string>();
 // ... populate with data ...
 
 const data = oldIndex.getAllRanges();
@@ -237,14 +237,14 @@ this.backgroundColors = newIndex;
 
 ### Specific Migration Paths
 
-#### From HilbertLinearScan to RTree (Scaling Up)
+#### From MortonLinearScan to RTree (Scaling Up)
 
 **Trigger**: n consistently > 100-200, performance degrading
 
 ```typescript
-// Before: n=50-200, using Hilbert
+// Before: n=50-200, using Morton
 class SpreadsheetProperties {
-	private backgrounds = new HilbertLinearScanImpl<string>();
+	private backgrounds = new MortonLinearScanImpl<string>();
 }
 
 // After: n > 200, migrate to RTree
@@ -252,8 +252,8 @@ class SpreadsheetProperties {
 	private backgrounds: SpatialIndex<string>;
 
 	constructor() {
-		// Start with Hilbert
-		this.backgrounds = new HilbertLinearScanImpl<string>();
+		// Start with Morton
+		this.backgrounds = new MortonLinearScanImpl<string>();
 	}
 
 	migrateToRTree() {
@@ -270,20 +270,20 @@ class SpreadsheetProperties {
 }
 ```
 
-**Performance gain**: At n=200, RTree is ~5-10x faster than Hilbert.
+**Performance gain**: At n=200, RTree is ~5-10x faster than Morton.
 
 ---
 
-#### From OptimizedLinearScan to HilbertLinearScan (Optimization)
+#### From OptimizedLinearScan to MortonLinearScan (Optimization)
 
 **Trigger**: Free 2x speedup, no downside
 
 ```diff
 - import OptimizedLinearScanImpl from './src/implementations/optimizedlinearscan.ts';
-+ import HilbertLinearScanImpl from './src/implementations/hilbertlinearscan.ts';
++ import MortonLinearScanImpl from './src/implementations/mortonlinearscan.ts';
 
 - const index = new OptimizedLinearScanImpl<string>();
-+ const index = new HilbertLinearScanImpl<string>();
++ const index = new MortonLinearScanImpl<string>();
 ```
 
 API is identical, just swap the class name.
@@ -302,7 +302,7 @@ class AdaptiveSpatialIndex<T> implements SpatialIndex<T> {
 	private threshold = 150;
 
 	constructor() {
-		this.index = new HilbertLinearScanImpl<T>();
+		this.index = new MortonLinearScanImpl<T>();
 	}
 
 	insert(gridRange: GridRange, value: T): void {
@@ -424,16 +424,16 @@ function validateMigration<T>(oldIndex: SpatialIndex<T>, newIndex: SpatialIndex<
 ## FAQ
 
 **Q: R-tree vs linear scan?**\
-A: Hilbert for n < 100, R-tree for n ≥ 100.
+A: Morton for n < 100, R-tree for n ≥ 100.
 
 **Q: Don't know n?**\
-A: Use Hilbert (optimal for typical n < 100).
+A: Use Morton (optimal for typical n < 100).
 
 **Q: CompactLinearScan?**\
-A: Only if bundle size critical. Hilbert is faster.
+A: Only if bundle size critical. Morton is faster.
 
 **Q: ArrayBuffer implementations?**\
-A: Research only. Hilbert supersedes them.
+A: Research only. Morton supersedes them.
 
 **Q: Switch implementations later?**\
 A: Yes, same `SpatialIndex<T>` interface.
@@ -445,5 +445,5 @@ A: Yes, same `SpatialIndex<T>` interface.
 - [BENCHMARKS.md](./BENCHMARKS.md) - Full performance data
 - [README.md](./README.md) - Project overview
 - [docs/analyses/sparse-data-analysis.md](./docs/analyses/sparse-data-analysis.md) - Why linear scan wins for sparse data
-- [docs/analyses/hilbert-curve-analysis.md](./docs/analyses/hilbert-curve-analysis.md) - Why Hilbert ordering provides 2x speedup
+- [docs/analyses/morton-vs-hilbert-analysis.md](./docs/analyses/morton-vs-hilbert-analysis.md) - Why Morton replaced Hilbert (25% faster)
 - [docs/core/RESEARCH-SUMMARY.md](./docs/core/RESEARCH-SUMMARY.md) - Complete research findings

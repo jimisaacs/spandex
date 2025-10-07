@@ -17,7 +17,7 @@ Collect real-world usage metrics to validate optimization decisions.
 
 ```typescript
 import { TelemetryCollector } from './src/telemetry/index.ts';
-import HilbertLinearScanImpl from './src/implementations/hilbertlinearscan.ts';
+import MortonLinearScanImpl from './src/implementations/hilbertlinearscan.ts';
 
 // 1. Create telemetry collector
 const telemetry = new TelemetryCollector({
@@ -31,7 +31,7 @@ const telemetry = new TelemetryCollector({
 });
 
 // 2. Wrap your spatial index
-const backgroundColors = new HilbertLinearScanImpl<string>();
+const backgroundColors = new MortonLinearScanImpl<string>();
 const wrapped = telemetry.wrap(backgroundColors, 'backgroundColor');
 
 // 3. Use it normally
@@ -155,12 +155,12 @@ const telemetry = new TelemetryCollector({
 ```typescript
 // Force report on document close or time trigger
 function onDocumentClose() {
-	telemetry.forceReport('HilbertLinearScanImpl', 'backgroundColor');
+	telemetry.forceReport('MortonLinearScanImpl', 'backgroundColor');
 }
 
 // Or set up time-based trigger
 function flushTelemetry() {
-	telemetry.forceReport('HilbertLinearScanImpl', 'backgroundColor');
+	telemetry.forceReport('MortonLinearScanImpl', 'backgroundColor');
 }
 // Set up: Edit > Current project's triggers > Add trigger
 ```
@@ -226,11 +226,11 @@ const telemetry = new TelemetryCollector({
 
 ```typescript
 const backgroundColors = telemetry.wrap(
-	new HilbertLinearScanImpl<string>(),
+	new MortonLinearScanImpl<string>(),
 	'backgroundColor',
 );
 const fontWeights = telemetry.wrap(
-	new HilbertLinearScanImpl<string>(),
+	new MortonLinearScanImpl<string>(),
 	'fontWeight',
 );
 // ... etc
@@ -299,12 +299,12 @@ enabled: false;
 
 ```typescript
 // Bad - only wraps one
-const bg = telemetry.wrap(new HilbertLinearScanImpl(), 'bg');
-const font = new HilbertLinearScanImpl(); // ❌ Not wrapped!
+const bg = telemetry.wrap(new MortonLinearScanImpl(), 'bg');
+const font = new MortonLinearScanImpl(); // ❌ Not wrapped!
 
 // Good - wraps all
-const bg = telemetry.wrap(new HilbertLinearScanImpl(), 'bg');
-const font = telemetry.wrap(new HilbertLinearScanImpl(), 'font');
+const bg = telemetry.wrap(new MortonLinearScanImpl(), 'bg');
+const font = telemetry.wrap(new MortonLinearScanImpl(), 'font');
 ```
 
 ## Next Steps

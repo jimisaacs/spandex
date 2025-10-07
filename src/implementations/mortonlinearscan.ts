@@ -1,0 +1,221 @@
+/// <reference types="@types/google-apps-script" />
+
+/**
+ * Morton Curve (Z-Order) Linear Scan - PRODUCTION IMPLEMENTATION
+ *
+ * Linear scan implementation using Morton codes (Z-order curve) for spatial ordering.
+ * Replaced HilbertLinearScan (archived) after benchmarking showed 25% speedup.
+ *
+ * **Algorithm**: Morton curve uses bit interleaving to map 2D coordinates to 1D.
+ * For a point (x, y), interleave bits: x₀y₀x₁y₁x₂y₂... where xᵢ is the i-th bit of x.
+ *
+ * **Performance**: 25% faster than Hilbert (6.9µs → 5.2µs @ n=50) due to constant-time
+ * encoding. Simpler bit operations outweigh Hilbert's theoretically better locality.
+ *
+ * **Complexity**:
+ * - Insert: O(n) average (scan + splice), O(n log n) worst case
+ * - Query: O(n) linear scan
+ * - Space: O(n)
+ *
+ * **vs Hilbert (archived)**: Same algorithmic complexity, but Morton has:
+ * - ✅ Simpler implementation (pure bit operations, no quadrant rotation)
+ * - ✅ Constant-time encoding (vs 16 iterations for Hilbert)
+ * - ✅ 25% faster in practice (simpler encoding outweighs locality difference)
+ * - Theoretically: Slightly inferior locality, but encoding speed dominates at small n
+ *
+ * **References**:
+ * - Morton, G. M. (1966). "A Computer Oriented Geodetic Data Base and a New Technique
+ *   in File Sequencing." IBM Technical Report.
+ * - Performance analysis: docs/analyses/morton-vs-hilbert-analysis.md
+ */
+
+import type { SpatialIndex } from '../conformance/testsuite.ts';
+
+type GridRange = GoogleAppsScript.Sheets.Schema.GridRange;
+type Rectangle = readonly [xmin: number, ymin: number, xmax: number, ymax: number];
+
+/**
+ * Maximum coordinate value for Morton code mapping.
+ *
+ * Set to 2^16 = 65,536 (matches archived Hilbert implementation).
+ * Covers typical spreadsheet usage (most sheets < 10K rows/cols).
+ */
+const MAX_COORD = 1 << 16; // 65536
+
+/**
+ * Calculate Morton code (Z-order) for a 2D point using bit interleaving.
+ *
+ * **Algorithm**: Interleave bits of x and y coordinates.
+ * Example: x=0b101 (5), y=0b011 (3) → morton=0b100111 (39)
+ *           x bits: _1_0_1
+ *           y bits: 0_1_1_
+ *           result: 100111
+ *
+ * **Complexity**: O(1) - fixed number of bit operations (32 bits max)
+ *
+ * **Implementation**: Uses "magic bits" method with bit masks for efficiency.
+ * Faster than naive bit-by-bit interleaving.
+ *
+ * @param x - X coordinate (column)
+ * @param y - Y coordinate (row)
+ * @returns Morton code (1D index preserving spatial locality)
+ *
+ * **Note**: Coordinates are masked to 16 bits. Larger coordinates wrap/collide
+ * but algorithm remains correct (same behavior as archived Hilbert implementation).
+ */
+function mortonCode(x: number, y: number): number {
+	// Mask to 16 bits (matches archived Hilbert implementation)
+	x = x & 0xFFFF;
+	y = y & 0xFFFF;
+
+	// Spread bits of x using magic masks
+	// This transforms: 0000abcd → 0a0b0c0d (spread bits with gaps)
+	x = (x | (x << 8)) & 0x00FF00FF;
+	x = (x | (x << 4)) & 0x0F0F0F0F;
+	x = (x | (x << 2)) & 0x33333333;
+	x = (x | (x << 1)) & 0x55555555;
+
+	// Spread bits of y using same masks
+	y = (y | (y << 8)) & 0x00FF00FF;
+	y = (y | (y << 4)) & 0x0F0F0F0F;
+	y = (y | (y << 2)) & 0x33333333;
+	y = (y | (y << 1)) & 0x55555555;
+
+	// Interleave: x bits in even positions, y bits in odd positions
+	// Result: yₙxₙ...y₁x₁y₀x₀
+	return x | (y << 1);
+}
+
+interface Entry<T> {
+	rect: Rectangle;
+	value: T;
+	morton: number;
+}
+
+/**
+ * Linear scan with Morton curve (Z-order) sorting for spatial locality
+ */
+export default class MortonLinearScanImpl<T> implements SpatialIndex<T> {
+	private entries: Array<Entry<T>> = [];
+
+	get isEmpty(): boolean {
+		return this.entries.length === 0;
+	}
+
+	get size(): number {
+		return this.entries.length;
+	}
+
+	insert(gridRange: GridRange, value: T): void {
+		const range = this.toInclusive(gridRange);
+
+		// Single-pass: find overlaps AND remove non-overlapping entries in-place
+		const overlapping: Array<Entry<T>> = [];
+		let writeIdx = 0;
+		for (let i = 0; i < this.entries.length; i++) {
+			if (this.intersects(range, this.entries[i].rect)) {
+				overlapping.push(this.entries[i]);
+			} else {
+				this.entries[writeIdx++] = this.entries[i];
+			}
+		}
+		this.entries.length = writeIdx;
+
+		// Re-insert old fragments (that don't overlap with new range)
+		for (const old of overlapping) {
+			const fragments = this.subtract(old.rect, range);
+			for (const frag of fragments) {
+				const centerX = (frag[0] + frag[2]) >> 1;
+				const centerY = (frag[1] + frag[3]) >> 1;
+				const morton = mortonCode(centerX, centerY);
+				const pos = this.binarySearch(morton);
+				this.entries.splice(pos, 0, { rect: frag, value: old.value, morton });
+			}
+		}
+
+		// Insert new range with Morton ordering
+		const centerX = (range[0] + range[2]) >> 1;
+		const centerY = (range[1] + range[3]) >> 1;
+		const morton = mortonCode(centerX, centerY);
+		const pos = this.binarySearch(morton);
+		this.entries.splice(pos, 0, { rect: range, value, morton });
+	}
+
+	getAllRanges(): Array<{ gridRange: GridRange; value: T }> {
+		return this.entries.map((e) => ({
+			gridRange: this.toExclusive(e.rect),
+			value: e.value,
+		}));
+	}
+
+	query(gridRange: GridRange): Array<{ gridRange: GridRange; value: T }> {
+		const range = this.toInclusive(gridRange);
+		const results: Array<{ gridRange: GridRange; value: T }> = [];
+
+		// Linear scan (Morton ordering may help with cache locality)
+		for (const entry of this.entries) {
+			if (this.intersects(range, entry.rect)) {
+				results.push({
+					gridRange: this.toExclusive(entry.rect),
+					value: entry.value,
+				});
+			}
+		}
+
+		return results;
+	}
+
+	private binarySearch(morton: number): number {
+		let left = 0;
+		let right = this.entries.length;
+		while (left < right) {
+			const mid = (left + right) >> 1;
+			if (this.entries[mid].morton < morton) {
+				left = mid + 1;
+			} else {
+				right = mid;
+			}
+		}
+		return left;
+	}
+
+	private toInclusive(gridRange: GridRange): Rectangle {
+		return [
+			gridRange.startRowIndex ?? 0,
+			gridRange.startColumnIndex ?? 0,
+			(gridRange.endRowIndex ?? MAX_COORD) - 1,
+			(gridRange.endColumnIndex ?? MAX_COORD) - 1,
+		];
+	}
+
+	private toExclusive(rect: Rectangle): GridRange {
+		return {
+			startRowIndex: rect[0],
+			startColumnIndex: rect[1],
+			endRowIndex: rect[2] + 1,
+			endColumnIndex: rect[3] + 1,
+		};
+	}
+
+	private subtract(a: Rectangle, b: Rectangle): Rectangle[] {
+		if (!this.intersects(a, b)) return [a];
+
+		const [ax1, ay1, ax2, ay2] = a;
+		const [bx1, by1, bx2, by2] = b;
+
+		if (bx1 <= ax1 && bx2 >= ax2 && by1 <= ay1 && by2 >= ay2) return [];
+
+		const fragments: Rectangle[] = [];
+
+		if (ax1 < bx1) fragments.push([ax1, ay1, Math.min(bx1 - 1, ax2), ay2]);
+		if (ax2 > bx2) fragments.push([Math.max(bx2 + 1, ax1), ay1, ax2, ay2]);
+		if (ay1 < by1) fragments.push([Math.max(ax1, bx1), ay1, Math.min(ax2, bx2), Math.min(by1 - 1, ay2)]);
+		if (ay2 > by2) fragments.push([Math.max(ax1, bx1), Math.max(by2 + 1, ay1), Math.min(ax2, bx2), ay2]);
+
+		return fragments.filter((f) => f[0] <= f[2] && f[1] <= f[3]);
+	}
+
+	private intersects(a: Rectangle, b: Rectangle): boolean {
+		return !(a[2] < b[0] || a[0] > b[2] || a[3] < b[1] || a[1] > b[3]);
+	}
+}

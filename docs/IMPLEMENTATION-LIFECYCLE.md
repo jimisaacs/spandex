@@ -116,7 +116,7 @@ You can create one-off benchmarks that compare active vs archived implementation
 /// <reference types="@types/google-apps-script" />
 
 // Import active implementations directly
-import HilbertLinearScanImpl from '../../src/implementations/hilbertlinearscan.ts';
+import MortonLinearScanImpl from '../../src/implementations/hilbertlinearscan.ts';
 import RTreeImpl from '../../src/implementations/rtree.ts';
 
 // Import archived implementation directly
@@ -124,7 +124,7 @@ import ArchivedImpl from '../src/implementations/superseded/archivedimpl.ts';
 
 const implementations = [
 	{ name: 'RTree', Class: RTreeImpl },
-	{ name: 'HilbertLinearScan', Class: HilbertLinearScanImpl },
+	{ name: 'MortonLinearScan', Class: MortonLinearScanImpl },
 	{ name: 'ArchivedImpl', Class: ArchivedImpl },
 ];
 

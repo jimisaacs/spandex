@@ -27,7 +27,7 @@
  *   (On the continuous mapping of a line to a surface area - original space-filling curve paper)
  */
 
-import type { SpatialIndex } from '../conformance/testsuite.ts';
+import type { SpatialIndex } from '../../../../src/conformance/testsuite.ts';
 
 type GridRange = GoogleAppsScript.Sheets.Schema.GridRange;
 type Rectangle = readonly [xmin: number, ymin: number, xmax: number, ymax: number];

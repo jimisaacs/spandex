@@ -174,7 +174,7 @@ interface GridRange {
 }
 
 // Our library matches this exactly!
-const index = new HilbertLinearScanImpl<string>();
+const index = new MortonLinearScanImpl<string>();
 index.insert({
 	startRowIndex: 0,
 	endRowIndex: 5, // Means rows 0-4

@@ -220,11 +220,11 @@ Adversarial tests (designed to maximize overlaps) show k grows sublinearly:
 
 ## Correctness of Spatial Locality Optimization
 
-**Theorem**: Maintaining Hilbert-sorted order preserves all invariants (disjointness, LWW semantics).
+**Theorem**: Maintaining space-filling curve sorted order (Morton/Hilbert) preserves all invariants (disjointness, LWW semantics).
 
 **Key Question**: Does sorting by spatial locality break correctness?
 
-**Answer**: No. Hilbert sorting is applied AFTER decomposition, not during.
+**Answer**: No. Space-filling curve sorting is applied AFTER decomposition, not during.
 
 **Proof**:
 
@@ -233,15 +233,15 @@ The algorithm is:
 1. Find overlaps O (same as naive)
 2. Remove O (same as naive)
 3. Decompose overlaps: fragments = {r \ R_new | r ∈ O} (same as naive)
-4. **Re-insert fragments AND new range in Hilbert-sorted order** (ONLY DIFFERENCE)
+4. **Re-insert fragments AND new range in spatial-locality-sorted order** (ONLY DIFFERENCE)
 
-**Critical insight**: Hilbert sorting affects STORAGE ORDER, not the geometric decomposition.
+**Critical insight**: Space-filling curve sorting affects STORAGE ORDER, not the geometric decomposition.
 
 **Invariant preservation**:
 
-- **Disjointness**: Decomposition produces disjoint fragments (proven above). Hilbert sorting doesn't change geometry, only storage order. ∴ Preserved ✓
+- **Disjointness**: Decomposition produces disjoint fragments (proven above). Spatial sorting doesn't change geometry, only storage order. ∴ Preserved ✓
 
-- **LWW**: New range overwrites overlapping regions (removal + insertion). Fragments keep old values. Hilbert sorting happens AFTER value assignment. ∴ Preserved ✓
+- **LWW**: New range overwrites overlapping regions (removal + insertion). Fragments keep old values. Spatial sorting happens AFTER value assignment. ∴ Preserved ✓
 
 - **Coverage**: Same fragments generated, just stored in different order. ∴ Preserved ✓
 

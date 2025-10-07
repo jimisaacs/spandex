@@ -9,13 +9,13 @@
 /// <reference types="@types/google-apps-script" />
 
 import { assertLess } from '@std/assert';
-import HilbertLinearScanImpl from '../src/implementations/hilbertlinearscan.ts';
+import MortonLinearScanImpl from '../src/implementations/mortonlinearscan.ts';
 import RTreeImpl from '../src/implementations/rtree.ts';
 
 type GridRange = GoogleAppsScript.Sheets.Schema.GridRange;
 
 Deno.test('Adversarial: Concentric rectangles (maximize overlaps)', () => {
-	const index = new HilbertLinearScanImpl<string>();
+	const index = new MortonLinearScanImpl<string>();
 	const fragmentCounts: number[] = [];
 
 	// Pathological pattern: Each insert fully contains all previous
@@ -48,7 +48,7 @@ Deno.test('Adversarial: Concentric rectangles (maximize overlaps)', () => {
 });
 
 Deno.test('Adversarial: Diagonal sweep (maximize edge cases)', () => {
-	const index = new HilbertLinearScanImpl<string>();
+	const index = new MortonLinearScanImpl<string>();
 	const fragmentCounts: number[] = [];
 
 	// Pattern: Diagonal sweep that partially overlaps many previous ranges
@@ -75,7 +75,7 @@ Deno.test('Adversarial: Diagonal sweep (maximize edge cases)', () => {
 });
 
 Deno.test('Adversarial: Checkerboard (maximize decomposition)', () => {
-	const index = new HilbertLinearScanImpl<string>();
+	const index = new MortonLinearScanImpl<string>();
 
 	// Pattern: Insert large blocks, then small blocks that punch holes
 	// This creates maximum decomposition complexity
@@ -115,7 +115,7 @@ Deno.test('Adversarial: RTree under same patterns', () => {
 	const index = new RTreeImpl<string>();
 	const fragmentCounts: number[] = [];
 
-	// Same concentric pattern as HilbertLinearScan test
+	// Same concentric pattern as MortonLinearScan test
 	// But stop at size=1 to avoid degenerate ranges
 	for (let i = 0; i < 50; i++) {
 		const size = 100 - (i * 2); // Ensure size > 0
@@ -147,12 +147,12 @@ Deno.test('Adversarial: RTree under same patterns', () => {
 });
 
 Deno.test('Adversarial: Growth pattern analysis', () => {
-	const index = new HilbertLinearScanImpl<string>();
+	const index = new MortonLinearScanImpl<string>();
 	const samples: Array<{ n: number; ranges: number; ratio: number }> = [];
 
 	// Measure fragmentation at different scales
 	for (let n = 10; n <= 100; n += 10) {
-		const testIndex = new HilbertLinearScanImpl<string>();
+		const testIndex = new MortonLinearScanImpl<string>();
 
 		for (let i = 0; i < n; i++) {
 			const size = 100 - Math.floor((i / n) * 50);
@@ -190,7 +190,7 @@ Deno.test('Adversarial: Growth pattern analysis', () => {
 });
 
 Deno.test('Adversarial: Stress test with random overlaps', () => {
-	const index = new HilbertLinearScanImpl<string>();
+	const index = new MortonLinearScanImpl<string>();
 
 	// Random insertion pattern (realistic worst-case)
 	for (let i = 0; i < 200; i++) {

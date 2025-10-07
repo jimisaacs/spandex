@@ -1,9 +1,9 @@
 /// <reference types="@types/google-apps-script" />
 
 import { assertEquals, assertExists } from '@std/assert';
-import { type TestConfig, testSpatialIndexAxioms } from '../src/conformance/mod.ts';
-import HilbertLinearScanImpl from '../src/implementations/hilbertlinearscan.ts';
-import LinearScanImpl from '../archive/src/implementations/superseded/linearscan.ts';
+import { type TestConfig, testSpatialIndexAxioms } from '../../src/conformance/mod.ts';
+import HilbertLinearScanImpl from '../src/implementations/superseded/hilbertlinearscan.ts';
+import LinearScanImpl from '../src/implementations/superseded/linearscan.ts';
 
 const config: TestConfig = {
 	reference: LinearScanImpl,

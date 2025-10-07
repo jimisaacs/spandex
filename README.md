@@ -55,7 +55,7 @@ Two algorithm families (see `src/implementations/` for current active implementa
 
 Iterate through all ranges. Fast for small datasets (n < 100) due to low overhead and spatial locality.
 
-**Production approach**: Hilbert curve spatial locality optimization (2x faster than naive scan)
+**Production approach**: Morton curve (Z-order) spatial locality optimization (faster than naive scan)
 
 ### O(log n) R-Tree
 
@@ -70,10 +70,10 @@ See `archive/` for historical experiments and alternative approaches.
 Track cell properties with automatic overlap resolution:
 
 ```typescript
-import HilbertLinearScanImpl from './src/implementations/hilbertlinearscan.ts';
+import MortonLinearScanImpl from './src/implementations/mortonlinearscan.ts';
 
 // Create a spatial index for background colors
-const backgroundColors = new HilbertLinearScanImpl<string>();
+const backgroundColors = new MortonLinearScanImpl<string>();
 
 // Insert a red background for rows 0-4, columns 0-4 (25 cells)
 backgroundColors.insert({
@@ -118,7 +118,7 @@ deno task bench          # Performance benchmarks
 deno task bench:update   # Regenerate BENCHMARKS.md
 
 # Or import directly from URL (Deno only)
-import { HilbertLinearScanImpl } from 'https://raw.githubusercontent.com/...';
+import { MortonLinearScanImpl } from 'https://raw.githubusercontent.com/...';
 ```
 
 Uses `GoogleAppsScript.Sheets.Schema.GridRange` from `@types/google-apps-script`.
@@ -176,10 +176,10 @@ archive/                    # Historical implementations
 
 ## Choosing an Implementation
 
-| Ranges | Algorithm Approach       | Performance                    |
-| ------ | ------------------------ | ------------------------------ |
-| < 100  | Hilbert spatial locality | ~10µs @ n=50                   |
-| ≥ 100  | R-tree (R* split)        | ~50µs @ n=100, ~800µs @ n=1000 |
+| Ranges | Algorithm Approach      | Performance                    |
+| ------ | ----------------------- | ------------------------------ |
+| < 100  | Morton spatial locality | ~10µs @ n=50                   |
+| ≥ 100  | R-tree (R* split)       | ~50µs @ n=100, ~800µs @ n=1000 |
 
 See [PRODUCTION-GUIDE.md](./PRODUCTION-GUIDE.md) for implementation details and import statements. See [BENCHMARKS.md](./BENCHMARKS.md) for current data.
 

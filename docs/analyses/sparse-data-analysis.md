@@ -1,5 +1,7 @@
 # Sparse Data Analysis: Why Linear Scan Wins
 
+**Historical Note**: This analysis used HilbertLinearScan (now superseded by MortonLinearScan, which is 25% faster). The core findings about linear scan vs R-tree remain valid.
+
 **Finding**: For sparse data (n < 100), linear scan O(n) outperforms R-tree O(log n).
 
 ## Result
@@ -17,7 +19,7 @@
 
 **Impact**: Changed recommendation from "always use R-tree" to "linear scan for sparse, R-tree for large".
 
-**Latest**: See [hilbert-curve-analysis.md](./hilbert-curve-analysis.md) for the breakthrough - Hilbert curve ordering provides 2x speedup over naive ArrayBuffer linear scan through spatial locality.
+**Latest**: See [morton-vs-hilbert-analysis.md](./morton-vs-hilbert-analysis.md) - Morton curves provide 25% additional speedup over Hilbert due to simpler encoding.
 
 ---
 

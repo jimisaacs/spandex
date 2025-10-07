@@ -1,5 +1,7 @@
 # Hilbert Curve Visualization
 
+**Note**: This document explains the Hilbert curve educational concept. Our production implementation uses **Morton curves** (25% faster due to simpler encoding). Hilbert implementation is archived at `archive/src/implementations/superseded/hilbertlinearscan.ts`.
+
 ## What is a Hilbert Curve?
 
 A **space-filling curve** that maps 2D coordinates to a 1D line while preserving spatial locality.
@@ -69,10 +71,10 @@ Neighbors:        Hilbert Indices:
 Average index difference: ~2.5 (vs ~8 for row-major)
 ```
 
-## How HilbertLinearScanImpl Uses This
+## How Space-Filling Curves Are Used (Morton/Hilbert)
 
 ```
-Rectangle storage (sorted by Hilbert index):
+Rectangle storage (sorted by space-filling curve index):
 
 Index  Hilbert   Rectangle       Value
 ─────  ────────  ─────────────   ─────
@@ -119,16 +121,16 @@ A,D,B,C together into cache (spatially clustered).
 3. **Locality-preserving**: d_Euclidean(p1, p2) small → d_Hilbert(p1, p2) small (on average)
 4. **Recursive**: Order-n curve built from 4 Order-(n-1) curves with rotation
 
-**Better than alternatives**:
+**Comparison with alternatives**:
 
 - Row-major (x,y) → y×width + x: Poor locality for vertical patterns
 - Column-major (x,y) → x×height + y: Poor locality for horizontal patterns
-- Z-order/Morton: Good locality but more jumps than Hilbert
-- Hilbert: **Best** locality preservation among space-filling curves
+- **Morton (Z-order)**: ✅ Production - Constant-time encoding (bit interleaving), good locality, 25% faster than Hilbert
+- **Hilbert**: Archived - Theoretically better locality but iterative encoding overhead (16 iterations) makes it slower in practice
 
-## Implementation Note
+## Implementation Notes
 
-Our implementation uses Order-16 (2^16 = 65,536 coordinates) computed via iterative bit-interleaving:
+**Historical Hilbert implementation** (archived) used Order-16 (2^16 = 65,536 coordinates) via iterative encoding:
 
 ```typescript
 for (let s = MAX_COORD / 2; s > 0; s >>= 1) {
@@ -140,7 +142,21 @@ for (let s = MAX_COORD / 2; s > 0; s >>= 1) {
 }
 ```
 
-See `src/implementations/hilbertlinearscan.ts` for full implementation with detailed comments.
+**Current Morton implementation** (production) uses constant-time bit interleaving via magic masks:
+
+```typescript
+// Spread bits: 0b0000abcd → 0b0a0b0c0d
+x = (x | (x << 8)) & 0x00FF00FF;
+x = (x | (x << 4)) & 0x0F0F0F0F;
+x = (x | (x << 2)) & 0x33333333;
+x = (x | (x << 1)) & 0x55555555;
+// Same for y, then interleave: x | (y << 1)
+```
+
+See:
+- **Production**: `src/implementations/mortonlinearscan.ts`
+- **Archived**: `archive/src/implementations/superseded/hilbertlinearscan.ts`
+- **Analysis**: `docs/analyses/morton-vs-hilbert-analysis.md`
 
 ---
 

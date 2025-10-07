@@ -119,7 +119,7 @@ deno bench benchmarks/performance.ts -- --include-archived=hybridrtree
 **Combine with exclusions**:
 
 ```bash
-# Compare only HilbertLinearScan vs archived implementations
+# Compare only MortonLinearScan vs archived implementations
 deno bench benchmarks/performance.ts -- --include-archived \
   --exclude=RTree --exclude=CompactRTree --exclude=ArrayBufferRTree \
   --exclude=LinearScan --exclude=CompactLinearScan \

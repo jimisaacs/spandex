@@ -26,11 +26,11 @@ Comparing **O(n) linear scan** vs **O(log n) R-tree** across:
 
 **Speed relative to RTree** (lower is better):
 
-| Scenario                     | compactlinearscan | hilbertlinearscan | rtree | RTree           |
-| ---------------------------- | ----------------- | ----------------- | ----- | --------------- |
-| Sparse (n < 100)             | 0.0x              | 0.0x              | 0.0x  | 1.0x (baseline) |
-| Large overlapping (n ≈ 1000) | 16.6x             | 3.5x              | 3.2x  | 1.0x (baseline) |
-| Large sequential (n ≈ 2500)  | 39.7x             | 7.8x              | 2.0x  | 1.0x (baseline) |
+| Scenario                     | compactlinearscan | mortonlinearscan | rtree | RTree           |
+| ---------------------------- | ----------------- | ---------------- | ----- | --------------- |
+| Sparse (n < 100)             | 0.0x              | 0.0x             | 0.0x  | 1.0x (baseline) |
+| Large overlapping (n ≈ 1000) | 16.3x             | 3.2x             | 3.1x  | 1.0x (baseline) |
+| Large sequential (n ≈ 2500)  | 39.4x             | 7.5x             | 2.0x  | 1.0x (baseline) |
 
 **Key insights**:
 
@@ -46,7 +46,7 @@ Comparing **O(n) linear scan** vs **O(log n) R-tree** across:
 
 | Implementation    | Time   | Relative |
 | ----------------- | ------ | -------- |
-| hilbertlinearscan | 0.00ms | 0.00x    |
+| mortonlinearscan  | 0.00ms | 0.00x    |
 | compactlinearscan | 0.00ms | 0.00x    |
 | rtree             | 0.01ms | 0.01x    |
 
@@ -54,47 +54,47 @@ Comparing **O(n) linear scan** vs **O(log n) R-tree** across:
 
 | Implementation    | Time   | Relative |
 | ----------------- | ------ | -------- |
-| hilbertlinearscan | 0.01ms | 0.01x    |
+| mortonlinearscan  | 0.01ms | 0.01x    |
 | compactlinearscan | 0.01ms | 0.01x    |
-| rtree             | 0.04ms | 0.04x    |
+| rtree             | 0.03ms | 0.03x    |
 
 ### large-grid (n=2500)
 
 | Implementation    | Time    | Relative |
 | ----------------- | ------- | -------- |
-| rtree             | 2.00ms  | 2.00x    |
-| hilbertlinearscan | 9.70ms  | 9.70x    |
-| compactlinearscan | 56.20ms | 56.20x   |
+| rtree             | 1.90ms  | 1.90x    |
+| mortonlinearscan  | 9.20ms  | 9.20x    |
+| compactlinearscan | 46.80ms | 46.80x   |
 
 ### large-overlapping (n=1250)
 
 | Implementation    | Time    | Relative |
 | ----------------- | ------- | -------- |
-| rtree             | 3.20ms  | 3.20x    |
-| hilbertlinearscan | 3.50ms  | 3.50x    |
-| compactlinearscan | 16.60ms | 16.60x   |
+| rtree             | 3.10ms  | 3.10x    |
+| mortonlinearscan  | 3.20ms  | 3.20x    |
+| compactlinearscan | 16.30ms | 16.30x   |
 
 ### large-ranges (n=500)
 
 | Implementation    | Time   | Relative |
 | ----------------- | ------ | -------- |
-| hilbertlinearscan | 0.97ms | 0.97x    |
-| rtree             | 1.10ms | 1.10x    |
-| compactlinearscan | 3.50ms | 3.50x    |
+| mortonlinearscan  | 0.83ms | 0.83x    |
+| rtree             | 1.00ms | 1.00x    |
+| compactlinearscan | 3.40ms | 3.40x    |
 
 ### large-sequential (n=2500)
 
 | Implementation    | Time    | Relative |
 | ----------------- | ------- | -------- |
 | rtree             | 2.00ms  | 2.00x    |
-| hilbertlinearscan | 7.80ms  | 7.80x    |
-| compactlinearscan | 39.70ms | 39.70x   |
+| mortonlinearscan  | 7.50ms  | 7.50x    |
+| compactlinearscan | 39.40ms | 39.40x   |
 
 ### merge-like-blocks (n=15)
 
 | Implementation    | Time   | Relative |
 | ----------------- | ------ | -------- |
-| hilbertlinearscan | 0.00ms | 0.00x    |
+| mortonlinearscan  | 0.00ms | 0.00x    |
 | compactlinearscan | 0.00ms | 0.00x    |
 | rtree             | 0.00ms | 0.00x    |
 
@@ -102,7 +102,7 @@ Comparing **O(n) linear scan** vs **O(log n) R-tree** across:
 
 | Implementation    | Time   | Relative |
 | ----------------- | ------ | -------- |
-| hilbertlinearscan | 0.00ms | 0.00x    |
+| mortonlinearscan  | 0.00ms | 0.00x    |
 | compactlinearscan | 0.00ms | 0.00x    |
 | rtree             | 0.01ms | 0.01x    |
 
@@ -110,7 +110,7 @@ Comparing **O(n) linear scan** vs **O(log n) R-tree** across:
 
 | Implementation    | Time   | Relative |
 | ----------------- | ------ | -------- |
-| hilbertlinearscan | 0.01ms | 0.01x    |
+| mortonlinearscan  | 0.01ms | 0.01x    |
 | rtree             | 0.02ms | 0.02x    |
 | compactlinearscan | 0.02ms | 0.02x    |
 
@@ -118,7 +118,7 @@ Comparing **O(n) linear scan** vs **O(log n) R-tree** across:
 
 | Implementation    | Time   | Relative |
 | ----------------- | ------ | -------- |
-| hilbertlinearscan | 0.01ms | 0.01x    |
+| mortonlinearscan  | 0.01ms | 0.01x    |
 | compactlinearscan | 0.02ms | 0.02x    |
 | rtree             | 0.02ms | 0.02x    |
 
@@ -126,7 +126,7 @@ Comparing **O(n) linear scan** vs **O(log n) R-tree** across:
 
 | Implementation    | Time   | Relative |
 | ----------------- | ------ | -------- |
-| hilbertlinearscan | 0.00ms | 0.00x    |
+| mortonlinearscan  | 0.00ms | 0.00x    |
 | compactlinearscan | 0.01ms | 0.01x    |
 | rtree             | 0.01ms | 0.01x    |
 
@@ -134,15 +134,15 @@ Comparing **O(n) linear scan** vs **O(log n) R-tree** across:
 
 | Implementation    | Time   | Relative |
 | ----------------- | ------ | -------- |
+| mortonlinearscan  | 0.01ms | 0.01x    |
 | compactlinearscan | 0.01ms | 0.01x    |
-| hilbertlinearscan | 0.02ms | 0.02x    |
 | rtree             | 0.07ms | 0.07x    |
 
 ### sparse-sequential (n=50)
 
 | Implementation    | Time   | Relative |
 | ----------------- | ------ | -------- |
-| hilbertlinearscan | 0.01ms | 0.01x    |
+| mortonlinearscan  | 0.01ms | 0.01x    |
 | compactlinearscan | 0.01ms | 0.01x    |
 | rtree             | 0.02ms | 0.02x    |
 
@@ -150,7 +150,7 @@ Comparing **O(n) linear scan** vs **O(log n) R-tree** across:
 
 | Implementation    | Time   | Relative |
 | ----------------- | ------ | -------- |
-| hilbertlinearscan | 0.00ms | 0.00x    |
+| mortonlinearscan  | 0.00ms | 0.00x    |
 | compactlinearscan | 0.00ms | 0.00x    |
 | rtree             | 0.01ms | 0.01x    |
 
@@ -162,7 +162,7 @@ Comparing **O(n) linear scan** vs **O(log n) R-tree** across:
 
 | Implementation    | Time   | Relative |
 | ----------------- | ------ | -------- |
-| hilbertlinearscan | 0.01ms | 0.01x    |
+| mortonlinearscan  | 0.01ms | 0.01x    |
 | rtree             | 0.01ms | 0.01x    |
 | compactlinearscan | 0.02ms | 0.02x    |
 
@@ -170,7 +170,7 @@ Comparing **O(n) linear scan** vs **O(log n) R-tree** across:
 
 | Implementation    | Time   | Relative |
 | ----------------- | ------ | -------- |
-| hilbertlinearscan | 0.02ms | 0.02x    |
+| mortonlinearscan  | 0.02ms | 0.02x    |
 | rtree             | 0.04ms | 0.04x    |
 | compactlinearscan | 0.06ms | 0.06x    |
 
@@ -178,39 +178,39 @@ Comparing **O(n) linear scan** vs **O(log n) R-tree** across:
 
 | Implementation    | Time    | Relative |
 | ----------------- | ------- | -------- |
-| rtree             | 2.00ms  | 2.00x    |
-| hilbertlinearscan | 9.90ms  | 9.90x    |
-| compactlinearscan | 52.00ms | 52.00x   |
+| rtree             | 1.90ms  | 1.90x    |
+| mortonlinearscan  | 9.20ms  | 9.20x    |
+| compactlinearscan | 52.30ms | 52.30x   |
 
 ### large-overlapping (n=1250) + 100 queries
 
 | Implementation    | Time    | Relative |
 | ----------------- | ------- | -------- |
-| rtree             | 3.20ms  | 3.20x    |
-| hilbertlinearscan | 3.90ms  | 3.90x    |
-| compactlinearscan | 17.80ms | 17.80x   |
+| rtree             | 3.10ms  | 3.10x    |
+| mortonlinearscan  | 3.60ms  | 3.60x    |
+| compactlinearscan | 18.10ms | 18.10x   |
 
 ### large-ranges (n=500) + 100 queries
 
 | Implementation    | Time   | Relative |
 | ----------------- | ------ | -------- |
+| mortonlinearscan  | 1.10ms | 1.10x    |
 | rtree             | 1.10ms | 1.10x    |
-| hilbertlinearscan | 1.20ms | 1.20x    |
-| compactlinearscan | 4.30ms | 4.30x    |
+| compactlinearscan | 4.20ms | 4.20x    |
 
 ### large-sequential (n=2500) + 100 queries
 
 | Implementation    | Time    | Relative |
 | ----------------- | ------- | -------- |
-| rtree             | 2.00ms  | 2.00x    |
-| hilbertlinearscan | 8.30ms  | 8.30x    |
-| compactlinearscan | 43.60ms | 43.60x   |
+| rtree             | 1.90ms  | 1.90x    |
+| mortonlinearscan  | 7.90ms  | 7.90x    |
+| compactlinearscan | 44.00ms | 44.00x   |
 
 ### merge-like-blocks (n=15) + 100 queries
 
 | Implementation    | Time   | Relative |
 | ----------------- | ------ | -------- |
-| hilbertlinearscan | 0.00ms | 0.00x    |
+| mortonlinearscan  | 0.00ms | 0.00x    |
 | rtree             | 0.01ms | 0.01x    |
 | compactlinearscan | 0.02ms | 0.02x    |
 
@@ -218,7 +218,7 @@ Comparing **O(n) linear scan** vs **O(log n) R-tree** across:
 
 | Implementation    | Time   | Relative |
 | ----------------- | ------ | -------- |
-| hilbertlinearscan | 0.01ms | 0.01x    |
+| mortonlinearscan  | 0.01ms | 0.01x    |
 | rtree             | 0.01ms | 0.01x    |
 | compactlinearscan | 0.02ms | 0.02x    |
 
@@ -226,7 +226,7 @@ Comparing **O(n) linear scan** vs **O(log n) R-tree** across:
 
 | Implementation    | Time   | Relative |
 | ----------------- | ------ | -------- |
-| hilbertlinearscan | 0.02ms | 0.02x    |
+| mortonlinearscan  | 0.01ms | 0.01x    |
 | rtree             | 0.02ms | 0.02x    |
 | compactlinearscan | 0.05ms | 0.05x    |
 
@@ -234,15 +234,15 @@ Comparing **O(n) linear scan** vs **O(log n) R-tree** across:
 
 | Implementation    | Time   | Relative |
 | ----------------- | ------ | -------- |
-| hilbertlinearscan | 0.02ms | 0.02x    |
-| rtree             | 0.03ms | 0.03x    |
+| mortonlinearscan  | 0.02ms | 0.02x    |
+| rtree             | 0.02ms | 0.02x    |
 | compactlinearscan | 0.09ms | 0.09x    |
 
 ### sparse-large-ranges (n=30) + 100 queries
 
 | Implementation    | Time   | Relative |
 | ----------------- | ------ | -------- |
-| hilbertlinearscan | 0.01ms | 0.01x    |
+| mortonlinearscan  | 0.01ms | 0.01x    |
 | rtree             | 0.01ms | 0.01x    |
 | compactlinearscan | 0.03ms | 0.03x    |
 
@@ -250,7 +250,7 @@ Comparing **O(n) linear scan** vs **O(log n) R-tree** across:
 
 | Implementation    | Time   | Relative |
 | ----------------- | ------ | -------- |
-| hilbertlinearscan | 0.02ms | 0.02x    |
+| mortonlinearscan  | 0.02ms | 0.02x    |
 | compactlinearscan | 0.05ms | 0.05x    |
 | rtree             | 0.07ms | 0.07x    |
 
@@ -258,7 +258,7 @@ Comparing **O(n) linear scan** vs **O(log n) R-tree** across:
 
 | Implementation    | Time   | Relative |
 | ----------------- | ------ | -------- |
-| hilbertlinearscan | 0.02ms | 0.02x    |
+| mortonlinearscan  | 0.01ms | 0.01x    |
 | rtree             | 0.02ms | 0.02x    |
 | compactlinearscan | 0.05ms | 0.05x    |
 
@@ -266,7 +266,7 @@ Comparing **O(n) linear scan** vs **O(log n) R-tree** across:
 
 | Implementation    | Time   | Relative |
 | ----------------- | ------ | -------- |
-| hilbertlinearscan | 0.01ms | 0.01x    |
+| mortonlinearscan  | 0.01ms | 0.01x    |
 | rtree             | 0.01ms | 0.01x    |
 | compactlinearscan | 0.02ms | 0.02x    |
 
@@ -278,23 +278,23 @@ Comparing **O(n) linear scan** vs **O(log n) R-tree** across:
 
 | Implementation    | Time   | Relative |
 | ----------------- | ------ | -------- |
-| hilbertlinearscan | 0.68ms | 0.68x    |
-| rtree             | 1.20ms | 1.20x    |
-| compactlinearscan | 2.50ms | 2.50x    |
+| mortonlinearscan  | 0.57ms | 0.57x    |
+| rtree             | 1.10ms | 1.10x    |
+| compactlinearscan | 2.40ms | 2.40x    |
 
 ### large-sequential (n=1000) 80/20
 
 | Implementation    | Time   | Relative |
 | ----------------- | ------ | -------- |
-| rtree             | 0.83ms | 0.83x    |
-| hilbertlinearscan | 1.70ms | 1.70x    |
-| compactlinearscan | 8.00ms | 8.00x    |
+| rtree             | 0.78ms | 0.78x    |
+| mortonlinearscan  | 1.60ms | 1.60x    |
+| compactlinearscan | 7.60ms | 7.60x    |
 
 ### sparse-overlapping (n=40) 80/20
 
 | Implementation    | Time   | Relative |
 | ----------------- | ------ | -------- |
-| hilbertlinearscan | 0.02ms | 0.02x    |
+| mortonlinearscan  | 0.01ms | 0.01x    |
 | compactlinearscan | 0.02ms | 0.02x    |
 | rtree             | 0.07ms | 0.07x    |
 
@@ -302,7 +302,7 @@ Comparing **O(n) linear scan** vs **O(log n) R-tree** across:
 
 | Implementation    | Time   | Relative |
 | ----------------- | ------ | -------- |
-| hilbertlinearscan | 0.01ms | 0.01x    |
+| mortonlinearscan  | 0.01ms | 0.01x    |
 | compactlinearscan | 0.02ms | 0.02x    |
 | rtree             | 0.02ms | 0.02x    |
 
@@ -314,25 +314,25 @@ Comparing **O(n) linear scan** vs **O(log n) R-tree** across:
 
 | Implementation    | Time     | Relative |
 | ----------------- | -------- | -------- |
-| rtree             | 14.00ms  | 14.00x   |
-| hilbertlinearscan | 360.00ms | 360.00x  |
-| compactlinearscan | 877.80ms | 877.80x  |
+| rtree             | 13.20ms  | 13.20x   |
+| mortonlinearscan  | 344.00ms | 344.00x  |
+| compactlinearscan | 843.70ms | 843.70x  |
 
 ### overlapping (n=1000, 10k queries)
 
 | Implementation    | Time     | Relative |
 | ----------------- | -------- | -------- |
-| rtree             | 15.10ms  | 15.10x   |
-| hilbertlinearscan | 43.20ms  | 43.20x   |
-| compactlinearscan | 111.90ms | 111.90x  |
+| rtree             | 14.70ms  | 14.70x   |
+| mortonlinearscan  | 42.40ms  | 42.40x   |
+| compactlinearscan | 108.80ms | 108.80x  |
 
 ### sequential (n=1000, 10k queries)
 
 | Implementation    | Time    | Relative |
 | ----------------- | ------- | -------- |
 | rtree             | 1.10ms  | 1.10x    |
-| hilbertlinearscan | 24.10ms | 24.10x   |
-| compactlinearscan | 88.60ms | 88.60x   |
+| mortonlinearscan  | 23.30ms | 23.30x   |
+| compactlinearscan | 86.80ms | 86.80x   |
 
 ---
 
@@ -349,17 +349,17 @@ These benchmarks compare **O(n) linear scan** vs **O(log n) R-tree** for differe
 
 **compactlinearscan** (1.2KB minified):
 
-- Fastest in 1/35 scenarios, slowest in 23/35 scenarios
+- Fastest in 0/35 scenarios, slowest in 23/35 scenarios
 - Average 1.00x vs RTree (same)
 
-**hilbertlinearscan** (1.8KB minified):
+**mortonlinearscan** (1.8KB minified):
 
-- Fastest in 23/35 scenarios, slowest in 0/35 scenarios
+- Fastest in 25/35 scenarios, slowest in 0/35 scenarios
 - Average 1.00x vs RTree (same)
 
 **rtree** (8.4KB minified):
 
-- Fastest in 11/35 scenarios, slowest in 12/35 scenarios
+- Fastest in 10/35 scenarios, slowest in 12/35 scenarios
 - Average 1.00x vs RTree (same)
 
 **System**: darwin aarch64
