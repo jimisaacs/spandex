@@ -12,6 +12,20 @@ import { assertLess } from '@std/assert';
 import MortonLinearScanImpl from '../src/implementations/mortonlinearscan.ts';
 import RStarTreeImpl from '../src/implementations/rstartree.ts';
 
+/**
+ * Simple seeded PRNG for deterministic tests
+ * Uses Mulberry32 algorithm (fast, good distribution)
+ */
+function seededRandom(seed: number): () => number {
+	return () => {
+		seed |= 0;
+		seed = (seed + 0x6D2B79F5) | 0;
+		let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+		t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+		return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+	};
+}
+
 Deno.test('Adversarial: Concentric rectangles (maximize overlaps)', () => {
 	const index = new MortonLinearScanImpl<string>();
 	const fragmentCounts: number[] = [];
@@ -39,7 +53,6 @@ Deno.test('Adversarial: Concentric rectangles (maximize overlaps)', () => {
 
 	// Measure average fragmentation factor
 	const avgFragments = finalCount / 100;
-	console.log(`Concentric pattern: ${finalCount} final ranges, ${avgFragments.toFixed(2)}x avg fragmentation`);
 
 	// Should be bounded, not exponential
 	assertLess(avgFragments, 5, `Fragmentation should be bounded, got ${avgFragments.toFixed(2)}x`);
@@ -67,13 +80,13 @@ Deno.test('Adversarial: Diagonal sweep (maximize edge cases)', () => {
 	assertLess(finalCount, 400, `Expected O(n), got ${finalCount} ranges`);
 
 	const avgFragments = finalCount / 100;
-	console.log(`Diagonal pattern: ${finalCount} final ranges, ${avgFragments.toFixed(2)}x avg fragmentation`);
 
 	assertLess(avgFragments, 5, `Bounded fragmentation expected`);
 });
 
 Deno.test('Adversarial: Checkerboard (maximize decomposition)', () => {
 	const index = new MortonLinearScanImpl<string>();
+	const random = seededRandom(42); // Deterministic seed
 
 	// Pattern: Insert large blocks, then small blocks that punch holes
 	// This creates maximum decomposition complexity
@@ -88,12 +101,11 @@ Deno.test('Adversarial: Checkerboard (maximize decomposition)', () => {
 	}
 
 	const afterBlocks = index.size;
-	console.log(`After 10 large blocks: ${afterBlocks} ranges`);
 
 	// Punch holes (small rectangles that decompose each large block)
 	for (let i = 0; i < 50; i++) {
-		const row = Math.floor(Math.random() * 200);
-		const col = Math.floor(Math.random() * 100);
+		const row = Math.floor(random() * 200);
+		const col = Math.floor(random() * 100);
 		index.insert({
 			startRowIndex: row,
 			endRowIndex: row + 3,
@@ -103,7 +115,6 @@ Deno.test('Adversarial: Checkerboard (maximize decomposition)', () => {
 	}
 
 	const afterHoles = index.size;
-	console.log(`After 50 holes: ${afterHoles} ranges`);
 
 	// 60 total inserts → should have < 240 ranges (4x factor)
 	assertLess(afterHoles, 240, `Expected O(n), got ${afterHoles} ranges from 60 inserts`);
@@ -133,12 +144,6 @@ Deno.test('Adversarial: RStarTree under same patterns', () => {
 	const finalCount = fragmentCounts[n - 1];
 	const avgFragments = finalCount / n;
 
-	console.log(
-		`R*-tree concentric pattern: ${n} inserts → ${finalCount} final ranges, ${
-			avgFragments.toFixed(2)
-		}x avg fragmentation`,
-	);
-
 	// Same O(n) bound should apply
 	assertLess(finalCount, n * 4, `R*-tree should also have O(n) fragmentation, got ${finalCount} from ${n} inserts`);
 	assertLess(avgFragments, 5, 'R*-tree fragmentation should be bounded');
@@ -167,20 +172,11 @@ Deno.test('Adversarial: Growth pattern analysis', () => {
 		samples.push({ n, ranges, ratio });
 	}
 
-	console.log('\nFragmentation growth pattern:');
-	console.log('n\tRanges\tRatio');
-	for (const s of samples) {
-		console.log(`${s.n}\t${s.ranges}\t${s.ratio.toFixed(2)}x`);
-	}
-
 	// Check that growth is sub-quadratic (not exponential)
 	// If fragmentation were exponential, ratio would grow rapidly
 	// For O(n), ratio should stay relatively constant
 	const firstRatio = samples[0].ratio;
 	const lastRatio = samples[samples.length - 1].ratio;
-
-	console.log(`\nRatio growth: ${firstRatio.toFixed(2)}x → ${lastRatio.toFixed(2)}x`);
-	console.log(`Factor increase: ${(lastRatio / firstRatio).toFixed(2)}x`);
 
 	// Ratio should not grow exponentially
 	// Allow up to 3x growth in ratio (still linear overall)
@@ -189,13 +185,14 @@ Deno.test('Adversarial: Growth pattern analysis', () => {
 
 Deno.test('Adversarial: Stress test with random overlaps', () => {
 	const index = new MortonLinearScanImpl<string>();
+	const random = seededRandom(123); // Deterministic seed
 
 	// Random insertion pattern (realistic worst-case)
 	for (let i = 0; i < 200; i++) {
-		const row1 = Math.floor(Math.random() * 100);
-		const col1 = Math.floor(Math.random() * 100);
-		const row2 = row1 + 5 + Math.floor(Math.random() * 20);
-		const col2 = col1 + 5 + Math.floor(Math.random() * 20);
+		const row1 = Math.floor(random() * 100);
+		const col1 = Math.floor(random() * 100);
+		const row2 = row1 + 5 + Math.floor(random() * 20);
+		const col2 = col1 + 5 + Math.floor(random() * 20);
 
 		index.insert({
 			startRowIndex: row1,
@@ -208,8 +205,6 @@ Deno.test('Adversarial: Stress test with random overlaps', () => {
 	const finalCount = index.size;
 	const ratio = finalCount / 200;
 
-	console.log(`Random overlap stress: 200 inserts → ${finalCount} ranges (${ratio.toFixed(2)}x)`);
-
 	// Allow up to 2x fragmentation for random patterns
-	assertLess(finalCount, 400, `Random pattern should stay O(n), got ${finalCount} ranges`);
+	assertLess(finalCount, 400, `Random pattern should stay O(n), got ${finalCount} ranges (${ratio.toFixed(2)}x)`);
 });

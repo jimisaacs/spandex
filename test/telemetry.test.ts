@@ -1,6 +1,6 @@
-import { assertEquals, assertExists } from 'https://deno.land/std@0.208.0/assert/mod.ts';
-import { TelemetryCollector, TelemetrySnapshot } from '../src/telemetry/index.ts';
+import { assert, assertEquals, assertExists } from '@std/assert';
 import MortonLinearScanImpl from '../src/implementations/mortonlinearscan.ts';
+import { TelemetryCollector, TelemetrySnapshot } from '../src/telemetry/index.ts';
 
 const range = (r1?: number, r2?: number, c1?: number, c2?: number) => ({
 	startRowIndex: r1,
@@ -39,8 +39,8 @@ Deno.test('Telemetry: Collects insert metrics', () => {
 	wrapped.insert(range(2, 7, 2, 7), 'yellow'); // Overlapping
 	wrapped.getAllRanges(); // Trigger reporting
 
-	assertExists(reported, 'No report');
-	const snapshot = reported as TelemetrySnapshot;
+	assertExists(reported, 'telemetry should generate report');
+	const snapshot = reported as TelemetrySnapshot; // Type-safe after assertExists
 	assertEquals(snapshot.operations.inserts, 4);
 	assertEquals(snapshot.propertyName, 'backgroundColor');
 	assertEquals(snapshot.implementationName, 'MortonLinearScanImpl');
@@ -69,9 +69,9 @@ Deno.test('Telemetry: Detects overlapping inserts', () => {
 
 	wrapped.getAllRanges(); // Trigger (4 ops total)
 
-	if (!reported) throw new Error('No report');
-	assertEquals(reported.insertPatterns.sequential, 2);
-	assertEquals(reported.insertPatterns.overlapping, 1);
+	assertExists(reported, 'telemetry should generate report');
+	assertEquals(reported!.insertPatterns.sequential, 2);
+	assertEquals(reported!.insertPatterns.overlapping, 1);
 });
 
 Deno.test('Telemetry: Tracks n distribution', () => {
@@ -97,9 +97,9 @@ Deno.test('Telemetry: Tracks n distribution', () => {
 
 	wrapped.getAllRanges(); // Trigger (6 ops total)
 
-	if (!reported) throw new Error('No report');
-	assertEquals(reported.nDistribution.min, 1);
-	assertEquals(reported.nDistribution.max, 5);
+	assertExists(reported, 'telemetry should generate report');
+	assertEquals(reported!.nDistribution.min, 1);
+	assertEquals(reported!.nDistribution.max, 5);
 });
 
 Deno.test('Telemetry: Collects query metrics', () => {
@@ -127,8 +127,8 @@ Deno.test('Telemetry: Collects query metrics', () => {
 
 	wrapped.getAllRanges(); // Trigger
 
-	if (!reported) throw new Error('No report');
-	assertEquals(reported.operations.queries, 2);
+	assertExists(reported, 'telemetry should generate report');
+	assertEquals(reported!.operations.queries, 2);
 });
 
 Deno.test('Telemetry: Performance metrics captured', () => {
@@ -152,10 +152,10 @@ Deno.test('Telemetry: Performance metrics captured', () => {
 
 	wrapped.getAllRanges(); // Trigger
 
-	if (!reported) throw new Error('No report');
-	assertExists(reported.performance.insertP50);
-	assertExists(reported.performance.insertP95);
-	assertExists(reported.performance.insertP99);
+	assertExists(reported, 'telemetry should generate report');
+	assertExists(reported!.performance.insertP50, 'should capture P50 insert time');
+	assertExists(reported!.performance.insertP95, 'should capture P95 insert time');
+	assertExists(reported!.performance.insertP99, 'should capture P99 insert time');
 });
 
 Deno.test('Telemetry: Force report works', () => {
@@ -199,6 +199,6 @@ Deno.test('Telemetry: Session ID included', () => {
 	wrapped.insert(range(0, 5, 0, 5), 'a');
 	wrapped.getAllRanges(); // Trigger (2 ops total)
 
-	if (!reported) throw new Error('No report');
-	assertEquals(reported.sessionId, 'test-session-123');
+	assertExists(reported, 'telemetry should generate report');
+	assertEquals(reported!.sessionId, 'test-session-123');
 });

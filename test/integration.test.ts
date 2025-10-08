@@ -1,5 +1,6 @@
 /// <reference types="@types/google-apps-script" />
 
+import { assertEquals } from '@std/assert';
 import MortonLinearScanImpl from '../src/implementations/mortonlinearscan.ts';
 import RStarTreeImpl from '../src/implementations/rstartree.ts';
 
@@ -51,14 +52,12 @@ Deno.test('All implementations produce identical results', () => {
 			a: ReturnType<typeof normalize>,
 			b: ReturnType<typeof normalize>,
 		) => sortKey(a).localeCompare(sortKey(b)));
-		if (JSON.stringify(resultNormalized) !== JSON.stringify(referenceNormalized)) {
-			throw new Error(`${result.name} produced different results than ${results[0].name}`);
-		}
+		assertEquals(
+			JSON.stringify(resultNormalized),
+			JSON.stringify(referenceNormalized),
+			`${result.name} should produce identical results to ${results[0].name}`,
+		);
 	}
-
-	console.log(`✅ All ${results.length} implementations produce identical results`);
-	console.log(`   Final range count: ${results[0].ranges.length}`);
-	console.log(`   Final value: ${results[0].ranges[0]?.value}`);
 });
 
 Deno.test('Performance comparison across implementations', () => {
@@ -77,24 +76,24 @@ Deno.test('Performance comparison across implementations', () => {
 		value: `data_${i}`,
 	}));
 
-	console.log('\n=== PERFORMANCE COMPARISON ===');
-
+	// Performance comparison (informational only, belongs in benchmarks/)
 	const results = implementations.map(({ name, Class }) => {
 		const index = new Class();
 		const start = performance.now();
 		operations.forEach((op) => index.insert(op.range, op.value));
 		const time = performance.now() - start;
 		const rangeCount = index.getAllRanges().length;
-		console.log(`${name}: ${time.toFixed(2)}ms (${rangeCount} ranges)`);
 		return { name, time, rangeCount };
 	});
 
-	const fastest = results.reduce((min, curr) => (curr.time < min.time ? curr : min));
-	console.log(`🏆 Fastest: ${fastest.name} (${fastest.time.toFixed(2)}ms)`);
-
 	// Verify all produce same range count
-	if (!results.every((r) => r.rangeCount === results[0].rangeCount)) {
-		throw new Error('Implementations produced different range counts!');
+	const referenceCount = results[0].rangeCount;
+	for (const result of results) {
+		assertEquals(
+			result.rangeCount,
+			referenceCount,
+			`${result.name} should produce same range count as ${results[0].name}`,
+		);
 	}
 });
 
@@ -114,10 +113,20 @@ Deno.test('Memory efficiency validation', () => {
 		value: `mem_${i}`,
 	}));
 
-	implementations.forEach(({ name, Class }) => {
+	// All implementations should produce same range count (consistency check)
+	const results = implementations.map(({ name, Class }) => {
 		const index = new Class();
 		operations.forEach((op) => index.insert(op.range, op.value));
-		const rangeCount = index.getAllRanges().length;
-		console.log(`${name}: ${rangeCount} ranges produced`);
+		return { name, rangeCount: index.getAllRanges().length };
 	});
+
+	// Verify all implementations produce identical results
+	const referenceCount = results[0].rangeCount;
+	for (const result of results) {
+		assertEquals(
+			result.rangeCount,
+			referenceCount,
+			`memory efficiency: ${result.name} should produce ${referenceCount} ranges like ${results[0].name}`,
+		);
+	}
 });

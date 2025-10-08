@@ -1,7 +1,7 @@
 /// <reference types="@types/google-apps-script" />
 
-import { type TestConfig, testImplementationEquivalence, testSpatialIndexAxioms } from '../src/conformance/mod.ts';
 import LinearScanImpl from '../archive/src/implementations/superseded/linearscan.ts';
+import { type TestConfig, testImplementationEquivalence, testSpatialIndexAxioms } from '../src/conformance/mod.ts';
 import RStarTreeImpl from '../src/implementations/rstartree.ts';
 
 /**

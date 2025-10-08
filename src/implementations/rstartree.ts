@@ -32,7 +32,7 @@ const NEG_INF = -2147483648;
 const POS_INF = 2147483647;
 
 // Performance-critical: Inline AABB intersection test
-const hits = (
+function hits(
 	ax1: number,
 	ay1: number,
 	ax2: number,
@@ -41,10 +41,12 @@ const hits = (
 	by1: number,
 	bx2: number,
 	by2: number,
-): boolean => !(ax2 < bx1 || bx2 < ax1 || ay2 < by1 || by2 < ay1);
+): boolean {
+	return !(ax2 < bx1 || bx2 < ax1 || ay2 < by1 || by2 < ay1);
+}
 
 // Geometric subtraction: A \ B → ≤4 disjoint fragments
-const subtract = (
+function subtract(
 	ax1: number,
 	ay1: number,
 	ax2: number,
@@ -53,7 +55,7 @@ const subtract = (
 	by1: number,
 	bx2: number,
 	by2: number,
-): Array<readonly [number, number, number, number]> => {
+): Array<readonly [number, number, number, number]> {
 	const fragments: Array<readonly [number, number, number, number]> = [];
 	// Top strip
 	if (ay1 < by1) fragments.push([ax1, ay1, ax2, by1 - 1]);
@@ -69,16 +71,16 @@ const subtract = (
 		if (ax2 > bx2) fragments.push([bx2 + 1, yMin, ax2, yMax]);
 	}
 	return fragments;
-};
+}
 
 // Area of bounding box (for split heuristics)
-const area = (x1: number, y1: number, x2: number, y2: number): number => {
+function area(x1: number, y1: number, x2: number, y2: number): number {
 	if (x1 === NEG_INF || x2 === POS_INF || y1 === NEG_INF || y2 === POS_INF) return Infinity;
 	return (x2 - x1 + 1) * (y2 - y1 + 1);
-};
+}
 
 // Expansion needed to include rect in bbox
-const expansion = (
+function expansion(
 	bx1: number,
 	by1: number,
 	bx2: number,
@@ -87,7 +89,7 @@ const expansion = (
 	ry1: number,
 	rx2: number,
 	ry2: number,
-): number => {
+): number {
 	const newArea = area(
 		bx1 < rx1 ? bx1 : rx1,
 		by1 < ry1 ? by1 : ry1,
@@ -96,7 +98,27 @@ const expansion = (
 	);
 	const oldArea = area(bx1, by1, bx2, by2);
 	return newArea - oldArea;
-};
+}
+
+// Convert GridRange to internal rectangle format [xmin, ymin, xmax, ymax]
+function toRect(g: GridRange): readonly [number, number, number, number] {
+	return [
+		g.startColumnIndex ?? 0,
+		g.startRowIndex ?? 0,
+		(g.endColumnIndex ?? Infinity) === Infinity ? POS_INF : (g.endColumnIndex ?? Infinity) - 1,
+		(g.endRowIndex ?? Infinity) === Infinity ? POS_INF : (g.endRowIndex ?? Infinity) - 1,
+	];
+}
+
+// Convert internal rectangle to GridRange format
+function toGridRange(x1: number, y1: number, x2: number, y2: number): GridRange {
+	return {
+		startRowIndex: y1 === NEG_INF ? undefined : y1,
+		endRowIndex: y2 === POS_INF ? undefined : y2 + 1,
+		startColumnIndex: x1 === NEG_INF ? undefined : x1,
+		endColumnIndex: x2 === POS_INF ? undefined : x2 + 1,
+	};
+}
 
 export default class RStarTreeImpl<T> implements SpatialIndex<T> {
 	// Node storage: TypedArrays for performance
@@ -141,7 +163,7 @@ export default class RStarTreeImpl<T> implements SpatialIndex<T> {
 			return;
 		}
 
-		const [nx1, ny1, nx2, ny2] = this.toRect(gridRange);
+		const [nx1, ny1, nx2, ny2] = toRect(gridRange);
 		if (nx1 > nx2 || ny1 > ny2) throw new Error('Invalid GridRange');
 
 		this.globalValue = undefined;
@@ -151,8 +173,10 @@ export default class RStarTreeImpl<T> implements SpatialIndex<T> {
 			this.rootIdx = this.createNode(1); // Leaf
 		}
 
+		let root = this.rootIdx;
+
 		// Find and remove overlapping entries
-		const overlapping = this.searchEntries(this.rootIdx, nx1, ny1, nx2, ny2);
+		const overlapping = this.searchEntries(root, nx1, ny1, nx2, ny2);
 
 		for (const entryIdx of overlapping) {
 			this.entryActive[entryIdx] = 0;
@@ -177,20 +201,21 @@ export default class RStarTreeImpl<T> implements SpatialIndex<T> {
 		// Insert all fragments into tree
 		for (const [x1, y1, x2, y2, v] of fragments) {
 			const entryIdx = this.addEntry(x1, y1, x2, y2, v);
-			const splitNodeIdx = this.insertIntoNode(this.rootIdx, entryIdx);
+			const splitNodeIdx = this.insertIntoNode(root, entryIdx);
 
 			if (splitNodeIdx !== -1) {
 				// Root split - create new root
 				const newRootIdx = this.createNode(0); // Internal
-				this.nodeChildren[newRootIdx] = [this.rootIdx, splitNodeIdx];
+				this.nodeChildren[newRootIdx] = [root, splitNodeIdx];
 				this.updateBounds(newRootIdx);
 				this.rootIdx = newRootIdx;
+				root = newRootIdx; // Update cached root
 			}
 		}
 	}
 
 	getAllRanges(): Array<{ gridRange: GridRange; value: T }> {
-		if (this.globalValue !== undefined) {
+		if (this.globalValue != null) {
 			return [{ gridRange: {}, value: this.globalValue }];
 		}
 
@@ -199,7 +224,7 @@ export default class RStarTreeImpl<T> implements SpatialIndex<T> {
 			if (this.entryActive[i]) {
 				const base = i * COORDS;
 				results.push({
-					gridRange: this.toGridRange(
+					gridRange: toGridRange(
 						this.entryBounds[base],
 						this.entryBounds[base + 1],
 						this.entryBounds[base + 2],
@@ -213,20 +238,21 @@ export default class RStarTreeImpl<T> implements SpatialIndex<T> {
 	}
 
 	query(gridRange: GridRange): Array<{ gridRange: GridRange; value: T }> {
-		if (this.globalValue !== undefined) {
+		if (this.globalValue != null) {
 			return [{ gridRange: {}, value: this.globalValue }];
 		}
 
-		if (this.rootIdx === -1) return [];
+		const root = this.rootIdx;
+		if (root === -1) return [];
 
-		const [qx1, qy1, qx2, qy2] = this.toRect(gridRange);
-		const entryIndices = this.searchEntries(this.rootIdx, qx1, qy1, qx2, qy2);
+		const [qx1, qy1, qx2, qy2] = toRect(gridRange);
+		const entryIndices = this.searchEntries(root, qx1, qy1, qx2, qy2);
 
 		const results: Array<{ gridRange: GridRange; value: T }> = [];
 		for (const idx of entryIndices) {
 			const base = idx * COORDS;
 			results.push({
-				gridRange: this.toGridRange(
+				gridRange: toGridRange(
 					this.entryBounds[base],
 					this.entryBounds[base + 1],
 					this.entryBounds[base + 2],
@@ -239,7 +265,7 @@ export default class RStarTreeImpl<T> implements SpatialIndex<T> {
 	}
 
 	get isEmpty(): boolean {
-		return this.globalValue === undefined && this.rootIdx === -1;
+		return this.globalValue == null && this.rootIdx === -1;
 	}
 
 	get size(): number {
@@ -380,6 +406,8 @@ export default class RStarTreeImpl<T> implements SpatialIndex<T> {
 		const base = nodeIdx * COORDS;
 		let xmin: number, ymin: number, xmax: number, ymax: number;
 
+		const childrenLen = children.length;
+
 		if (isLeaf) {
 			// Leaf: compute bbox from entry coordinates
 			const firstBase = children[0] * COORDS;
@@ -388,7 +416,7 @@ export default class RStarTreeImpl<T> implements SpatialIndex<T> {
 			xmax = this.entryBounds[firstBase + 2];
 			ymax = this.entryBounds[firstBase + 3];
 
-			for (let i = 1; i < children.length; i++) {
+			for (let i = 1; i < childrenLen; i++) {
 				const childBase = children[i] * COORDS;
 				const cx1 = this.entryBounds[childBase];
 				const cy1 = this.entryBounds[childBase + 1];
@@ -407,7 +435,7 @@ export default class RStarTreeImpl<T> implements SpatialIndex<T> {
 			xmax = this.nodeBounds[firstBase + 2];
 			ymax = this.nodeBounds[firstBase + 3];
 
-			for (let i = 1; i < children.length; i++) {
+			for (let i = 1; i < childrenLen; i++) {
 				const childBase = children[i] * COORDS;
 				const cx1 = this.nodeBounds[childBase];
 				const cy1 = this.nodeBounds[childBase + 1];
@@ -462,22 +490,25 @@ export default class RStarTreeImpl<T> implements SpatialIndex<T> {
 
 		// Internal node: choose subtree with minimum expansion
 		const children = this.nodeChildren[nodeIdx];
+		const childrenLen = children.length;
 		const entryBase = entryIdx * COORDS;
 		const ex1 = this.entryBounds[entryBase];
 		const ey1 = this.entryBounds[entryBase + 1];
 		const ex2 = this.entryBounds[entryBase + 2];
 		const ey2 = this.entryBounds[entryBase + 3];
+		const nodeBounds = this.nodeBounds;
 
 		let bestChildIdx = children[0];
 		let minExpansion = Infinity;
 		let minArea = Infinity;
 
-		for (const childIdx of children) {
+		for (let i = 0; i < childrenLen; i++) {
+			const childIdx = children[i];
 			const childBase = childIdx * COORDS;
-			const cx1 = this.nodeBounds[childBase];
-			const cy1 = this.nodeBounds[childBase + 1];
-			const cx2 = this.nodeBounds[childBase + 2];
-			const cy2 = this.nodeBounds[childBase + 3];
+			const cx1 = nodeBounds[childBase];
+			const cy1 = nodeBounds[childBase + 1];
+			const cx2 = nodeBounds[childBase + 2];
+			const cy2 = nodeBounds[childBase + 3];
 
 			const exp = expansion(cx1, cy1, cx2, cy2, ex1, ey1, ex2, ey2);
 			const a = area(cx1, cy1, cx2, cy2);
@@ -516,7 +547,6 @@ export default class RStarTreeImpl<T> implements SpatialIndex<T> {
 		// Choose split axis: test both X and Y, pick the one minimizing perimeter sum
 
 		let bestAxis = 0; // 0=X, 1=Y
-		let bestDistribution: number[] = [];
 		let minPerimeterSum = Infinity;
 
 		// Test both axes
@@ -568,7 +598,6 @@ export default class RStarTreeImpl<T> implements SpatialIndex<T> {
 				if (perimeterSum < minPerimeterSum) {
 					minPerimeterSum = perimeterSum;
 					bestAxis = axis;
-					bestDistribution = sorted;
 				}
 			}
 		}
@@ -700,7 +729,9 @@ export default class RStarTreeImpl<T> implements SpatialIndex<T> {
 
 		if (isLeaf) {
 			// Leaf: accumulate matching entries
-			for (const entryIdx of children) {
+			const childrenLen = children.length;
+			for (let i = 0; i < childrenLen; i++) {
+				const entryIdx = children[i];
 				if (!this.entryActive[entryIdx]) continue;
 
 				const entryBase = entryIdx * COORDS;
@@ -717,30 +748,11 @@ export default class RStarTreeImpl<T> implements SpatialIndex<T> {
 		}
 
 		// Internal: recurse into children (accumulator pattern)
-		for (const childIdx of children) {
-			this.searchEntries(childIdx, qx1, qy1, qx2, qy2, results);
+		const childrenLen = children.length;
+		for (let i = 0; i < childrenLen; i++) {
+			this.searchEntries(children[i], qx1, qy1, qx2, qy2, results);
 		}
 		return results;
-	}
-
-	// ===== CONVERSION HELPERS =====
-
-	private toRect(g: GridRange): readonly [number, number, number, number] {
-		return [
-			g.startColumnIndex ?? 0,
-			g.startRowIndex ?? 0,
-			(g.endColumnIndex ?? Infinity) === Infinity ? POS_INF : (g.endColumnIndex ?? Infinity) - 1,
-			(g.endRowIndex ?? Infinity) === Infinity ? POS_INF : (g.endRowIndex ?? Infinity) - 1,
-		];
-	}
-
-	private toGridRange(x1: number, y1: number, x2: number, y2: number): GridRange {
-		return {
-			startRowIndex: y1 === NEG_INF ? undefined : y1,
-			endRowIndex: y2 === POS_INF ? undefined : y2 + 1,
-			startColumnIndex: x1 === NEG_INF ? undefined : x1,
-			endColumnIndex: x2 === POS_INF ? undefined : x2 + 1,
-		};
 	}
 
 	// ===== CAPACITY MANAGEMENT =====

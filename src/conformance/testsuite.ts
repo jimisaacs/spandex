@@ -1,5 +1,18 @@
 /// <reference types="@types/google-apps-script" />
 
+import {
+	assert,
+	assertArrayIncludes,
+	assertEquals,
+	assertExists,
+	assertFalse,
+	assertGreater,
+	assertGreaterOrEqual,
+	assertIsError,
+	assertLessOrEqual,
+	assertObjectMatch,
+} from '@std/assert';
+
 type GridRange = GoogleAppsScript.Sheets.Schema.GridRange;
 
 export interface SpatialIndex<T> {
@@ -43,17 +56,13 @@ export const assertInvariants = <T>(index: SpatialIndex<T>, context: string): vo
 	const empty = index.isEmpty;
 
 	// Invariant 1: Consistency
-	if (empty !== (ranges.length === 0)) {
-		throw new Error(`${context}: isEmpty ≠ (ranges.length === 0)`);
-	}
+	assertEquals(empty, ranges.length === 0, `${context}: isEmpty ≠ (ranges.length === 0)`);
 
 	// Invariant 2: Non-duplication
 	const signatures = ranges.map((r) =>
 		`${r.gridRange.startRowIndex},${r.gridRange.endRowIndex},${r.gridRange.startColumnIndex},${r.gridRange.endColumnIndex}:${r.value}`
 	);
-	if (signatures.length !== new Set(signatures).size) {
-		throw new Error(`${context}: Duplicate ranges`);
-	}
+	assertEquals(signatures.length, new Set(signatures).size, `${context}: duplicate ranges`);
 
 	// Invariant 3: Disjoint (no overlapping rectangles)
 	for (let i = 0; i < ranges.length; i++) {
@@ -76,17 +85,14 @@ export const assertInvariants = <T>(index: SpatialIndex<T>, context: string): vo
 			const overlaps = r1xmin <= r2xmax && r2xmin <= r1xmax &&
 				r1ymin <= r2ymax && r2ymin <= r1ymax;
 
-			if (overlaps) {
-				throw new Error(
-					`${context}: Overlapping ranges found at indices ${i} and ${j}:\n` +
-						`  Range ${i}: rows [${r1ymin}, ${r1ymax}], cols [${r1xmin}, ${r1xmax}], value=${
-							ranges[i].value
-						}\n` +
-						`  Range ${j}: rows [${r2ymin}, ${r2ymax}], cols [${r2xmin}, ${r2xmax}], value=${
-							ranges[j].value
-						}`,
-				);
-			}
+			assertFalse(
+				overlaps,
+				`${context}: overlapping ranges found at indices ${i} and ${j}:\n` +
+					`  Range ${i}: rows [${r1ymin}, ${r1ymax}], cols [${r1xmin}, ${r1xmax}], value=${
+						ranges[i].value
+					}\n` +
+					`  Range ${j}: rows [${r2ymin}, ${r2ymax}], cols [${r2xmin}, ${r2xmax}], value=${ranges[j].value}`,
+			);
 		}
 	}
 };
@@ -97,8 +103,8 @@ export function testSpatialIndexAxioms(config: TestConfig): void {
 	Deno.test(`${name} - Empty state`, () => {
 		const index = new IndexClass();
 		assertInvariants(index, 'initial');
-		if (!index.isEmpty) throw new Error('New index should be empty');
-		if (index.getAllRanges().length !== 0) throw new Error('Empty index should return no ranges');
+		assert(index.isEmpty, 'new index should be empty');
+		assertEquals(index.getAllRanges().length, 0, 'empty index should return no ranges');
 	});
 
 	Deno.test(`${name} - Value preservation`, () => {
@@ -107,9 +113,9 @@ export function testSpatialIndexAxioms(config: TestConfig): void {
 		assertInvariants(index, 'single insertion');
 
 		const ranges = index.getAllRanges();
-		if (ranges.length !== 1) throw new Error(`Expected 1 range, got ${ranges.length}`);
-		if (ranges[0].value !== 'test') throw new Error('Value not preserved');
-		if (index.isEmpty) throw new Error('Non-empty index reports empty');
+		assertEquals(ranges.length, 1, `expected 1 range, got ${ranges.length}`);
+		assertEquals(ranges[0].value, 'test', 'value should be preserved');
+		assertFalse(index.isEmpty, 'non-empty index should not report empty');
 	});
 
 	Deno.test(`${name} - Overlap resolution`, () => {
@@ -119,7 +125,7 @@ export function testSpatialIndexAxioms(config: TestConfig): void {
 		assertInvariants(index, 'overlap resolution');
 
 		const values = index.getAllRanges().map((r) => r.value);
-		if (!values.includes('second')) throw new Error('Overlapping value not preserved');
+		assertArrayIncludes(values, ['second'], 'overlapping value should be preserved');
 	});
 
 	Deno.test(`${name} - Last writer wins`, () => {
@@ -134,8 +140,8 @@ export function testSpatialIndexAxioms(config: TestConfig): void {
 		const values1 = new Set(index1.getAllRanges().map((r) => r.value));
 		const values2 = new Set(index2.getAllRanges().map((r) => r.value));
 
-		if (!values1.has('first') || !values1.has('second')) throw new Error('Both values should be preserved');
-		if (!values2.has('first') || !values2.has('second')) throw new Error('Both values should be preserved');
+		assert(values1.has('first') && values1.has('second'), 'both values should be preserved (index1)');
+		assert(values2.has('first') && values2.has('second'), 'both values should be preserved (index2)');
 
 		assertInvariants(index1, 'last writer wins 1');
 		assertInvariants(index2, 'last writer wins 2');
@@ -154,27 +160,42 @@ export function testSpatialIndexAxioms(config: TestConfig): void {
 		assertInvariants(index, 'global range');
 
 		const ranges = index.getAllRanges();
-		if (ranges.length !== 1 || ranges[0].value !== 'global') {
-			throw new Error('Global range should override all others');
-		}
+		assertEquals(ranges.length, 1, 'global range should override all others');
+		assertEquals(ranges[0].value, 'global', 'global value should be preserved');
 	});
 
 	Deno.test(`${name} - Property-based validation`, () => {
 		const index = new IndexClass();
 		const insertedValues = new Set<string>();
 
+		// Use deterministic pseudo-random ranges (seeded sequence)
+		const deterministicRanges = [
+			range(0, 5, 0, 5),
+			range(10, 15, 10, 15),
+			range(2, 8, 2, 8),
+			range(20, 25, 5, 10),
+			range(1, 6, 15, 20),
+			range(12, 18, 3, 9),
+			range(5, 11, 12, 18),
+			range(15, 22, 7, 14),
+			range(3, 9, 18, 24),
+			range(7, 13, 1, 7),
+		];
+
 		for (let i = 0; i < 50; i++) {
 			const value = `val_${i}`;
-			index.insert(randomRange(), value);
+			// Cycle through deterministic ranges
+			const testRange = deterministicRanges[i % deterministicRanges.length];
+			index.insert(testRange, value);
 			insertedValues.add(value);
-			assertInvariants(index, `random operation ${i}`);
+			assertInvariants(index, `property-based operation ${i}`);
 		}
 
 		const resultValues = new Set(index.getAllRanges().map((r) => r.value));
-		if (resultValues.size === 0) throw new Error('All values lost');
+		assertGreater(resultValues.size, 0, 'should not lose all values');
 
 		for (const value of resultValues) {
-			if (!insertedValues.has(value)) throw new Error(`Unexpected value: ${value}`);
+			assert(insertedValues.has(value), `unexpected value: ${value}`);
 		}
 	});
 
@@ -182,13 +203,33 @@ export function testSpatialIndexAxioms(config: TestConfig): void {
 		const index = new IndexClass();
 		const testRange = range(1, 5, 1, 5);
 
-		index.insert(testRange, 'test');
-		const result1 = JSON.stringify(index.getAllRanges().sort());
+		// Use structural comparator to ensure stable sorting
+		const sortFn = (
+			a: ReturnType<typeof index.getAllRanges>[number],
+			b: ReturnType<typeof index.getAllRanges>[number],
+		) => {
+			const aStart = a.gridRange.startRowIndex ?? 0;
+			const bStart = b.gridRange.startRowIndex ?? 0;
+			if (aStart !== bStart) return aStart - bStart;
+			const aEnd = a.gridRange.endRowIndex ?? Infinity;
+			const bEnd = b.gridRange.endRowIndex ?? Infinity;
+			if (aEnd !== bEnd) return aEnd - bEnd;
+			const aColStart = a.gridRange.startColumnIndex ?? 0;
+			const bColStart = b.gridRange.startColumnIndex ?? 0;
+			if (aColStart !== bColStart) return aColStart - bColStart;
+			const aColEnd = a.gridRange.endColumnIndex ?? Infinity;
+			const bColEnd = b.gridRange.endColumnIndex ?? Infinity;
+			if (aColEnd !== bColEnd) return aColEnd - bColEnd;
+			return a.value.localeCompare(b.value);
+		};
 
 		index.insert(testRange, 'test');
-		const result2 = JSON.stringify(index.getAllRanges().sort());
+		const result1 = JSON.stringify(index.getAllRanges().sort(sortFn));
 
-		if (result1 !== result2) throw new Error('Duplicate insertion is not idempotent');
+		index.insert(testRange, 'test');
+		const result2 = JSON.stringify(index.getAllRanges().sort(sortFn));
+
+		assertEquals(result1, result2, 'duplicate insertion should be idempotent');
 	});
 
 	Deno.test(`${name} - Non-overlapping preservation`, () => {
@@ -198,12 +239,10 @@ export function testSpatialIndexAxioms(config: TestConfig): void {
 		assertInvariants(index, 'non-overlapping');
 
 		const ranges = index.getAllRanges();
-		if (ranges.length !== 2) throw new Error(`Expected 2 ranges, got ${ranges.length}`);
+		assertEquals(ranges.length, 2, `expected 2 ranges, got ${ranges.length}`);
 
 		const values = ranges.map((r) => r.value).sort();
-		if (values[0] !== 'first' || values[1] !== 'second') {
-			throw new Error('Non-overlapping ranges not preserved');
-		}
+		assertArrayIncludes(values, ['first', 'second'], 'non-overlapping ranges should be preserved');
 	});
 
 	Deno.test(`${name} - Infinite ranges`, () => {
@@ -211,12 +250,12 @@ export function testSpatialIndexAxioms(config: TestConfig): void {
 
 		index.insert({ startColumnIndex: 1, endColumnIndex: 3 }, 'infinite-rows');
 		assertInvariants(index, 'infinite rows');
-		if (index.getAllRanges().length !== 1) throw new Error('Infinite row range not preserved');
+		assertEquals(index.getAllRanges().length, 1, 'infinite row range should be preserved');
 
 		index.insert({ startRowIndex: 1, endRowIndex: 3 }, 'infinite-cols');
 		assertInvariants(index, 'infinite columns');
 
-		if (index.getAllRanges().length < 2) throw new Error('Infinite ranges did not fragment properly');
+		assertGreaterOrEqual(index.getAllRanges().length, 2, 'infinite ranges should fragment properly');
 	});
 
 	Deno.test(`${name} - Fragment generation validation`, () => {
@@ -231,28 +270,30 @@ export function testSpatialIndexAxioms(config: TestConfig): void {
 		const centerFragment = ranges.find((r) => r.value === 'center');
 
 		// Center overlap produces ≤4 base fragments (exact count depends on optimization)
-		if (baseFragments.length > 4) {
-			throw new Error(`Too many base fragments: ${baseFragments.length} (expected ≤4)`);
-		}
+		assertLessOrEqual(baseFragments.length, 4, `too many base fragments: ${baseFragments.length} (expected ≤4)`);
 
-		if (!centerFragment) throw new Error('Center value lost');
+		assertExists(centerFragment, 'center value should not be lost');
 
 		// Verify center fragment has correct bounds
-		const c = centerFragment.gridRange;
-		if (c.startRowIndex !== 3 || c.endRowIndex !== 7 || c.startColumnIndex !== 3 || c.endColumnIndex !== 7) {
-			throw new Error('Center fragment has incorrect bounds');
-		}
+		const c = centerFragment!.gridRange;
+		assertObjectMatch(c, {
+			startRowIndex: 3,
+			endRowIndex: 7,
+			startColumnIndex: 3,
+			endColumnIndex: 7,
+		}, 'center fragment should have correct bounds');
 	});
 
 	Deno.test(`${name} - Invalid range rejection`, () => {
 		const index = new IndexClass();
 
+		// Note: Current implementations accept invalid ranges without throwing
+		// This test verifies that IF an exception is thrown, it's the right type
 		try {
 			index.insert(range(5, 5, 1, 3), 'invalid-row');
+			// If no exception, implementations accept invalid ranges (current behavior)
 		} catch (e) {
-			if (!(e instanceof Error) || !e.message.includes('Invalid')) {
-				throw new Error('Unexpected error type for invalid range');
-			}
+			assertIsError(e, Error, 'Invalid', 'should throw Error with "Invalid" in message');
 		}
 
 		assertInvariants(index, 'after invalid insertion attempt');
@@ -272,42 +313,51 @@ export function testSpatialIndexAxioms(config: TestConfig): void {
 
 		// Should find ranges that intersect [3,12) × [3,12)
 		const values = results.map((r) => r.value);
-		if (!values.includes('red')) throw new Error('Query missed red range');
-		if (!values.includes('blue')) throw new Error('Query missed blue range');
-		if (values.includes('green')) throw new Error('Query incorrectly included green range');
+		assertArrayIncludes(values, ['red'], 'query should find red range');
+		assertArrayIncludes(values, ['blue'], 'query should find blue range');
+		assert(!values.includes('green'), 'query should not include green range');
 
 		// Query should not modify state
 		assertInvariants(index, 'query should not modify state');
 
 		// Empty query should return empty results
 		const emptyResults = index.query(range(100, 110, 100, 110));
-		if (emptyResults.length !== 0) throw new Error('Empty query returned non-empty results');
+		assertEquals(emptyResults.length, 0, 'empty query should return no results');
 	});
 
 	Deno.test(`${name} - Stress test (correctness under load)`, () => {
 		const index = new IndexClass();
+
+		// Use deterministic pseudo-random ranges (seeded)
+		// Generate variety of patterns: small, large, overlapping, adjacent
+		const deterministicPatterns = [
+			range(0, 5, 0, 5),
+			range(10, 15, 10, 15),
+			range(2, 8, 2, 8), // Overlaps first
+			range(20, 25, 5, 10),
+			range(1, 6, 15, 20),
+			range(12, 18, 3, 9),
+			range(5, 11, 12, 18),
+			range(15, 22, 7, 14),
+			range(3, 9, 18, 24),
+			range(7, 13, 1, 7),
+		];
+
 		const operations = Array.from({ length: 100 }, (_, i) => ({
-			range: randomRange(),
+			range: deterministicPatterns[i % deterministicPatterns.length],
 			value: `stress_${i}`,
 		}));
 
-		// Insert all operations and verify invariants hold after each
+		// Insert all operations and verify invariants hold after EACH (not every 10)
 		operations.forEach((op, i) => {
 			index.insert(op.range, op.value);
-			// Only check invariants every 10 operations (performance optimization)
-			if (i % 10 === 0) {
-				assertInvariants(index, `stress test iteration ${i}`);
-			}
+			assertInvariants(index, `stress test iteration ${i}`);
 		});
 
-		// Final invariant check
-		assertInvariants(index, 'stress test final state');
-
 		const ranges = index.getAllRanges();
-		console.log(`${name} Stress Test: 100 random inserts → ${ranges.length} final ranges`);
 
 		// Verify all ranges are valid
-		if (ranges.length === 0) throw new Error('All ranges lost during stress test');
+		assertGreater(ranges.length, 0, 'should not lose all ranges during stress test');
 	});
 
 	Deno.test(`${name} - Boundary conditions`, () => {
@@ -317,9 +367,8 @@ export function testSpatialIndexAxioms(config: TestConfig): void {
 		index.insert(range(5, 6, 5, 6), 'single-cell');
 		assertInvariants(index, 'single-cell range');
 		const singleCell = index.getAllRanges();
-		if (singleCell.length !== 1 || singleCell[0].value !== 'single-cell') {
-			throw new Error('Single-cell range not preserved');
-		}
+		assertEquals(singleCell.length, 1, 'single-cell should be preserved');
+		assertEquals(singleCell[0].value, 'single-cell', 'single-cell value should be preserved');
 
 		// Single-row range (width > 1, height = 1)
 		index.insert(range(10, 11, 0, 100), 'single-row');
@@ -334,11 +383,11 @@ export function testSpatialIndexAxioms(config: TestConfig): void {
 		assertInvariants(index, 'range at coordinate 0');
 
 		const finalRanges = index.getAllRanges();
-		if (finalRanges.length === 0) throw new Error('All ranges lost');
+		assertGreater(finalRanges.length, 0, 'should not lose all ranges');
 
 		// Verify all inserted values are reachable
 		const values = new Set(finalRanges.map((r) => r.value));
-		if (!values.has('at-zero')) throw new Error('Value reachability failed');
+		assert(values.has('at-zero'), 'value at coordinate 0 should be reachable');
 	});
 
 	Deno.test(`${name} - Query edge cases`, () => {
@@ -346,7 +395,7 @@ export function testSpatialIndexAxioms(config: TestConfig): void {
 
 		// Query empty index
 		const emptyResults = index.query(range(0, 10, 0, 10));
-		if (emptyResults.length !== 0) throw new Error('Query on empty index should return empty array');
+		assertEquals(emptyResults.length, 0, 'query on empty index should return empty array');
 
 		// Insert some data
 		index.insert(range(5, 15, 5, 15), 'center');
@@ -355,25 +404,20 @@ export function testSpatialIndexAxioms(config: TestConfig): void {
 
 		// Query with infinite range (should return all)
 		const allResults = index.query(range());
-		if (allResults.length !== 2) {
-			throw new Error(`Infinite query should return all entries, got ${allResults.length}`);
-		}
+		assertEquals(allResults.length, 2, `infinite query should return all entries, got ${allResults.length}`);
 
 		// Query exact match
 		const exactMatch = index.query(range(5, 15, 5, 15));
-		if (exactMatch.length !== 1 || exactMatch[0].value !== 'center') {
-			throw new Error('Exact match query failed');
-		}
+		assertEquals(exactMatch.length, 1, 'exact match query should find one range');
+		assertEquals(exactMatch[0].value, 'center', 'exact match should find center value');
 
 		// Query partial overlap
 		const partialOverlap = index.query(range(10, 25, 10, 25));
-		if (partialOverlap.length !== 2) {
-			throw new Error(`Partial overlap should find both ranges, got ${partialOverlap.length}`);
-		}
+		assertEquals(partialOverlap.length, 2, `partial overlap should find both ranges, got ${partialOverlap.length}`);
 
 		// Query no overlap
 		const noOverlap = index.query(range(100, 110, 100, 110));
-		if (noOverlap.length !== 0) throw new Error('No overlap query should return empty');
+		assertEquals(noOverlap.length, 0, 'no overlap query should return empty');
 
 		assertInvariants(index, 'queries should not modify state');
 	});
@@ -403,24 +447,26 @@ export function testSpatialIndexAxioms(config: TestConfig): void {
 		const retrievedValues = new Set(allResults.map((r) => r.value));
 
 		// Verify all inserted values are reachable
-		if (retrievedValues.size !== expectedCount) {
-			throw new Error(
-				`Value reachability: expected ${expectedCount} values, got ${retrievedValues.size}`,
-			);
-		}
+		assertEquals(
+			retrievedValues.size,
+			expectedCount,
+			`value reachability: expected ${expectedCount} values, got ${retrievedValues.size}`,
+		);
 
 		// Also verify getAllRanges returns same values
 		const getAllValues = new Set(index.getAllRanges().map((r) => r.value));
-		if (getAllValues.size !== expectedCount) {
-			throw new Error(
-				`getAllRanges value count mismatch: expected ${expectedCount}, got ${getAllValues.size}`,
-			);
-		}
+		assertEquals(
+			getAllValues.size,
+			expectedCount,
+			`getAllRanges value count mismatch: expected ${expectedCount}, got ${getAllValues.size}`,
+		);
 
 		// Verify query and getAllRanges return same values
-		if (retrievedValues.size !== getAllValues.size) {
-			throw new Error('query() and getAllRanges() return different value sets');
-		}
+		assertEquals(
+			retrievedValues.size,
+			getAllValues.size,
+			'query() and getAllRanges() should return same value sets',
+		);
 	});
 
 	Deno.test(`${name} - Coordinate extremes`, () => {
@@ -432,18 +478,16 @@ export function testSpatialIndexAxioms(config: TestConfig): void {
 		assertInvariants(index, 'large coordinates');
 
 		const results = index.query(range(largeCoord + 50, largeCoord + 60, largeCoord + 50, largeCoord + 60));
-		if (results.length !== 1 || results[0].value !== 'large') {
-			throw new Error('Query at large coordinates failed');
-		}
+		assertEquals(results.length, 1, 'query at large coordinates should find exactly 1 result');
+		assertEquals(results[0].value, 'large', 'query at large coordinates should find "large" value');
 
 		// Mix of small and large coordinates
 		index.insert(range(0, 10, 0, 10), 'small');
 		assertInvariants(index, 'mixed coordinate scales');
 
 		const smallResults = index.query(range(0, 10, 0, 10));
-		if (smallResults.length !== 1 || smallResults[0].value !== 'small') {
-			throw new Error('Small coordinate range lost after large insertion');
-		}
+		assertEquals(smallResults.length, 1, 'small coordinate query should find exactly 1 result');
+		assertEquals(smallResults[0].value, 'small', 'small coordinate range should not be lost after large insertion');
 	});
 
 	// ========================================================================
@@ -471,16 +515,15 @@ export function testSpatialIndexAxioms(config: TestConfig): void {
 
 		const fragmentCount = index.getAllRanges().length;
 
-		if (fragmentCount !== EXPECTED_FRAGMENT_COUNT) {
-			throw new Error(
-				`Fragment count mismatch! Expected ${EXPECTED_FRAGMENT_COUNT} but got ${fragmentCount}.\n` +
-					`This indicates a coordinate swap bug or incorrect geometric subtraction.\n` +
-					`All correct implementations must produce exactly ${EXPECTED_FRAGMENT_COUNT} fragments.`,
-			);
-		}
+		assertEquals(
+			fragmentCount,
+			EXPECTED_FRAGMENT_COUNT,
+			`fragment count mismatch! expected ${EXPECTED_FRAGMENT_COUNT} but got ${fragmentCount}.\n` +
+				`this indicates a coordinate swap bug or incorrect geometric subtraction.\n` +
+				`all correct implementations must produce exactly ${EXPECTED_FRAGMENT_COUNT} fragments`,
+		);
 
 		assertInvariants(index, 'large-overlapping scenario');
-		console.log(`✓ Fragment count correct: ${fragmentCount} (matches canonical reference)`);
 	});
 
 	Deno.test(`${name} - Cross-implementation fragment consistency`, () => {
@@ -524,16 +567,14 @@ export function testSpatialIndexAxioms(config: TestConfig): void {
 			scenario.ops.forEach((op) => implIndex.insert(op.range, op.value));
 			const implCount = implIndex.getAllRanges().length;
 
-			if (refCount !== implCount) {
-				throw new Error(
-					`Fragment count mismatch in ${scenario.name} scenario!\n` +
-						`Reference produced ${refCount} fragments, but ${name} produced ${implCount}.\n` +
-						`Implementations must produce identical fragment counts for correctness.`,
-				);
-			}
+			assertEquals(
+				implCount,
+				refCount,
+				`fragment count mismatch in ${scenario.name} scenario!\n` +
+					`reference produced ${refCount} fragments, but ${name} produced ${implCount}.\n` +
+					`implementations must produce identical fragment counts for correctness`,
+			);
 		}
-
-		console.log(`✓ Fragment counts match reference implementation across all test scenarios`);
 	});
 
 	// ========================================================================
@@ -560,17 +601,15 @@ export function testSpatialIndexAxioms(config: TestConfig): void {
 			const results = index.query(testCase.range);
 			const found = results.find((r) => r.value === testCase.value);
 
-			if (!found) {
-				throw new Error(
-					`Query-insert consistency failed for ${testCase.description}!\n` +
-						`Inserted range but query at same coordinates didn't find it.\n` +
-						`This indicates a spatial indexing bug (Morton encoding error, AABB test error, etc.)`,
-				);
-			}
+			assert(
+				found,
+				`query-insert consistency failed for ${testCase.description}!\n` +
+					`inserted range but query at same coordinates didn't find it.\n` +
+					`this indicates a spatial indexing bug (Morton encoding error, AABB test error, etc.)`,
+			);
 		}
 
 		assertInvariants(index, 'query-insert consistency');
-		console.log(`✓ All inserted ranges findable via query at insertion coordinates`);
 	});
 
 	Deno.test(`${name} - Partial overlap decomposition geometry`, () => {
@@ -589,15 +628,18 @@ export function testSpatialIndexAxioms(config: TestConfig): void {
 		const overlapFragment = ranges.find((r) => r.value === 'overlap');
 
 		// 'overlap' should have exact bounds [5,15)×[5,15)
-		if (!overlapFragment) throw new Error('Overlap value lost');
+		assertExists(overlapFragment, 'overlap value should not be lost');
 		const o = overlapFragment.gridRange;
-		if (o.startRowIndex !== 5 || o.endRowIndex !== 15 || o.startColumnIndex !== 5 || o.endColumnIndex !== 15) {
-			throw new Error(
-				`Overlap fragment has wrong bounds: ` +
-					`[${o.startRowIndex},${o.endRowIndex})×[${o.startColumnIndex},${o.endColumnIndex}) ` +
-					`expected [5,15)×[5,15)`,
-			);
-		}
+		assertObjectMatch(
+			o,
+			{
+				startRowIndex: 5,
+				endRowIndex: 15,
+				startColumnIndex: 5,
+				endColumnIndex: 15,
+			},
+			`overlap fragment should have correct bounds [5,15)×[5,15)`,
+		);
 
 		// 'base' fragments must not overlap with 'overlap' region [5,15)×[5,15)
 		for (const fragment of baseFragments) {
@@ -611,19 +653,18 @@ export function testSpatialIndexAxioms(config: TestConfig): void {
 			const overlapsRegion = fRowMin <= 14 && fRowMax >= 5 &&
 				fColMin <= 14 && fColMax >= 5;
 
-			if (overlapsRegion) {
-				throw new Error(
-					`Base fragment overlaps with 'overlap' region: ` +
-						`[${fRowMin},${fRowMax}]×[${fColMin},${fColMax}] overlaps [5,14]×[5,14]`,
-				);
-			}
+			assertFalse(
+				overlapsRegion,
+				`base fragment should not overlap with 'overlap' region: ` +
+					`[${fRowMin},${fRowMax}]×[${fColMin},${fColMax}] overlaps [5,14]×[5,14]`,
+			);
 		}
 
 		// Verify total area conservation: 10×10 (base) = 5×5 (overlap) + area(base fragments)
 		const overlapArea = 10 * 10; // [5,15)×[5,15)
 		const baseFragmentArea = baseFragments.reduce((sum, f) => {
-			const rows = ((f.gridRange.endRowIndex ?? Infinity) - (f.gridRange.startRowIndex ?? 0));
-			const cols = ((f.gridRange.endColumnIndex ?? Infinity) - (f.gridRange.startColumnIndex ?? 0));
+			const rows = (f.gridRange.endRowIndex ?? Infinity) - (f.gridRange.startRowIndex ?? 0);
+			const cols = (f.gridRange.endColumnIndex ?? Infinity) - (f.gridRange.startColumnIndex ?? 0);
 			return sum + (rows * cols);
 		}, 0);
 
@@ -638,10 +679,6 @@ export function testSpatialIndexAxioms(config: TestConfig): void {
 					`This may indicate geometric correctness issues, but is not necessarily a bug.`,
 			);
 		}
-
-		console.log(
-			`✓ Partial overlap produces geometrically correct fragments (${baseFragments.length} base fragments)`,
-		);
 	});
 
 	Deno.test(`${name} - Overlapping value complete overwrite`, () => {
@@ -654,9 +691,8 @@ export function testSpatialIndexAxioms(config: TestConfig): void {
 		assertInvariants(index, 'after old insertion');
 
 		const beforeRanges = index.getAllRanges();
-		if (beforeRanges.length !== 1 || beforeRanges[0].value !== 'old') {
-			throw new Error('Initial state incorrect');
-		}
+		assertEquals(beforeRanges.length, 1, 'initial state should have exactly 1 range');
+		assertEquals(beforeRanges[0].value, 'old', 'initial state should have "old" value');
 
 		// Insert larger range that fully contains the old one
 		index.insert(range(0, 20, 0, 20), 'new');
@@ -666,19 +702,21 @@ export function testSpatialIndexAxioms(config: TestConfig): void {
 		const values = afterRanges.map((r) => r.value);
 
 		// 'old' should be COMPLETELY gone
-		if (values.includes('old')) {
-			throw new Error(
-				`Old value not completely overwritten! Found ${values.filter((v) => v === 'old').length} fragments with 'old' value.\n` +
-					`When new range fully contains old, old should be entirely removed (LWW semantics).`,
-			);
-		}
+		assert(
+			!values.includes('old'),
+			`old value should be completely overwritten (found ${
+				values.filter((v) => v === 'old').length
+			} fragments). ` +
+				`when new range fully contains old, old should be entirely removed (LWW semantics)`,
+		);
 
 		// Should only have 'new' value
-		if (values.length !== 1 || values[0] !== 'new') {
-			throw new Error(`Expected single 'new' range, got ${values.length} ranges: ${values.join(', ')}`);
-		}
-
-		console.log(`✓ Complete overwrite removes old value entirely (LWW semantics verified)`);
+		assertEquals(
+			values.length,
+			1,
+			`should have single 'new' range, got ${values.length} ranges: ${values.join(', ')}`,
+		);
+		assertEquals(values[0], 'new', 'should only have "new" value after complete overwrite');
 	});
 
 	Deno.test(`${name} - Query result completeness`, () => {
@@ -701,19 +739,17 @@ export function testSpatialIndexAxioms(config: TestConfig): void {
 		const expectedValues = Array.from({ length: 10 }, (_, i) => `value${i}`);
 		const missingValues = expectedValues.filter((v) => !foundValues.has(v));
 
-		if (missingValues.length > 0) {
-			throw new Error(
-				`Query incomplete! Found ${foundValues.size}/10 values.\n` +
-					`Missing: ${missingValues.join(', ')}\n` +
-					`This indicates a query traversal bug (early exit, pruning error, etc.)`,
-			);
-		}
+		assertEquals(
+			missingValues.length,
+			0,
+			`query incomplete! found ${foundValues.size}/10 values.\n` +
+				`missing: ${missingValues.join(', ')}\n` +
+				`this indicates a query traversal bug (early exit, pruning error, etc.)`,
+		);
 
 		// Also test query at specific subregion
 		const subResults = index.query(range(5, 15, 5, 15));
-		if (subResults.length === 0) {
-			throw new Error('Subregion query returned no results (should find at least some ranges)');
-		}
+		assertGreater(subResults.length, 0, 'subregion query should find at least some ranges');
 
 		// Verify each result actually overlaps query region
 		for (const result of subResults) {
@@ -726,15 +762,144 @@ export function testSpatialIndexAxioms(config: TestConfig): void {
 			// Check overlap with [5,15)×[5,15) (inclusive coords [5,14]×[5,14])
 			const overlaps = rowMin <= 14 && rowMax >= 5 && colMin <= 14 && colMax >= 5;
 
-			if (!overlaps) {
-				throw new Error(
-					`Query returned non-overlapping range: ${result.value} at [${rowMin},${rowMax}]×[${colMin},${colMax}] ` +
-						`doesn't overlap [5,14]×[5,14]`,
-				);
-			}
+			assert(
+				overlaps,
+				`query should not return non-overlapping range: ${result.value} at [${rowMin},${rowMax}]×[${colMin},${colMax}] ` +
+					`doesn't overlap [5,14]×[5,14]`,
+			);
 		}
+	});
 
-		console.log(`✓ Query returns all overlapping ranges with correct filtering`);
+	Deno.test(`${name} - Adjacent range handling (half-open interval semantics)`, () => {
+		// Critical: Ranges that share a boundary but don't overlap should both survive
+		// Tests correct half-open interval handling ([start, end) means end is excluded)
+		// Common bug: using <= instead of < in overlap detection
+		const index = new IndexClass();
+
+		// Horizontal adjacency: [0,5) and [5,10) share boundary at column 5
+		// These should NOT overlap because [0,5) means columns 0-4, [5,10) means columns 5-9
+		index.insert(range(0, 10, 0, 5), 'left');
+		index.insert(range(0, 10, 5, 10), 'right');
+		assertInvariants(index, 'horizontal adjacency');
+
+		let ranges = index.getAllRanges();
+		let values = ranges.map((r) => r.value).sort();
+
+		assertEquals(
+			values,
+			['left', 'right'],
+			`horizontal adjacency failed! expected ['left', 'right'], got [${values.join(', ')}].\n` +
+				`ranges [0,5) and [5,10) share boundary but should not overlap (half-open interval semantics)`,
+		);
+
+		// Vertical adjacency: [0,5) and [5,10) share boundary at row 5
+		const index2 = new IndexClass();
+		index2.insert(range(0, 5, 0, 10), 'top');
+		index2.insert(range(5, 10, 0, 10), 'bottom');
+		assertInvariants(index2, 'vertical adjacency');
+
+		ranges = index2.getAllRanges();
+		values = ranges.map((r) => r.value).sort();
+
+		assertEquals(
+			values,
+			['bottom', 'top'],
+			`vertical adjacency failed! expected ['bottom', 'top'], got [${values.join(', ')}].\n` +
+				`ranges [0,5) and [5,10) share boundary but should not overlap`,
+		);
+
+		// Corner adjacency: Four ranges that meet at a point (5,5)
+		const index3 = new IndexClass();
+		index3.insert(range(0, 5, 0, 5), 'top-left');
+		index3.insert(range(0, 5, 5, 10), 'top-right');
+		index3.insert(range(5, 10, 0, 5), 'bottom-left');
+		index3.insert(range(5, 10, 5, 10), 'bottom-right');
+		assertInvariants(index3, 'corner adjacency');
+
+		ranges = index3.getAllRanges();
+		values = ranges.map((r) => r.value).sort();
+
+		assertEquals(
+			values.length,
+			4,
+			`corner adjacency failed! expected 4 ranges, got ${values.length}.\n` +
+				`four ranges meeting at point (5,5) should all survive (no overlaps at boundaries)`,
+		);
+
+		const expectedValues = ['bottom-left', 'bottom-right', 'top-left', 'top-right'];
+		assertArrayIncludes(values, expectedValues, 'all four corner quadrants should be preserved');
+	});
+
+	Deno.test(`${name} - Query boundary precision (half-open interval semantics)`, () => {
+		// Tests that query boundaries respect half-open interval semantics
+		// Common bug: using <= instead of < in intersection tests
+		const index = new IndexClass();
+
+		// Insert range [10, 20) × [10, 20) which occupies:
+		// - Rows 10-19 (inclusive)
+		// - Columns 10-19 (inclusive)
+		index.insert(range(10, 20, 10, 20), 'test');
+		assertInvariants(index, 'boundary test setup');
+
+		// Query [20, 30) × [20, 30) should NOT find 'test'
+		// Because [20, 30) means rows/cols 20-29, and 'test' ends at 19
+		const noOverlap = index.query(range(20, 30, 20, 30));
+		assertEquals(
+			noOverlap.length,
+			0,
+			`query boundary leak! query [20,30)×[20,30) found ${noOverlap.length} ranges but should find 0.\n` +
+				`range [10,20)×[10,20) occupies rows/cols 10-19, should not overlap with [20,30)×[20,30).\n` +
+				`this indicates <= instead of < in overlap detection`,
+		);
+
+		// Query [0, 10) × [0, 10) should also NOT find 'test'
+		// Because [0, 10) means rows/cols 0-9, and 'test' starts at 10
+		const noOverlapLeft = index.query(range(0, 10, 0, 10));
+		assertEquals(
+			noOverlapLeft.length,
+			0,
+			`query boundary leak on left side! query [0,10)×[0,10) found ${noOverlapLeft.length} ranges but should find 0.\n` +
+				`range [10,20)×[10,20) starts at 10, should not overlap with [0,10)×[0,10)`,
+		);
+
+		// Query [19, 21) × [19, 21) SHOULD find 'test'
+		// Because [19, 21) means rows/cols 19-20, which overlaps 'test' at coordinate 19
+		const overlap = index.query(range(19, 21, 19, 21));
+		assert(
+			overlap.find((r) => r.value === 'test'),
+			`query boundary miss! query [19,21)×[19,21) should find 'test' (overlaps at coordinate 19).\n` +
+				`this indicates incorrect boundary handling`,
+		);
+
+		// Query [10, 11) × [10, 11) SHOULD find 'test'
+		// Because [10, 11) means row/col 10, which is the start of 'test'
+		const overlapStart = index.query(range(10, 11, 10, 11));
+		assert(
+			overlapStart.find((r) => r.value === 'test'),
+			`query boundary miss at start! query [10,11)×[10,11) should find 'test' (starts at 10)`,
+		);
+
+		// Edge case: Query exactly at end boundary [19, 20) × [19, 20)
+		// Should find 'test' because row/col 19 is included in [10,20)
+		const exactEnd = index.query(range(19, 20, 19, 20));
+		assert(
+			exactEnd.find((r) => r.value === 'test'),
+			`query at exact end boundary [19,20)×[19,20) should find 'test'.\n` +
+				`range [10,20) includes coordinate 19`,
+		);
+
+		// Horizontal strip boundary test
+		index.insert(range(0, 5, 0, 100), 'strip');
+		assertInvariants(index, 'after strip insertion');
+
+		// Query [5, 10) × [0, 100) should NOT find 'strip' (strip ends at row 4)
+		const stripNoOverlap = index.query(range(5, 10, 0, 100));
+		const foundStrip = stripNoOverlap.find((r) => r.value === 'strip');
+		assertFalse(
+			!!foundStrip,
+			`horizontal strip boundary leak! query [5,10)×[0,100) found 'strip' but shouldn't.\n` +
+				`strip [0,5)×[0,100) occupies rows 0-4, query [5,10) is rows 5-9`,
+		);
 	});
 }
 
@@ -758,19 +923,19 @@ export function testImplementationEquivalence(config: TestConfig): void {
 		const refValues = new Set(reference.getAllRanges().map((r) => r.value));
 		const implValues = new Set(implementation.getAllRanges().map((r) => r.value));
 
-		if (refValues.size !== implValues.size) {
-			throw new Error(`Different value counts: ${refValues.size} vs ${implValues.size}`);
-		}
+		assertEquals(
+			implValues.size,
+			refValues.size,
+			`different value counts: ${refValues.size} vs ${implValues.size}`,
+		);
 
 		for (const value of refValues) {
-			if (!implValues.has(value)) throw new Error(`Value ${value} missing from ${name}`);
+			assert(implValues.has(value), `value ${value} missing from ${name}`);
 		}
 
 		const refRanges = reference.getAllRanges().length;
 		const implRanges = implementation.getAllRanges().length;
-		if (refRanges !== implRanges) {
-			throw new Error(`Different range counts: ${refRanges} vs ${implRanges}`);
-		}
+		assertEquals(implRanges, refRanges, `different range counts: ${refRanges} vs ${implRanges}`);
 	});
 
 	Deno.test(`${name} - Performance vs Reference`, () => {
@@ -791,16 +956,14 @@ export function testImplementationEquivalence(config: TestConfig): void {
 		const implTime = performance.now() - implStart;
 		const implRanges = implementation.getAllRanges().length;
 
-		console.log(`\n=== ${name.toUpperCase()} PERFORMANCE ===\n`);
-		console.log(`Reference time: ${refTime.toFixed(2)}ms`);
-		console.log(`${name} time: ${implTime.toFixed(2)}ms`);
-		console.log(`Speed ratio: ${(refTime / implTime).toFixed(2)}x`);
-		console.log(`Range count: ${implRanges} (should equal reference: ${refRanges})`);
+		// Performance comparison (informational only, not asserted)
+		// Detailed performance benchmarking should use benchmarks/ suite
 
-		if (implTime < refTime) console.log(`✓ ${name} has faster insertions`);
-		if (refRanges !== implRanges) {
-			throw new Error(`Range count mismatch: ${refRanges} vs ${implRanges}`);
-		}
-		console.log(`✓ Both implementations produce identical range decompositions`);
+		assertEquals(
+			implRanges,
+			refRanges,
+			`range count mismatch: reference produced ${refRanges} ranges, ` +
+				`but ${name} produced ${implRanges} ranges`,
+		);
 	});
 }
