@@ -150,15 +150,15 @@ For n in [10, 20, 30, ..., 100]:
 
 **Goal**: Verify that O(n) bound applies to tree-based implementations, not just flat arrays.
 
-**Algorithm**: Same concentric pattern as Pattern 1, tested on RTreeImpl.
+**Algorithm**: Same concentric pattern as Pattern 1, tested on RStarTreeImpl.
 
 **Results**:
 
-| Metric              | RTreeImpl | MortonLinearScan |
-| ------------------- | --------- | ---------------- |
-| Inserts             | 50        | 50               |
-| Final ranges        | ~115      | 132              |
-| Fragmentation ratio | 2.3x      | 2.64x            |
+| Metric              | RStarTreeImpl | MortonLinearScan |
+| ------------------- | ------------- | ---------------- |
+| Inserts             | 50            | 50               |
+| Final ranges        | ~115          | 132              |
+| Fragmentation ratio | 2.3x          | 2.64x            |
 
 **Analysis**: R-Tree shows **same O(n) bound** despite different data structure. Fragmentation is a property of geometric decomposition, not implementation choice.
 

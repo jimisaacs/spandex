@@ -9,13 +9,9 @@ Quick reference for choosing the right spatial index implementation.
 ```
 START
   ↓
-Is bundle size critical?
-  ├─ YES → Compact Morton (~1.6KB)
-  └─ NO  → Continue
-       ↓
-     n < 100?
-       ├─ YES → Morton spatial locality
-       └─ NO  → R-tree (R* split)
+n < 100?
+  ├─ YES → Morton spatial locality (~1.8KB)
+  └─ NO  → R-tree (R* split) (~8.4KB)
 ```
 
 _See sections below for specific implementation names and import statements._
@@ -40,17 +36,17 @@ const dataValidation = new MortonLinearScanImpl<ValidationRule>();
 
 ---
 
-### RTreeImpl ✅ Large Datasets
+### RStarTreeImpl ✅ Large Datasets
 
 n ≥ 100. O(log n) hierarchical indexing, R* split algorithm.
 
 Performance: 20.0µs @ n=50, 1.92ms @ n=2500
 
 ```typescript
-import RTreeImpl from './src/implementations/rtree.ts';
+import RStarTreeImpl from './src/implementations/rstartree.ts';
 
 // Large dataset scenario
-const largeBackgroundIndex = new RTreeImpl<string>();
+const largeBackgroundIndex = new RStarTreeImpl<string>();
 
 // Batch import
 for (const range of thousandsOfRanges) {
@@ -60,30 +56,14 @@ for (const range of thousandsOfRanges) {
 
 ---
 
-### CompactMortonLinearScanImpl (Bundle Size Critical)
-
-Compact implementation with spatial ordering (~1.6KB minified). **2.4x faster** than naive linear scan while maintaining small bundle size.
-
-```typescript
-import CompactMortonLinearScanImpl from './src/implementations/compactmortonlinearscan.ts';
-
-// Bundle-constrained environment (Google Apps Script, browser extensions)
-const index = new CompactMortonLinearScanImpl<string>();
-```
-
-**Note**: Superseded CompactLinearScan (archived) with 32% larger bundle for 2.4x performance gain.
-
----
-
 ## Performance Comparison
 
 **Empirical measurements** (from [BENCHMARKS.md](./BENCHMARKS.md)):
 
-| Implementation              | n=50   | n=2500 | Best For              |
-| --------------------------- | ------ | ------ | --------------------- |
-| MortonLinearScanImpl        | 6.9µs  | 9.5ms  | Sparse data (n < 100) |
-| RTreeImpl                   | 20µs   | 1.9ms  | Large data (n ≥ 100)  |
-| CompactMortonLinearScanImpl | 15.3µs | 10.0ms | Bundle size critical  |
+| Implementation       | n=50  | n=2500 | Bundle Size | Best For              |
+| -------------------- | ----- | ------ | ----------- | --------------------- |
+| MortonLinearScanImpl | ~7µs  | ~10ms  | 1.8KB       | Sparse data (n < 100) |
+| RStarTreeImpl        | ~20µs | ~2ms   | 8.4KB       | Large data (n ≥ 100)  |
 
 **Measurement Confidence**:
 
@@ -105,12 +85,11 @@ const index = new CompactMortonLinearScanImpl<string>();
 
 ## Workload-Specific Guidance
 
-| Workload                              | n < 100                 | n ≥ 100           | Notes                                                              |
-| ------------------------------------- | ----------------------- | ----------------- | ------------------------------------------------------------------ |
-| **Write-Heavy** (editing, formatting) | Morton spatial locality | R-tree (R* split) | R-tree overhead amortizes at scale                                 |
-| **Read-Heavy** (rendering, scrolling) | Morton spatial locality | R-tree (R* split) | R* split workload-dependent: equiv sequential, faster overlapping  |
-| **Mixed** (collaborative editing)     | Morton spatial locality | R-tree (R* split) | Transition zone 100-600: both competitive                          |
-| **Bundle-Constrained** (<2KB limit)   | Compact Morton          | N/A               | 1.6KB minified, 2.4x faster than old CompactLinearScan, n<100 only |
+| Workload                              | n < 100                 | n ≥ 100           | Notes                                                             |
+| ------------------------------------- | ----------------------- | ----------------- | ----------------------------------------------------------------- |
+| **Write-Heavy** (editing, formatting) | Morton spatial locality | R-tree (R* split) | R-tree overhead amortizes at scale                                |
+| **Read-Heavy** (rendering, scrolling) | Morton spatial locality | R-tree (R* split) | R* split workload-dependent: equiv sequential, faster overlapping |
+| **Mixed** (collaborative editing)     | Morton spatial locality | R-tree (R* split) | Transition zone 100-600: both competitive                         |
 
 **Transition Zone (100 < n < 600)**: If uncertain, use R-tree - scales better as data grows. See section headers above for specific implementation names to import. See `docs/analyses/transition-zone-analysis.md` for crossover points.
 
@@ -141,10 +120,10 @@ class SpreadsheetProperties {
 ### Large Dataset (Batch Operations)
 
 ```typescript
-import RTreeImpl from './src/implementations/rtree.ts';
+import RStarTreeImpl from './src/implementations/rstartree.ts';
 
 class BulkImporter {
-	private index = new RTreeImpl<CellData>();
+	private index = new RStarTreeImpl<CellData>();
 
 	async importCSV(rows: Row[]) {
 		for (const row of rows) {
@@ -152,15 +131,6 @@ class BulkImporter {
 		}
 	}
 }
-```
-
-### Bundle-Constrained
-
-```typescript
-import CompactMortonLinearScanImpl from './src/implementations/compactmortonlinearscan.ts';
-
-// Google Apps Script add-on with size limits
-const colors = new CompactMortonLinearScanImpl<string>();
 ```
 
 ---
@@ -191,9 +161,9 @@ interface SpatialIndex<T> {
 
 ### When to Migrate
 
-**Upward migration** (LinearScan → RTree): When n consistently exceeds 100-200 ranges per property index.
+**Upward migration** (LinearScan → R*-tree): When n consistently exceeds 100-200 ranges per property index.
 
-**Downward migration** (RTree → LinearScan): Rare. If data size shrinks permanently below n=50.
+**Downward migration** (R*-tree → LinearScan): Rare. If data size shrinks permanently below n=50.
 
 **⚠️ Avoid premature optimization**: Don't migrate unless profiling shows spatial index is a bottleneck. Most spreadsheet use cases stay under n=100 per property type.
 
@@ -215,7 +185,7 @@ const data = oldIndex.getAllRanges();
 **2. Create new index and bulk import**:
 
 ```typescript
-const newIndex = new RTreeImpl<string>();
+const newIndex = new RStarTreeImpl<string>();
 
 for (const { gridRange, value } of data) {
 	newIndex.insert(gridRange, value);
@@ -232,14 +202,14 @@ this.backgroundColors = newIndex;
 **Performance Impact**:
 
 - Export (`getAllRanges`): O(n) - negligible for n < 10,000
-- Bulk import: O(n log n) for RTree, O(n²) for LinearScan
+- Bulk import: O(n log n) for R*-tree, O(n²) for LinearScan
 - Total downtime: <100ms for n=1000
 
 ---
 
 ### Specific Migration Paths
 
-#### From MortonLinearScan to RTree (Scaling Up)
+#### From MortonLinearScan to R*-tree (Scaling Up)
 
 **Trigger**: n consistently > 100-200, performance degrading
 
@@ -258,21 +228,21 @@ class SpreadsheetProperties {
 		this.backgrounds = new MortonLinearScanImpl<string>();
 	}
 
-	migrateToRTree() {
+	migrateToRStarTree() {
 		const data = this.backgrounds.getAllRanges();
-		const newIndex = new RTreeImpl<string>();
+		const newIndex = new RStarTreeImpl<string>();
 
 		for (const { gridRange, value } of data) {
 			newIndex.insert(gridRange, value);
 		}
 
 		this.backgrounds = newIndex;
-		console.log(`Migrated ${data.length} ranges to RTree`);
+		console.log(`Migrated ${data.length} ranges to R*-tree`);
 	}
 }
 ```
 
-**Performance gain**: At n=200, RTree is ~5-10x faster than Morton.
+**Performance gain**: At n=200, R*-tree is ~5-10x faster than Morton.
 
 ---
 
@@ -316,13 +286,13 @@ class AdaptiveSpatialIndex<T> implements SpatialIndex<T> {
 		const n = this.index.getAllRanges().length;
 
 		// Migrate up if n exceeds threshold
-		if (n > this.threshold && !(this.index instanceof RTreeImpl)) {
+		if (n > this.threshold && !(this.index instanceof RStarTreeImpl)) {
 			const data = this.index.getAllRanges();
-			this.index = new RTreeImpl<T>();
+			this.index = new RStarTreeImpl<T>();
 			for (const { gridRange, value } of data) {
 				this.index.insert(gridRange, value);
 			}
-			console.log(`Auto-migrated to RTree at n=${n}`);
+			console.log(`Auto-migrated to R*-tree at n=${n}`);
 		}
 	}
 
@@ -359,7 +329,7 @@ class LiveMigration<T> {
 		this.migrating = true;
 
 		// Create new index
-		this.newIndex = new RTreeImpl<T>();
+		this.newIndex = new RStarTreeImpl<T>();
 
 		// Copy existing data
 		const data = this.oldIndex.getAllRanges();
@@ -431,8 +401,8 @@ A: Morton for n < 100, R-tree for n ≥ 100.
 **Q: Don't know n?**\
 A: Use Morton (optimal for typical n < 100).
 
-**Q: CompactMorton?**\
-A: Bundle-critical use cases only (adds 32% size vs full Morton but 2.4x faster than old CompactLinearScan).
+**Q: Need smaller bundle?**\
+A: Morton is already compact at 1.8KB minified. This is production-ready for all bundle-constrained environments.
 
 **Q: ArrayBuffer implementations?**\
 A: Research only. Morton supersedes them.

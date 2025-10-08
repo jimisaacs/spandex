@@ -41,7 +41,7 @@ The hybrid architecture (TypedArray storage + separate R-tree index) has a funda
 
 - Overlap resolution, Last writer wins, Edge cases, Property-based, Idempotency, Fragment generation, Stress test
 
-**Lesson:** Combining separate storage + index structures creates synchronization bugs. Either store data IN the index (RTreeImpl) or use no index (HilbertLinearScanImpl).
+**Lesson:** Combining separate storage + index structures creates synchronization bugs. Either store data IN the index (RStarTreeImpl) or use no index (HilbertLinearScanImpl).
 
 This is preserved as an educational example of an architectural dead-end.
 

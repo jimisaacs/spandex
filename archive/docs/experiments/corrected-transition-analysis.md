@@ -2,7 +2,7 @@
 
 **Status**: ✅ COMPLETED & ARCHIVED
 
-**Hypothesis**: ArrayBufferLinearScanImpl vs RTreeImpl crossover occurs at n=200-800
+**Hypothesis**: ArrayBufferLinearScanImpl vs RStarTreeImpl crossover occurs at n=200-800
 
 **Result**: Hypothesis partially validated - crossover at n=100 for most scenarios, n=400 for overlapping write-heavy
 
@@ -43,7 +43,7 @@ ArrayBufferLinearScanImpl extends dominance further than OptimizedLinearScan:
 **Implementations**:
 
 - ArrayBufferLinearScanImpl (TRUE sparse winner)
-- RTreeImpl (R* split, TRUE large data winner)
+- RStarTreeImpl (R* split, TRUE large data winner)
 
 **Data sizes**: 100, 150, 200, 300, 400, 500, 600, 700, 800, 1000
 

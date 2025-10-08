@@ -4,7 +4,7 @@
 
 **Impact**: Replaces ArrayBufferLinearScanImpl as optimal sparse data implementation
 
-**vs RTree**: Hilbert is 2x faster than RTree for n<100 (write-heavy workload), but RTree is 4x faster for n≥1000
+__vs R_-tree_ _: Hilbert is 2x faster than R_-tree for n<100 (write-heavy workload), but R*-tree is 4x faster for n≥1000
 
 ---
 
@@ -17,10 +17,10 @@
 | n=50   | 6.9 µs            | 20.9 µs               | 3.0x    |
 | n=2500 | 9.5 ms            | 28.2 ms               | 3.0x    |
 
-**Compared to RTreeImpl**:
+**Compared to RStarTreeImpl**:
 
-- n=50 (sparse): Hilbert 6.9µs vs RTree 20.0µs → **Hilbert 2.9x faster** (write-heavy workload)
-- n=2500 (large): Hilbert 9.5ms vs RTree 1.9ms → **RTree 4.9x faster** (hierarchical pruning wins)
+- n=50 (sparse): Hilbert 6.9µs vs R*-tree 20.0µs → **Hilbert 2.9x faster** (write-heavy workload)
+- n=2500 (large): Hilbert 9.5ms vs R*-tree 1.9ms → __R_-tree 4.9x faster_* (hierarchical pruning wins)
 
 **Crossover**: Linear scan (including Hilbert) optimal for n < 100, R-tree optimal for n ≥ 100
 
@@ -167,7 +167,7 @@ class HilbertLinearScanImpl {
 - Ranges with coords >65K may not be clustered optimally in memory
 - Wrapping can cause distant ranges to appear nearby in Hilbert order
 - For n < 100 (typical use case), impact is negligible
-- For very large grids with n > 100, consider RTree instead (no coord limitations)
+- For very large grids with n > 100, consider R*-tree instead (no coord limitations)
 
 **Validation**: See `test/hilbertlinearscan.test.ts` for edge case tests:
 
@@ -180,7 +180,7 @@ class HilbertLinearScanImpl {
 
 - Google Sheets: 10M cells, up to ~1M rows → wrapping occurs for rows >65K
 - **Recommended**: For sparse data (n < 100) with any coord range, HilbertLinearScan is still optimal
-- **Alternative**: For dense data (n > 100) OR very large coords (>65K), use RTree (no coord limits)
+- **Alternative**: For dense data (n > 100) OR very large coords (>65K), use R*-tree (no coord limits)
 
 **Future Enhancement**: Could use 32-bit coords (MAX_COORD = 2^32) at cost of 16 extra iterations per Hilbert calculation. Current 16-bit choice optimizes for common case.
 
@@ -192,7 +192,7 @@ class HilbertLinearScanImpl {
 
 ```
 n < 100: HilbertLinearScanImpl (2x faster than other linear scan variants)
-n >= 100: RTreeImpl
+n >= 100: RStarTreeImpl
 ```
 
 **Why HilbertLinearScan**: Spatial locality optimization provides 2x speedup over naive linear scan (ArrayBufferLinearScanImpl: 20.9µs, OptimizedLinearScanImpl: 11.6µs, HilbertLinearScanImpl: 6.9µs at n=50)

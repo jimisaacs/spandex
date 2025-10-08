@@ -8,11 +8,11 @@
 
 ## Summary
 
-| Metric               | Expected          | Observed                        | Conclusion         |
-| -------------------- | ----------------- | ------------------------------- | ------------------ |
-| Query Performance    | R* 10-20% faster  | Midpoint 1-30% faster           | ❌ Opposite result |
-| Tree Quality Benefit | Justifies 6% cost | Never materializes              | ❌ No payoff       |
-| Best Algorithm       | RTreeImpl (R*)    | ArrayBufferRTreeImpl (midpoint) | ❌ Wrong choice    |
+| Metric               | Expected           | Observed                        | Conclusion         |
+| -------------------- | ------------------ | ------------------------------- | ------------------ |
+| Query Performance    | R* 10-20% faster   | Midpoint 1-30% faster           | ❌ Opposite result |
+| Tree Quality Benefit | Justifies 6% cost  | Never materializes              | ❌ No payoff       |
+| Best Algorithm       | RStarTreeImpl (R*) | ArrayBufferRTreeImpl (midpoint) | ❌ Wrong choice    |
 
 ---
 
@@ -88,19 +88,19 @@
 
 ### Current Recommendations (WRONG)
 
-| Scenario   | Current Advice | Based On                 |
-| ---------- | -------------- | ------------------------ |
-| n > 1000   | RTreeImpl (R*) | Theoretical tree quality |
-| Read-heavy | RTreeImpl      | Assumed query advantage  |
+| Scenario   | Current Advice     | Based On                 |
+| ---------- | ------------------ | ------------------------ |
+| n > 1000   | RStarTreeImpl (R*) | Theoretical tree quality |
+| Read-heavy | RStarTreeImpl      | Assumed query advantage  |
 
 ### Corrected Recommendations
 
-| Scenario          | Should Be                                             | Reason                                            |
-| ----------------- | ----------------------------------------------------- | ------------------------------------------------- |
-| **ALL scenarios** | `ArrayBufferRTreeImpl` (midpoint)                     | Faster construction, equivalent or better queries |
-| Exception         | `RTreeImpl` ONLY for grid-heavy, pure-query workloads | 6-11% query advantage in ONE pattern              |
+| Scenario          | Should Be                                                 | Reason                                            |
+| ----------------- | --------------------------------------------------------- | ------------------------------------------------- |
+| **ALL scenarios** | `ArrayBufferRTreeImpl` (midpoint)                         | Faster construction, equivalent or better queries |
+| Exception         | `RStarTreeImpl` ONLY for grid-heavy, pure-query workloads | 6-11% query advantage in ONE pattern              |
 
-**Recommendation**: Demote `RTreeImpl` to "academic reference", promote `ArrayBufferRTreeImpl` to production default.
+**Recommendation**: Demote `RStarTreeImpl` to "academic reference", promote `ArrayBufferRTreeImpl` to production default.
 
 ---
 
@@ -145,13 +145,13 @@ For read-heavy (rare case):
 
 ## Corrective Actions
 
-1. **Update production recommendations**: Change default from RTreeImpl to ArrayBufferRTreeImpl
+1. **Update production recommendations**: Change default from RStarTreeImpl to ArrayBufferRTreeImpl
 
 2. **Rewrite r-star-analysis.md**: Current document claims R* is "Pareto optimal" - this is FALSE for our workload
 
 3. **Update RESEARCH-SUMMARY.md**: Finding #2 needs correction
 
-4. **Demote RTreeImpl**: Mark as "academic reference" or "research baseline", not production choice
+4. **Demote RStarTreeImpl**: Mark as "academic reference" or "research baseline", not production choice
 
 5. **Add this analysis**: New document explaining why theoretical quality ≠ empirical performance
 
@@ -173,7 +173,7 @@ We **trusted** Beckmann et al.'s claims without **verifying** they apply to spre
 
 1. Document findings formally (this file)
 2. Update all recommendations across documentation
-3. Consider removing RTreeImpl entirely (or mark deprecated)
+3. Consider removing RStarTreeImpl entirely (or mark deprecated)
 4. Validate ArrayBufferRTreeImpl as new production default
 
 ---

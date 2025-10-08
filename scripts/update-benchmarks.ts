@@ -66,10 +66,10 @@ for (const line of lines) {
 	}
 }
 
-// Sort implementations with RTree first (baseline), then alphabetically
+// Sort implementations with RStarTree first (baseline), then alphabetically
 const implementations = Array.from(implementationNames).sort((a, b) => {
-	if (a === 'RTree') return -1;
-	if (b === 'RTree') return 1;
+	if (a === 'RStarTree') return -1;
+	if (b === 'RStarTree') return 1;
 	return a.localeCompare(b);
 });
 
@@ -84,7 +84,7 @@ const queryOnlyScenarios = Array.from(scenarioNames).filter((s) => s.startsWith(
 
 // Generate markdown
 const formatResults = (scenario: Record<string, number>) => {
-	const baseline = scenario.RTree || 1; // RTree is now the baseline
+	const baseline = scenario.RStarTree || 1; // RStarTree is now the baseline
 	const entries = Object.entries(scenario).sort(([, a], [, b]) => a - b);
 
 	return entries.map(([impl, time]) => {
@@ -111,7 +111,7 @@ const generateSummary = async (
 	const bundleSizes: Record<string, number> = {};
 	for (const impl of implementations) {
 		// Convert implementation name to lowercase filename
-		// "RTree" -> "rtree.ts", "LinearScan" -> "linearscan.ts", etc.
+		// "RStarTree" -> "rstartree.ts", "LinearScan" -> "linearscan.ts", etc.
 		const filename = impl.toLowerCase().replace(/linearscan/g, 'linearscan') + '.ts';
 		const filePath = `src/implementations/${filename}`;
 		try {
@@ -175,7 +175,7 @@ These benchmarks compare **O(n) linear scan** vs **O(log n) R-tree** for differe
 **Sparse data (n < 100)**: Typical for individual spreadsheet properties (backgrounds, borders, etc.)
 **Large data (n > 1000)**: Consolidated or heavy usage scenarios
 
-**RTree is the baseline (1.0x)** - numbers > 1.0x are slower, < 1.0x are faster.
+**RStarTree is the baseline (1.0x)** - numbers > 1.0x are slower, < 1.0x are faster.
 `);
 
 	for (const impl of implementations) {
@@ -190,7 +190,9 @@ These benchmarks compare **O(n) linear scan** vs **O(log n) R-tree** for differe
 		summaries.push(`**${impl}** (${formatBytes(size)} minified):
 
 - Fastest in ${fastCount}/${totalScenarios} scenarios, slowest in ${slowCount}/${totalScenarios} scenarios
-- Average ${avg.toFixed(2)}x vs RTree (${speedupText})${impl === 'RTree' ? '\n- Baseline for comparison' : ''}`);
+- Average ${avg.toFixed(2)}x vs RStarTree (${speedupText})${
+			impl === 'RStarTree' ? '\n- Baseline for comparison' : ''
+		}`);
 	}
 
 	return summaries.join('\n\n');
@@ -228,32 +230,32 @@ const generateComparisonTable = (results: Record<string, Record<string, number>>
 		{ label: 'Large sequential (n ≈ 2500)', key: largeSeqScenario },
 	];
 
-	// Get all implementations except RTree (baseline)
-	const impls = implementations.filter((impl) => impl !== 'RTree');
+	// Get all implementations except RStarTree (baseline)
+	const impls = implementations.filter((impl) => impl !== 'RStarTree');
 
 	// Generate table rows dynamically
 	const rows: string[] = [];
 	for (const { label, key } of scenarios) {
-		const rtreeTime = results[key]?.RTree || 1;
+		const rstartreeTime = results[key]?.RStarTree || 1;
 		const ratios = impls.map((impl) => {
 			const time = results[key]?.[impl];
-			return time ? (time / rtreeTime).toFixed(1) + 'x' : 'N/A';
+			return time ? (time / rstartreeTime).toFixed(1) + 'x' : 'N/A';
 		});
-		ratios.push('1.0x (baseline)'); // Add RTree as baseline
+		ratios.push('1.0x (baseline)'); // Add RStarTree as baseline
 		rows.push(`| ${label} | ${ratios.join(' | ')} |`);
 	}
 
 	if (rows.length === 0) return '';
 
 	// Generate header dynamically
-	const headers = [...impls, 'RTree'];
+	const headers = [...impls, 'RStarTree'];
 	const headerRow = `| Scenario | ${headers.join(' | ')} |`;
 	const separatorRow = `| ${'-------- | '.repeat(headers.length + 1).slice(0, -2)}|`;
 
 	return `
 ## Quick Comparison
 
-**Speed relative to RTree** (lower is better):
+**Speed relative to RStarTree** (lower is better):
 
 ${headerRow}
 ${separatorRow}
@@ -286,10 +288,10 @@ Comparing **O(n) linear scan** vs **O(log n) R-tree** across:
 
 **Key Question**: When does O(log n) beat O(n)?
 
-**How to read**: Lower time is better. "Relative" compares to RTree baseline:
-- **1.0x** = same speed as RTree
-- **>1.0x** = slower than RTree (e.g., 2.0x = twice as slow)
-- **<1.0x** = faster than RTree (e.g., 0.5x = twice as fast)
+**How to read**: Lower time is better. "Relative" compares to RStarTree baseline:
+- **1.0x** = same speed as RStarTree
+- **>1.0x** = slower than RStarTree (e.g., 2.0x = twice as slow)
+- **<1.0x** = faster than RStarTree (e.g., 0.5x = twice as fast)
 
 ${generateComparisonTable(results, implementations)}`,
 ];

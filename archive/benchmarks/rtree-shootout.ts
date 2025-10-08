@@ -9,14 +9,14 @@
  * Goal: ONE clear winner across all scenarios.
  */
 
-import ArrayBufferRTreeImpl from '../src/implementations/superseded/arraybufferrtree.ts';
+import RStarTreeImpl from '../../src/implementations/rstartree.ts';
 import CompactRTreeImpl from '../src/implementations/failed-experiments/compactrtree.ts';
-import RTreeImpl from '../../src/implementations/rtree.ts';
+import ArrayBufferRTreeImpl from '../src/implementations/superseded/arraybufferrtree.ts';
 
 type GridRange = GoogleAppsScript.Sheets.Schema.GridRange;
 
 const implementations = [
-	{ name: 'RTree (R*)', Class: RTreeImpl },
+	{ name: 'RStarTree (R*)', Class: RStarTreeImpl },
 	{ name: 'ArrayBufferRTree (midpoint)', Class: ArrayBufferRTreeImpl },
 	{ name: 'CompactRTree (minimal)', Class: CompactRTreeImpl },
 ];

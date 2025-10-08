@@ -117,13 +117,13 @@ You can create one-off benchmarks that compare active vs archived implementation
 
 // Import active implementations directly
 import MortonLinearScanImpl from '../../src/implementations/mortonlinearscan.ts';
-import RTreeImpl from '../../src/implementations/rtree.ts';
+import RStarTreeImpl from '../../src/implementations/rstartree.ts';
 
 // Import archived implementation directly
 import ArchivedImpl from '../src/implementations/superseded/archivedimpl.ts';
 
 const implementations = [
-	{ name: 'RTree', Class: RTreeImpl },
+	{ name: 'RStarTree', Class: RStarTreeImpl },
 	{ name: 'MortonLinearScan', Class: MortonLinearScanImpl },
 	{ name: 'ArchivedImpl', Class: ArchivedImpl },
 ];

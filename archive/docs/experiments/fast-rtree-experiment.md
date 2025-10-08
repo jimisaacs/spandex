@@ -37,15 +37,15 @@ For m=10 entries (MAX_ENTRIES):
 
 - **ArrayBufferRTree** (midpoint): 2.24ms (current fastest)
 - **FastRTree** (axis + midpoint): 2.4-2.5ms (projected, ~10% slower)
-- **RTreeImpl** (R*): 2.32ms (current)
+- **RStarTreeImpl** (R*): 2.32ms (current)
 
-**Projection**: FastRTree should be between ArrayBufferRTree and RTreeImpl.
+**Projection**: FastRTree should be between ArrayBufferRTree and RStarTreeImpl.
 
 ### Tree Quality
 
 - **ArrayBufferRTree**: Midpoint split can create unbalanced bboxes
 - **FastRTree**: Axis selection should improve bbox overlap
-- **RTreeImpl**: Full overlap minimization, best quality
+- **RStarTreeImpl**: Full overlap minimization, best quality
 
 **Projection**: FastRTree bbox overlap should be 50-70% of ArrayBufferRTree.
 
@@ -98,7 +98,7 @@ for (let axis = 0; axis < 2; axis++) {
 
 - Construction > R* (defeats the purpose)
 - Tree quality = ArrayBufferRTree (axis selection didn't help)
-- Complexity without benefit (simpler to just use RTreeImpl)
+- Complexity without benefit (simpler to just use RStarTreeImpl)
 
 ## Measurement Plan
 
@@ -110,7 +110,7 @@ Run benchmarks on existing workloads:
 - large-sequential (n=2500)
 - large-overlapping (n=1250)
 
-**Compare**: FastRTree vs ArrayBufferRTree vs RTreeImpl
+**Compare**: FastRTree vs ArrayBufferRTree vs RStarTreeImpl
 
 ### Phase 2: Tree Quality Metrics
 
@@ -134,7 +134,7 @@ Benchmark query workload (currently minimal in benchmarks):
 - Beckmann, N. et al. (1990) "The R*-tree" — Section 3.2 (ChooseSplitAxis)
 - Current empirical data: docs/r-star-analysis.md
 - ArrayBufferRTree: src/implementations/arraybufferrtree.ts (midpoint baseline)
-- RTreeImpl: src/implementations/rtree.ts (R* full algorithm)
+- RStarTreeImpl: src/implementations/rstartree.ts (R* full algorithm)
 
 ## Status
 

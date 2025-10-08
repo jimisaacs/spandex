@@ -113,7 +113,7 @@ git clone <repository-url>
 cd spatial-indexing-research
 
 # Run tests (verifies everything works)
-deno task test           # 95 axiom-based tests
+deno task test           # 57 tests (42 conformance + 8 telemetry + 3 integration + 6 adversarial)
 deno task bench          # Performance benchmarks
 deno task bench:update   # Regenerate BENCHMARKS.md
 
@@ -131,8 +131,7 @@ deno task bench              # Run benchmarks
 deno task bench:update       # Regenerate BENCHMARKS.md
 deno task bench:analyze      # Statistical analysis (5 runs, ~4-5 min)
 deno task test:morton        # Test specific implementation
-deno task test:compactmorton # ...
-deno task test:rtree         # ...
+deno task test:rstartree     # ...
 deno task fmt                # Format
 deno task lint               # Lint
 deno task check              # Type check
@@ -152,8 +151,7 @@ deno task check              # Type check
 src/
 ├── implementations/        # Active implementations (see directory for current list)
 │   ├── mortonlinearscan.ts           # ✅ Production: O(n), n<100
-│   ├── compactmortonlinearscan.ts    # ✅ Production: smallest bundle
-│   └── rtree.ts                      # ✅ Production: O(log n), n≥100
+│   └── rstartree.ts                  # ✅ Production: O(log n), n≥100
 └── conformance/            # Axiom-based testing
     ├── testsuite.ts                  # Test axioms + property tests
     └── mod.ts                        # Exports
@@ -164,7 +162,7 @@ archive/                    # Historical implementations
 
 ## Testing
 
-**Conformance**: 17 axioms per implementation validate mathematical correctness (empty state, overlap resolution, LWW semantics, boundary conditions, query edge cases, value reachability, coordinate extremes). 51 core tests + 6 adversarial tests, 100% passing.
+**Conformance**: 21 axioms per implementation validate mathematical correctness (empty state, overlap resolution, LWW semantics, boundary conditions, query edge cases, value reachability, coordinate extremes). 42 conformance tests (21 axioms × 2 implementations) + 8 telemetry + 3 integration + 6 adversarial = 57 tests total, 100% passing.
 
 **Adversarial**: Pathological patterns (concentric, diagonal, checkerboard, random) empirically validate O(n) fragmentation bound. Worst-case shows 2.3x avg fragmentation (not exponential).
 

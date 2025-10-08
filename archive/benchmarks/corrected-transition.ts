@@ -10,14 +10,14 @@
  * Goal: Map where ArrayBufferLinearScan → RTree transition actually occurs.
  */
 
+import RStarTreeImpl from '../../src/implementations/rstartree.ts';
 import ArrayBufferLinearScanImpl from '../src/implementations/superseded/arraybufferlinearscan.ts';
-import RTreeImpl from '../../src/implementations/rtree.ts';
 
 type GridRange = GoogleAppsScript.Sheets.Schema.GridRange;
 
 const implementations = [
 	{ name: 'ArrayBufferLinearScan', Class: ArrayBufferLinearScanImpl },
-	{ name: 'RTree', Class: RTreeImpl },
+	{ name: 'RStarTree', Class: RStarTreeImpl },
 ];
 
 // Focus on transition zone: 100-1000

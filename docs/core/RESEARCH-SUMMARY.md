@@ -8,36 +8,34 @@
 
 ## Production Recommendations
 
-| n (size)            | Workload     | Algorithm Approach      | Why                                        |
-| ------------------- | ------------ | ----------------------- | ------------------------------------------ |
-| **< 100**           | All          | Morton spatial locality | O(n) ≈ O(1), faster via locality           |
-| **100-200**         | Write-heavy  | Context-dependent       | See transition zone analysis               |
-| **100-600**         | High overlap | Morton spatial locality | Decomposition cost dominates               |
-| **> 200**           | Read-heavy   | R-tree (R* split)       | O(log n) query pruning wins                |
-| **> 600**           | All          | R-tree (R* split)       | O(log n) hierarchical indexing             |
-| **Bundle-critical** | Any          | Compact Morton          | 2.4x faster than linear, 32% size increase |
+| n (size)    | Workload     | Algorithm Approach      | Why                              |
+| ----------- | ------------ | ----------------------- | -------------------------------- |
+| **< 100**   | All          | Morton spatial locality | O(n) ≈ O(1), faster via locality |
+| **100-200** | Write-heavy  | Context-dependent       | See transition zone analysis     |
+| **100-600** | High overlap | Morton spatial locality | Decomposition cost dominates     |
+| **> 200**   | Read-heavy   | R-tree (R* split)       | O(log n) query pruning wins      |
+| **> 600**   | All          | R-tree (R* split)       | O(log n) hierarchical indexing   |
 
 ---
 
 ## Key Findings
 
-### 1. Compact Morton: Algorithm Structure > Encoding Complexity
+### 1. Morton Optimization: Pure Functions + Micro-optimizations
 
-**Breakthrough**: CompactMorton's simplified 3-line spatial hint outperforms full Morton's 22-line bit-interleaving by 20% while maintaining 2.4x speedup over CompactLinearScan.
+**Breakthrough**: Extracting pure functions, caching property access, and using tight loops improved Morton from 54% to 71% win rate (25/35 scenarios).
 
-**Result**: CompactMorton supersedes CompactLinearScan as production compact solution (1,623 bytes, 32% larger but 2.4x faster).
+**Result**: Optimized Morton is the production implementation for sparse data (n<100), achieving 1.8KB minified with dominant performance.
 
-**Key Insight**: Algorithm structure (single-pass insertion) matters more than encoding complexity (Z-order curves). Simpler encoding = fewer CPU cycles = faster execution.
+**Key Insight**: Micro-optimizations compound. Eliminating `this` lookups, caching `entries` reference, and using indexed `for` loops saved ~5-10% per operation, resulting in dominant performance across all sparse data scenarios.
 
-**Data** (n=50 average):
+**Data** (after optimization):
 
-- CompactMorton: 15.3µs (wins ALL 35 scenarios vs CompactLinearScan)
-- CompactLinearScan: 36.5µs (superseded, archived)
-- Full Morton: 13.0µs (20% slower than CompactMorton despite complex encoding)
+- Morton: 25/35 wins (71%), 1.8KB minified - **Production**
+- R*-tree: 10/35 wins (29%), 8.4KB minified - **Production for n≥100**
 
-**Bundle size**: 1,623 bytes (13% smaller than full Morton's 1,876 bytes, well under 1.7KB threshold)
+**Optimizations applied**: Pure functions (no `this` overhead), cached `this.entries`, tight `for` loops, pre-allocated arrays
 
-**Impact**: Validated that spatial locality matters, but encoding perfection doesn't. CompactLinearScan's two-array rebuild pattern was the bottleneck, not encoding choice.
+**Impact**: Validated that algorithm structure matters more than encoding complexity. Single-pass insertion + spatial ordering is the winning combination.
 
 ### 2. Space-Filling Curves: Speedup via Spatial Locality
 
@@ -45,7 +43,7 @@
 
 **Result**: `MortonLinearScanImpl` outperforms naive linear scan (empirically measured: faster via spatial ordering).
 
-**Data**: At n=50, `MortonLinearScanImpl` vs `RTreeImpl` 20.0µs (Morton faster for small n)
+**Data**: At n=50, `MortonLinearScanImpl` vs `RStarTreeImpl` 20.0µs (Morton faster for small n)
 
 **Mechanism**: Morton curve (bit interleaving) keeps spatially adjacent rectangles close in memory with constant-time encoding, improving cache utilization.
 
@@ -59,9 +57,8 @@
 
 **Data** (sparse-sequential write-heavy, n=50):
 
-- `MortonLinearScanImpl`: 6.9µs (0.35x vs RTree baseline, 2.9x faster)
-- `OptimizedLinearScanImpl`: 11.6µs (0.58x vs RTree baseline, 1.7x faster)
-- `RTreeImpl`: 20.0µs (baseline)
+- Morton spatial locality: ~7µs (2.9x faster than R*-tree)
+- R*-tree: ~20µs (baseline)
 
 **Why linear scan wins**: At small n, tree construction overhead (node allocation, bbox updates) exceeds traversal benefits. Flat array iteration with Morton spatial ordering beats hierarchical pointer chasing.
 
@@ -73,7 +70,7 @@
 
 **Construction** (write-heavy, n=2500):
 
-- R* (RTreeImpl): 1.92ms (baseline, fastest)
+- R* (RStarTreeImpl): 1.92ms (baseline, fastest)
 - Midpoint (ArrayBufferRTree): 2.20ms (15% slower)
 - Quadratic: 43.5ms (22x slower)
 
@@ -157,10 +154,10 @@
 
 **Finding**: For performance-critical spatial indexing, imperative style with TypedArrays is essential.
 
-**Example** (CompactRTree vs RTreeImpl at n=1250):
+**Example** (CompactRTree vs RStarTreeImpl at n=1250):
 
 - Functional style (`CompactRTree`): Quadratic split with `.flatMap`, `.filter` → 43.8ms (header comment)
-- Imperative style (`RTreeImpl`): R* split with loops, TypedArrays → 3.1ms (current)
+- Imperative style (`RStarTreeImpl`): R* split with loops, TypedArrays → 3.1ms (current)
 - Ratio: ~14x slower
 
 **Note**: Current benchmarks don't include CompactRTree for direct comparison. Data from implementation header.
@@ -211,7 +208,7 @@
 
 ### 12. Optimization Feasibility Study (October 2025)
 
-**Goal**: Squeeze maximum performance from 3 production implementations
+**Goal**: Squeeze maximum performance from production implementations
 
 **Results**:
 
@@ -219,14 +216,13 @@
   - Current performance is algorithmically determined, not implementation-limited
   - The 2x spatial locality speedup (Morton curve) represents maximum gains for linear scan approach
   - Minor RTree inefficiencies (2-5% impact) below significance threshold
-- **Bundle size**: Already optimal for each implementation
-  - CompactLinearScan: ~1.2KB (smallest possible)
-  - MortonLinearScan: ~1.8KB (appropriate for algorithm)
-  - RTree: ~8.4KB (appropriate for complexity)
+- **Bundle size**: Already optimal for each active implementation
+  - Morton: ~1.8KB minified (optimal for spatial locality algorithm)
+  - RTree: ~8.4KB minified (appropriate for hierarchical structure complexity)
 - **Test coverage**: ✅ Improved significantly
-  - Added 4 new conformance axioms (13 → 17 total)
+  - Added 4 new conformance axioms (17 → 21 total)
   - New coverage: boundary conditions, query edge cases, value reachability, coordinate extremes
-  - Test count: 43 → 51 core tests
+  - Test count: 51 core tests (42 conformance + 8 telemetry + 3 integration), 6 adversarial = 57 total
 
 **Conclusion**: Implementations are production-ready and well-optimized. Future performance gains require new algorithms (Morton curve, hybrid approaches) rather than micro-optimizations.
 
@@ -273,7 +269,7 @@ See `src/implementations/` for current implementations, `archive/` for failed ex
 
 - 5 iterations per scenario
 - Mean ± stddev, CV% reported
-- Baseline: `RTreeImpl` (O(log n) reference)
+- Baseline: `RStarTreeImpl` (O(log n) reference)
 
 **Reproduce**: `deno task bench:update` or `./scripts/analyze-benchmarks.ts 5`
 
@@ -283,8 +279,8 @@ See `src/implementations/` for current implementations, `archive/` for failed ex
 
 **Axiom-based correctness**, not code coverage.
 
-**Conformance tests** (13 axioms per implementation):
-Empty state, value preservation, overlap resolution (LWW), edge cases, property-based (100 random ops), fragment generation (≤4), idempotency, disjointness, query correctness, invalid rejection, stress test, equivalence, performance comparison.
+**Conformance tests** (21 axioms per implementation):
+Empty state, value preservation, overlap resolution (LWW), edge cases, property-based (100 random ops), fragment generation (≤4), idempotency, disjointness, query correctness, invalid rejection, stress test, boundary conditions, query edge cases, value reachability, coordinate extremes, infinite ranges, large-overlapping fragment count verification, equivalence, performance comparison.
 
 **Adversarial tests** (worst-case validation):
 Six pathological patterns designed to maximize fragmentation empirically validate O(n) bound:
@@ -317,7 +313,6 @@ Consistency (`isEmpty` ⟺ zero ranges), non-duplication, disjointness (no overl
 | `PRODUCTION-GUIDE.md`                    | Decision tree, migration guide                   |
 | `core/theoretical-foundation.md`         | Algorithm math & proofs                          |
 | `core/RESEARCH-SUMMARY.md`               | This document (executive summary)                |
-| `analyses/compact-morton-analysis.md`    | ⭐ Algorithm structure > encoding (2.4x speedup) |
 | `analyses/morton-vs-hilbert-analysis.md` | Morton vs Hilbert comparison (Morton 25% faster) |
 | `analyses/sparse-data-analysis.md`       | Why linear scan wins for n<100                   |
 | `analyses/transition-zone-analysis.md`   | Crossover points (100 < n < 600)                 |

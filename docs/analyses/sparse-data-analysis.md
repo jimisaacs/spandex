@@ -14,8 +14,8 @@
 
 **Performance data** (from [BENCHMARKS.md](../../BENCHMARKS.md), sparse-sequential write-heavy):
 
-- n=50: HilbertLinearScan 6.9µs vs RTree 20.0µs (Hilbert 2.9x faster)
-- n=2500: RTree 2.2ms vs HilbertLinearScan 26ms (RTree 12x faster)
+- n=50: HilbertLinearScan 6.9µs vs R*-tree 20.0µs (Hilbert 2.9x faster)
+- n=2500: R*-tree 2.2ms vs HilbertLinearScan 26ms (R*-tree 12x faster)
 
 **Impact**: Changed recommendation from "always use R-tree" to "linear scan for sparse, R-tree for large".
 

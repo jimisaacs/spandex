@@ -39,7 +39,7 @@ R* split produces trees with:
 
 ### Phase 1: Tree Quality Metrics
 
-Instrument RTreeImpl and ArrayBufferRTreeImpl to collect:
+Instrument RStarTreeImpl and ArrayBufferRTreeImpl to collect:
 
 ```typescript
 interface TreeQualityMetrics {
@@ -64,7 +64,7 @@ interface TreeQualityMetrics {
 
 Test query performance on IDENTICAL data:
 
-1. Build tree with RTreeImpl (R* split)
+1. Build tree with RStarTreeImpl (R* split)
 2. Build tree with ArrayBufferRTreeImpl (midpoint split)
 3. Run 1000 random viewport queries on both
 4. Measure: time per query, nodes visited, pruning efficiency
@@ -130,7 +130,7 @@ Correlate tree quality metrics with query performance:
 
 **Conclusion**: Simpler algorithm is Pareto optimal for most workloads
 
-**Impact**: Change default to ArrayBufferRTreeImpl, demote RTreeImpl to "academic"
+**Impact**: Change default to ArrayBufferRTreeImpl, demote RStarTreeImpl to "academic"
 
 ### If No Clear Winner
 

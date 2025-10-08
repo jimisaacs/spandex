@@ -1,7 +1,7 @@
 /// <reference types="@types/google-apps-script" />
 
 /**
- * RTreeImpl: Canonical R*-tree implementation (Beckmann et al., 1990)
+ * RStarTreeImpl: Canonical R*-tree implementation (Beckmann et al., 1990)
  *
  * Hierarchical spatial index using R* split algorithm (minimizes overlap + perimeter).
  * Fastest construction, workload-dependent query performance (see docs/r-star-analysis.md).
@@ -98,7 +98,7 @@ const expansion = (
 	return newArea - oldArea;
 };
 
-export default class RTreeImpl<T> implements SpatialIndex<T> {
+export default class RStarTreeImpl<T> implements SpatialIndex<T> {
 	// Node storage: TypedArrays for performance
 	private nodeTypes: Uint8Array; // 0=internal, 1=leaf
 	private nodeBounds: Int32Array; // [x1,y1,x2,y2] per node

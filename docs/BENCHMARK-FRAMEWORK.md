@@ -38,7 +38,7 @@ Includes implementations from `archive/src/implementations/` for comparison.
 # Exclude one implementation
 deno bench benchmarks/performance.ts -- --exclude=CompactRTree
 
-# Exclude multiple implementations
+# Exclude multiple implementations (example with archived implementations)
 deno bench benchmarks/performance.ts -- --exclude=CompactRTree --exclude=CompactLinearScan
 
 # Combine with archived
@@ -121,7 +121,7 @@ deno bench benchmarks/performance.ts -- --include-archived=hybridrtree
 ```bash
 # Compare only MortonLinearScan vs archived implementations
 deno bench benchmarks/performance.ts -- --include-archived \
-  --exclude=RTree --exclude=CompactRTree --exclude=ArrayBufferRTree \
+  --exclude=RStarTree --exclude=CompactRTree --exclude=ArrayBufferRTree \
   --exclude=LinearScan --exclude=CompactLinearScan \
   --exclude=OptimizedLinearScan --exclude=ArrayBufferLinearScan
 ```
@@ -170,7 +170,7 @@ Review if archived implementation is still slower.
 ### Test Only Linear Scan Variants
 
 ```bash
-deno bench benchmarks/performance.ts -- --exclude=RTree --exclude=CompactRTree
+deno bench benchmarks/performance.ts -- --exclude=RStarTree --exclude=CompactRTree
 ```
 
 ### Compare New vs Superseded

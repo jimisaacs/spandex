@@ -22,7 +22,7 @@ Spatial indexing research for 2D range decomposition in spreadsheet systems. Mai
 deno task test                    # Run all active tests (55 tests)
 deno task test:watch              # Watch mode
 deno task test:morton             # Test specific implementation
-deno task test:rtree              # Test specific implementation
+deno task test:rstartree          # Test specific implementation
 deno task test:adversarial        # Worst-case fragmentation tests
 deno test test/specific.test.ts   # Run single test file
 ```
@@ -126,9 +126,8 @@ deno task unarchive:impl <name>             # Restore from archive
 
 **Current active implementations** (see `src/implementations/` directory):
 
-- **Spatial locality optimized linear scan** - Production choice for sparse data (n < 100), uses Morton curve (Z-order) for spatial locality
-- **Compact Morton linear scan** - Bundle-critical use cases (~1.6KB), 2.4x faster than old CompactLinearScan with only 32% size increase
-- __R-Tree with R_ split_* - Production choice for large data (n ≥ 100), O(log n) hierarchical indexing
+- **Morton spatial locality linear scan** - Production choice for sparse data (n < 100), uses Morton curve (Z-order) for spatial locality, ~1.8KB minified
+- __R-Tree with R_ split_* - Production choice for large data (n ≥ 100), O(log n) hierarchical indexing, ~8.4KB minified
 
 **Archived implementations** (see `archive/src/implementations/` for historical research):
 
@@ -341,9 +340,8 @@ See docs/active/README.md for full workflow details.
 
 **Examples in codebase**:
 
-- ✅ **RTree**: Uses `NEG_INF/POS_INF` constants instead of `Infinity` (works with TypedArrays, symmetric)
+- ✅ __R_-tree_*: Uses `NEG_INF/POS_INF` constants instead of `Infinity` (works with TypedArrays, symmetric)
 - ✅ **MortonLinearScan**: Uses `MAX_COORD = 65536` constant (avoids `Infinity` checks in hot paths)
-- ✅ **CompactMortonLinearScan**: Uses `MAX_COORD = 65536` constant (matches Morton, optimized for performance)
 
 **See**: docs/active/semantic-vs-performance-principle.md for detailed rationale and optimization opportunities.
 
@@ -546,10 +544,10 @@ benchmarks/              # Benchmark suites (performance.ts)
 **Example workflow**:
 
 ```
-1. User: "Archive OptimizedLinearScan"
+1. User: "Archive SomeImplementation"
 2. You: [runs archive command]
 3. You: [runs `deno task sync-docs` - regenerates BENCHMARKS.md]
-4. You: "✅ Archived OptimizedLinearScan. Updated BENCHMARKS.md (now 3 implementations)"
+4. You: "✅ Archived SomeImplementation. Updated BENCHMARKS.md (now N implementations)"
 ```
 
 ### Response Template

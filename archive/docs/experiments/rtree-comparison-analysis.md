@@ -14,7 +14,7 @@
 
 **Current confusion**:
 
-- RTreeImpl (R* split): Claimed "Pareto optimal" but tree-quality experiment disproved this
+- RStarTreeImpl (R* split): Claimed "Pareto optimal" but tree-quality experiment disproved this
 - ArrayBufferRTreeImpl (midpoint): 21-28% faster construction, equivalent or better queries
 - CompactRTreeImpl: Unknown performance, supposedly "compact"
 
@@ -34,7 +34,7 @@ ArrayBufferRTreeImpl wins across:
 
 **Alternative outcomes**:
 
-- RTreeImpl wins in specific scenarios (unlikely after tree-quality results)
+- RStarTreeImpl wins in specific scenarios (unlikely after tree-quality results)
 - CompactRTreeImpl competitive (very unlikely - "compact" usually means slow)
 - Different winner per workload (bad - want ONE recommendation)
 
@@ -91,21 +91,21 @@ Test all 3 R-tree implementations:
 
 **Result**: Wins 90%+ of scenarios
 
-**Conclusion**: Demote RTreeImpl to "research baseline", promote ArrayBufferRTreeImpl to production
+**Conclusion**: Demote RStarTreeImpl to "research baseline", promote ArrayBufferRTreeImpl to production
 
 **Action**: Update all documentation, simplify recommendations
 
 ### Scenario B: Workload-Specific Winners
 
-**Result**: RTreeImpl wins read-heavy, ArrayBufferRTree wins write-heavy
+**Result**: RStarTreeImpl wins read-heavy, ArrayBufferRTree wins write-heavy
 
 **Conclusion**: Need workload-specific recommendations
 
 **Action**: Create decision matrix based on read/write ratio
 
-### Scenario C: RTreeImpl Vindicated (Unlikely)
+### Scenario C: RStarTreeImpl Vindicated (Unlikely)
 
-**Result**: RTreeImpl wins despite tree-quality experiment
+**Result**: RStarTreeImpl wins despite tree-quality experiment
 
 **Conclusion**: Something wrong with tree-quality experimental design
 

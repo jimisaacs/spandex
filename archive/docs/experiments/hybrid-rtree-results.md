@@ -62,7 +62,7 @@
 
 ### Problem 2: Indirection Penalty
 
-**RTreeImpl**: Stores full rectangles in nodes (direct access)
+**RStarTreeImpl**: Stores full rectangles in nodes (direct access)
 
 **HybridRTreeImpl**: Stores IDs in nodes → lookup in TypedArray (indirection)
 
@@ -133,7 +133,7 @@ R-tree spatial indexing didn't help decomposition (it helps queries, not inserts
 if (n < 100) {
     use ArrayBufferLinearScanImpl  // 2-3x faster than R-tree
 } else {
-    use RTreeImpl                  // 1.5-13x faster than linear scan
+    use RStarTreeImpl              // 1.5-13x faster than linear scan
 }
 ```
 

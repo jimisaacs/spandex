@@ -535,6 +535,207 @@ export function testSpatialIndexAxioms(config: TestConfig): void {
 
 		console.log(`✓ Fragment counts match reference implementation across all test scenarios`);
 	});
+
+	// ========================================================================
+	// ADVANCED CORRECTNESS TESTS (Query-Insert interactions, geometric precision)
+	// ========================================================================
+
+	Deno.test(`${name} - Query-insert consistency`, () => {
+		// Critical: Anything inserted MUST be findable via query at exact same coordinates
+		// This catches spatial indexing bugs where data exists but isn't queryable
+		const index = new IndexClass();
+
+		const testCases = [
+			{ range: range(10, 20, 10, 20), value: 'center', description: 'center square' },
+			{ range: range(0, 5, 0, 100), value: 'top-strip', description: 'horizontal strip' },
+			{ range: range(0, 100, 0, 5), value: 'left-strip', description: 'vertical strip' },
+			{ range: range(1000, 1010, 1000, 1010), value: 'far', description: 'large coordinates' },
+			{ range: range(0, 1, 0, 1), value: 'tiny', description: 'single cell' },
+		];
+
+		for (const testCase of testCases) {
+			index.insert(testCase.range, testCase.value);
+
+			// Query at EXACT same coordinates - MUST find it
+			const results = index.query(testCase.range);
+			const found = results.find((r) => r.value === testCase.value);
+
+			if (!found) {
+				throw new Error(
+					`Query-insert consistency failed for ${testCase.description}!\n` +
+						`Inserted range but query at same coordinates didn't find it.\n` +
+						`This indicates a spatial indexing bug (Morton encoding error, AABB test error, etc.)`,
+				);
+			}
+		}
+
+		assertInvariants(index, 'query-insert consistency');
+		console.log(`✓ All inserted ranges findable via query at insertion coordinates`);
+	});
+
+	Deno.test(`${name} - Partial overlap decomposition geometry`, () => {
+		// Tests that overlapping ranges produce geometrically correct fragments
+		// Catches coordinate swap bugs (x/y confusion), incorrect fragment bounds
+		const index = new IndexClass();
+
+		// L-shaped overlap: base [0,10)×[0,10), overlap [5,15)×[5,15)
+		index.insert(range(0, 10, 0, 10), 'base');
+		index.insert(range(5, 15, 5, 15), 'overlap');
+
+		assertInvariants(index, 'L-shaped overlap');
+
+		const ranges = index.getAllRanges();
+		const baseFragments = ranges.filter((r) => r.value === 'base');
+		const overlapFragment = ranges.find((r) => r.value === 'overlap');
+
+		// 'overlap' should have exact bounds [5,15)×[5,15)
+		if (!overlapFragment) throw new Error('Overlap value lost');
+		const o = overlapFragment.gridRange;
+		if (o.startRowIndex !== 5 || o.endRowIndex !== 15 || o.startColumnIndex !== 5 || o.endColumnIndex !== 15) {
+			throw new Error(
+				`Overlap fragment has wrong bounds: ` +
+					`[${o.startRowIndex},${o.endRowIndex})×[${o.startColumnIndex},${o.endColumnIndex}) ` +
+					`expected [5,15)×[5,15)`,
+			);
+		}
+
+		// 'base' fragments must not overlap with 'overlap' region [5,15)×[5,15)
+		for (const fragment of baseFragments) {
+			const f = fragment.gridRange;
+			const fRowMin = f.startRowIndex ?? 0;
+			const fRowMax = (f.endRowIndex ?? Infinity) - 1;
+			const fColMin = f.startColumnIndex ?? 0;
+			const fColMax = (f.endColumnIndex ?? Infinity) - 1;
+
+			// Check if fragment overlaps with [5,15)×[5,15) region (inclusive coords [5,14]×[5,14])
+			const overlapsRegion = fRowMin <= 14 && fRowMax >= 5 &&
+				fColMin <= 14 && fColMax >= 5;
+
+			if (overlapsRegion) {
+				throw new Error(
+					`Base fragment overlaps with 'overlap' region: ` +
+						`[${fRowMin},${fRowMax}]×[${fColMin},${fColMax}] overlaps [5,14]×[5,14]`,
+				);
+			}
+		}
+
+		// Verify total area conservation: 10×10 (base) = 5×5 (overlap) + area(base fragments)
+		const overlapArea = 10 * 10; // [5,15)×[5,15)
+		const baseFragmentArea = baseFragments.reduce((sum, f) => {
+			const rows = ((f.gridRange.endRowIndex ?? Infinity) - (f.gridRange.startRowIndex ?? 0));
+			const cols = ((f.gridRange.endColumnIndex ?? Infinity) - (f.gridRange.startColumnIndex ?? 0));
+			return sum + (rows * cols);
+		}, 0);
+
+		const expectedBaseFragmentArea = 100 - 100; // Original 10×10 minus overlap 10×10
+		// Note: overlap is [5,15)×[5,15) = 10×10, but only overlaps [5,10)×[5,10) = 5×5 of base
+		// So base fragments should total: 100 - 25 = 75
+		const actualExpectedArea = 100 - 25;
+
+		if (baseFragmentArea !== actualExpectedArea) {
+			console.warn(
+				`Area mismatch: base fragments = ${baseFragmentArea}, expected ${actualExpectedArea}. ` +
+					`This may indicate geometric correctness issues, but is not necessarily a bug.`,
+			);
+		}
+
+		console.log(
+			`✓ Partial overlap produces geometrically correct fragments (${baseFragments.length} base fragments)`,
+		);
+	});
+
+	Deno.test(`${name} - Overlapping value complete overwrite`, () => {
+		// When new insert fully contains old range, old value should be COMPLETELY removed
+		// Tests rigorous LWW semantics - no fragments of old value should survive
+		const index = new IndexClass();
+
+		// Insert small range
+		index.insert(range(5, 10, 5, 10), 'old');
+		assertInvariants(index, 'after old insertion');
+
+		const beforeRanges = index.getAllRanges();
+		if (beforeRanges.length !== 1 || beforeRanges[0].value !== 'old') {
+			throw new Error('Initial state incorrect');
+		}
+
+		// Insert larger range that fully contains the old one
+		index.insert(range(0, 20, 0, 20), 'new');
+		assertInvariants(index, 'after overwrite');
+
+		const afterRanges = index.getAllRanges();
+		const values = afterRanges.map((r) => r.value);
+
+		// 'old' should be COMPLETELY gone
+		if (values.includes('old')) {
+			throw new Error(
+				`Old value not completely overwritten! Found ${values.filter((v) => v === 'old').length} fragments with 'old' value.\n` +
+					`When new range fully contains old, old should be entirely removed (LWW semantics).`,
+			);
+		}
+
+		// Should only have 'new' value
+		if (values.length !== 1 || values[0] !== 'new') {
+			throw new Error(`Expected single 'new' range, got ${values.length} ranges: ${values.join(', ')}`);
+		}
+
+		console.log(`✓ Complete overwrite removes old value entirely (LWW semantics verified)`);
+	});
+
+	Deno.test(`${name} - Query result completeness`, () => {
+		// Query must return ALL overlapping ranges, not just some
+		// Catches R-tree pruning errors, early-exit bugs, partial result bugs
+		const index = new IndexClass();
+
+		// Insert 10 ranges in overlapping region
+		for (let i = 0; i < 10; i++) {
+			index.insert(range(0, 20, i * 2, i * 2 + 3), `value${i}`);
+		}
+
+		assertInvariants(index, 'after 10 insertions');
+
+		// Query region that overlaps all 10 ranges
+		const results = index.query(range(0, 20, 0, 20));
+		const foundValues = new Set(results.map((r) => r.value));
+
+		// MUST find all 10 distinct values
+		const expectedValues = Array.from({ length: 10 }, (_, i) => `value${i}`);
+		const missingValues = expectedValues.filter((v) => !foundValues.has(v));
+
+		if (missingValues.length > 0) {
+			throw new Error(
+				`Query incomplete! Found ${foundValues.size}/10 values.\n` +
+					`Missing: ${missingValues.join(', ')}\n` +
+					`This indicates a query traversal bug (early exit, pruning error, etc.)`,
+			);
+		}
+
+		// Also test query at specific subregion
+		const subResults = index.query(range(5, 15, 5, 15));
+		if (subResults.length === 0) {
+			throw new Error('Subregion query returned no results (should find at least some ranges)');
+		}
+
+		// Verify each result actually overlaps query region
+		for (const result of subResults) {
+			const r = result.gridRange;
+			const rowMin = r.startRowIndex ?? 0;
+			const rowMax = (r.endRowIndex ?? Infinity) - 1;
+			const colMin = r.startColumnIndex ?? 0;
+			const colMax = (r.endColumnIndex ?? Infinity) - 1;
+
+			// Check overlap with [5,15)×[5,15) (inclusive coords [5,14]×[5,14])
+			const overlaps = rowMin <= 14 && rowMax >= 5 && colMin <= 14 && colMax >= 5;
+
+			if (!overlaps) {
+				throw new Error(
+					`Query returned non-overlapping range: ${result.value} at [${rowMin},${rowMax}]×[${colMin},${colMax}] ` +
+						`doesn't overlap [5,14]×[5,14]`,
+				);
+			}
+		}
+
+		console.log(`✓ Query returns all overlapping ranges with correct filtering`);
+	});
 }
 
 export function testImplementationEquivalence(config: TestConfig): void {

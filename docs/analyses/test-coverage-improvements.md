@@ -59,7 +59,7 @@ The conformance test suite (src/conformance/testsuite.ts) had good coverage of c
 ### All Implementations Pass
 
 - **HilbertLinearScanImpl**: 21 tests (17 axioms + 4 implementation-specific) ✓
-- **RTreeImpl**: 19 tests (17 axioms + 2 implementation-specific) ✓
+- **RStarTreeImpl**: 19 tests (17 axioms + 2 implementation-specific) ✓
 - **CompactLinearScanImpl**: 2 tests (equivalence tests) ✓
 - **Integration tests**: 3 tests ✓
 - **Adversarial tests**: 6 tests ✓
@@ -94,7 +94,7 @@ The conformance test suite (src/conformance/testsuite.ts) had good coverage of c
 4. **Coordinate scaling works correctly**
    - Large coordinates (1M+) handled properly
    - Mixed coordinate scales work together
-   - No overflow issues in TypedArrays (RTree uses Int32Array)
+   - No overflow issues in TypedArrays (R*-tree uses Int32Array)
 
 ## Impact
 
@@ -118,7 +118,7 @@ The conformance test suite (src/conformance/testsuite.ts) had good coverage of c
    - Teaches: LWW means some values may be overwritten (expected behavior)
 
 2. **Coordinate extremes matter**
-   - RTree uses TypedArrays (Int32Array) with 32-bit bounds
+   - R*-tree uses TypedArrays (Int32Array) with 32-bit bounds
    - HilbertLinearScan uses 16-bit Hilbert curve (MAX_COORD = 65536)
    - Tests verify both handle large coordinates correctly (within their bounds)
 

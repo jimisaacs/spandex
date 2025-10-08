@@ -11,7 +11,7 @@ Comprehensive analysis of all 3 active implementations for optimization opportun
 **Implementations analyzed**:
 
 - HilbertLinearScanImpl (238 lines, ~1.8KB minified)
-- RTreeImpl (785 lines, ~8.4KB minified)
+- RStarTreeImpl (785 lines, ~8.4KB minified)
 - CompactLinearScanImpl (73 lines, ~1.2KB minified)
 
 **Optimization dimensions**:
@@ -70,7 +70,7 @@ subtract(); // O(1) geometric decomposition
 - Marginal gains (<5%) not worth complexity
 - Further improvements require algorithmic change (e.g., Morton curve)
 
-### RTreeImpl
+### RStarTreeImpl
 
 **Current Performance**: Fastest in 12/35 scenarios (n>100), best for large data
 
@@ -133,14 +133,14 @@ insert(); // Single-pass with inline operations
 
 - CompactLinearScanImpl: 73 lines → ~1.2KB minified ✓
 - HilbertLinearScanImpl: 238 lines → ~1.8KB minified ✓
-- RTreeImpl: 785 lines → ~8.4KB minified ✓
+- RStarTreeImpl: 785 lines → ~8.4KB minified ✓
 
 **Analysis**:
 
 - All appropriately sized for their algorithmic complexity
 - CompactLinearScanImpl already minimal
 - HilbertLinearScanImpl needs Hilbert logic (necessary size)
-- RTreeImpl has inherent tree structure complexity
+- RStarTreeImpl has inherent tree structure complexity
 
 **Verdict**: No optimization opportunities
 
@@ -149,7 +149,7 @@ insert(); // Single-pass with inline operations
 | Implementation    | Performance Opt   | Bundle Size Opt | Recommended Action |
 | ----------------- | ----------------- | --------------- | ------------------ |
 | HilbertLinearScan | <5% gain          | No opportunity  | None               |
-| RTree             | 2-5% gain         | No opportunity  | Defer              |
+| R*-tree           | 2-5% gain         | No opportunity  | Defer              |
 | CompactLinearScan | N/A (intentional) | No opportunity  | None               |
 
 ## Key Insights
@@ -157,23 +157,23 @@ insert(); // Single-pass with inline operations
 1. **Algorithmic Dominance**
    - Current performance characteristics are algorithmically determined
    - HilbertLinearScan: O(n) with 2x constant factor from spatial locality
-   - RTree: O(log n) with overhead from tree maintenance
+   - R*-tree: O(log n) with overhead from tree maintenance
    - Micro-optimizations cannot overcome algorithmic complexity
 
 2. **Implementation Maturity**
    - HilbertLinearScan: Near-optimal for linear scan + Hilbert ordering
-   - RTree: Well-implemented R* algorithm with minor inefficiency in split
+   - R*-tree: Well-implemented R* algorithm with minor inefficiency in split
    - CompactLinearScan: Achieves minimal size goal
 
 3. **Optimization Threshold**
    - Project standard: >10% improvement with CV% <5%
-   - RTree split optimization: 2-5% (below threshold)
+   - R*-tree split optimization: 2-5% (below threshold)
    - HilbertLinearScan optimizations: <5% (well below threshold)
 
 4. **Production Readiness**
    - Each implementation serves its niche:
      - HilbertLinearScan: Fast for n<100 ✓
-     - RTree: Fast for n>100 ✓
+     - R*-tree: Fast for n>100 ✓
      - CompactLinearScan: Smallest bundle ✓
 
 ## Recommendations
@@ -225,7 +225,7 @@ insert(); // Single-pass with inline operations
 **Performance**: ✗ NO VIABLE OPTIMIZATIONS
 
 - HilbertLinearScan: <5% gains possible (not worth effort)
-- RTree: 2-5% gains possible (below 10% threshold)
+- R*-tree: 2-5% gains possible (below 10% threshold)
 - CompactLinearScan: Intentionally size-optimized (no changes)
 
 **Bundle Size**: ✓ ALREADY OPTIMAL (no opportunities)
@@ -245,6 +245,6 @@ insert(); // Single-pass with inline operations
 - Conformance tests: `src/conformance/testsuite.ts`
 - Benchmark data: `BENCHMARKS.md`
 - Implementation files:
-  - `src/implementations/hilbertlinearscan.ts`
-  - `src/implementations/rtree.ts`
-  - `src/implementations/compactlinearscan.ts`
+  - `src/implementations/hilbertlinearscan.ts` (now archived, superseded by Morton)
+  - `src/implementations/rstartree.ts` (active)
+  - `src/implementations/compactlinearscan.ts` (archived)

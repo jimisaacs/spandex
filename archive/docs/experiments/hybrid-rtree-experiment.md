@@ -20,7 +20,7 @@ if n < 100:
 elif overlapping + write-heavy + n < 400:
     use ArrayBufferLinearScanImpl
 else:
-    use RTreeImpl
+    use RStarTreeImpl
 ```
 
 **Problem**: Users must:
@@ -92,7 +92,7 @@ Current decision tree is actually SIMPLE for real usage:
 
 ```typescript
 // In practice, users just do:
-const store = n < 100 ? new ArrayBufferLinearScanImpl() : new RTreeImpl();
+const store = n < 100 ? new ArrayBufferLinearScanImpl() : new RStarTreeImpl();
 ```
 
 **Expected**: No single implementation beats this. Current answer is optimal.
@@ -114,7 +114,7 @@ const store = n < 100 ? new ArrayBufferLinearScanImpl() : new RTreeImpl();
 
 1. Implement `HybridRTreeImpl` with TypedArray storage + R-tree index
 2. Benchmark same scenarios
-3. Compare to both ArrayBufferLinearScan and RTreeImpl
+3. Compare to both ArrayBufferLinearScan and RStarTreeImpl
 
 **Success**: Beats or matches best specialized implementation in 80%+ scenarios
 
@@ -168,7 +168,7 @@ Test if Hybrid approach is promising:
 
 1. Implement minimal `HybridRTreeImpl`
 2. Benchmark n=100 and n=1000 only (2 critical points)
-3. Compare to ArrayBufferLinearScan and RTreeImpl
+3. Compare to ArrayBufferLinearScan and RStarTreeImpl
 
 If Hybrid loses in BOTH → skip to Scenario C\
 If Hybrid wins in EITHER → proceed to Phase 2
@@ -194,7 +194,7 @@ Win or lose, document WHY:
 **Proceed to Phase 2 if**:
 
 - Hybrid beats ArrayBufferLinearScan at n=1000 by >5%, OR
-- Hybrid matches RTreeImpl at n=1000 within 10% AND beats it at n=100
+- Hybrid matches RStarTreeImpl at n=1000 within 10% AND beats it at n=100
 
 **Accept Current Answer if**:
 

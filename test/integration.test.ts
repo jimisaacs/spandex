@@ -1,14 +1,12 @@
 /// <reference types="@types/google-apps-script" />
 
 import MortonLinearScanImpl from '../src/implementations/mortonlinearscan.ts';
-import CompactMortonLinearScanImpl from '../src/implementations/compactmortonlinearscan.ts';
-import RTreeImpl from '../src/implementations/rtree.ts';
+import RStarTreeImpl from '../src/implementations/rstartree.ts';
 
 Deno.test('All implementations produce identical results', () => {
 	const implementations = [
 		{ name: 'MortonLinearScan', Class: MortonLinearScanImpl },
-		{ name: 'CompactMortonLinearScan', Class: CompactMortonLinearScanImpl },
-		{ name: 'RTree', Class: RTreeImpl },
+		{ name: 'RStarTree', Class: RStarTreeImpl },
 	];
 
 	const operations = [
@@ -43,10 +41,16 @@ Deno.test('All implementations produce identical results', () => {
 			r.endColumnIndex ?? Infinity
 		},${r.value}`;
 
-	const referenceNormalized = results[0].ranges.map(normalize).sort((a, b) => sortKey(a).localeCompare(sortKey(b)));
+	const referenceNormalized = results[0].ranges.map(normalize).sort((
+		a: ReturnType<typeof normalize>,
+		b: ReturnType<typeof normalize>,
+	) => sortKey(a).localeCompare(sortKey(b)));
 
 	for (const result of results.slice(1)) {
-		const resultNormalized = result.ranges.map(normalize).sort((a, b) => sortKey(a).localeCompare(sortKey(b)));
+		const resultNormalized = result.ranges.map(normalize).sort((
+			a: ReturnType<typeof normalize>,
+			b: ReturnType<typeof normalize>,
+		) => sortKey(a).localeCompare(sortKey(b)));
 		if (JSON.stringify(resultNormalized) !== JSON.stringify(referenceNormalized)) {
 			throw new Error(`${result.name} produced different results than ${results[0].name}`);
 		}
@@ -60,8 +64,7 @@ Deno.test('All implementations produce identical results', () => {
 Deno.test('Performance comparison across implementations', () => {
 	const implementations = [
 		{ name: 'MortonLinearScan', Class: MortonLinearScanImpl },
-		{ name: 'CompactMortonLinearScan', Class: CompactMortonLinearScanImpl },
-		{ name: 'RTree', Class: RTreeImpl },
+		{ name: 'RStarTree', Class: RStarTreeImpl },
 	];
 
 	const operations = Array.from({ length: 100 }, (_, i) => ({
@@ -98,8 +101,7 @@ Deno.test('Performance comparison across implementations', () => {
 Deno.test('Memory efficiency validation', () => {
 	const implementations = [
 		{ name: 'MortonLinearScan', Class: MortonLinearScanImpl },
-		{ name: 'CompactMortonLinearScan', Class: CompactMortonLinearScanImpl },
-		{ name: 'RTree', Class: RTreeImpl },
+		{ name: 'RStarTree', Class: RStarTreeImpl },
 	];
 
 	const operations = Array.from({ length: 200 }, (_, i) => ({

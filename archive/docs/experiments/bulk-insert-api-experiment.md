@@ -210,7 +210,7 @@ insertBatch(entries) {
   - Better memory locality
   - **Expected**: 2-3x real-world speedup
 
-### For RTreeImpl
+### For RStarTreeImpl
 
 **Two approaches**:
 
@@ -289,11 +289,11 @@ Same strategy as HilbertLinearScanImpl (no Hilbert sorting, just array operation
 
 - [ ] **HilbertLinearScanImpl**: Optimized batch (single scan + sort)
 - [ ] **CompactLinearScanImpl**: Same as Hilbert but skip Hilbert indexing
-- [ ] **RTreeImpl**: Start with sequential, add STR in Phase 3
+- [ ] **RStarTreeImpl**: Start with sequential, add STR in Phase 3
 
 ### Phase 3: Optimization (After Telemetry Data)
 
-- [ ] RTreeImpl: Add adaptive STR bulk loading (k ≥ n/10 threshold)
+- [ ] RStarTreeImpl: Add adaptive STR bulk loading (k ≥ n/10 threshold)
 - [ ] Consider Packed Hilbert R-tree for static trees (serialization use case)
 
 ### Phase 4: Testing & Benchmarking
@@ -389,7 +389,7 @@ fontWeights.insertBatch(formattedRanges.fontWeight);
 - With batch: ~60µs (single scan + sort)
 - **Speedup**: 2.5x
 
-**RTreeImpl** (n=1000, k=500):
+**RStarTreeImpl** (n=1000, k=500):
 
 - Current sequential: 500 × 0.75µs = 375µs
 - With STR rebuild: ~100µs (bulk packing)
@@ -490,7 +490,7 @@ fontWeights.insertBatch(formattedRanges.fontWeight);
 - ✅ Added `insertBatch()` to `SpatialIndex<T>` interface
 - ✅ Implemented for HilbertLinearScanImpl (optimized with sequential LWW processing)
 - ✅ Implemented for CompactLinearScanImpl (similar to Hilbert)
-- ✅ Implemented for RTreeImpl (sequential fallback)
+- ✅ Implemented for RStarTreeImpl (sequential fallback)
 - ✅ All 77 conformance tests pass (including 9 new batch operation tests)
 - ✅ Benchmarks created and executed
 

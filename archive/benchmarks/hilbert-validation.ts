@@ -6,16 +6,16 @@
  * Test: Does spatial locality from Hilbert curve ordering improve performance?
  */
 
+import RStarTreeImpl from '../../src/implementations/rstartree.ts';
 import ArrayBufferLinearScanImpl from '../src/implementations/superseded/arraybufferlinearscan.ts';
 import HilbertLinearScanImpl from '../src/implementations/superseded/hilbertlinearscan.ts';
-import RTreeImpl from '../../src/implementations/rtree.ts';
 
 type GridRange = GoogleAppsScript.Sheets.Schema.GridRange;
 
 const implementations = [
 	{ name: 'ArrayBufferLinearScan', Class: ArrayBufferLinearScanImpl },
 	{ name: 'HilbertLinearScan', Class: HilbertLinearScanImpl },
-	{ name: 'RTree', Class: RTreeImpl },
+	{ name: 'RStarTree', Class: RStarTreeImpl },
 ];
 
 const SIZES = [100, 1000];

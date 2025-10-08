@@ -1,6 +1,21 @@
 /// <reference types="@types/google-apps-script" />
 
-import type { SpatialIndex } from '../conformance/testsuite.ts';
+/**
+ * ARCHIVED: 2025-10-07
+ * Category: superseded
+ * Reason: Superseded by optimized MortonLinearScan. After micro-optimizations (pure functions,
+ * cached property access, tight loops), Morton wins 18/35 scenarios vs CompactMorton's 7/35,
+ * with same minified size (1.7-1.8KB). CompactMorton's simpler XOR-based spatial hint trades
+ * optimal Z-order locality for ~20% faster encoding, but this only saves ~2% total insert time
+ * while sacrificing performance in typical sparse data scenarios (n=40-100). The maintenance
+ * burden of two nearly-identical implementations (95% shared code) is not justified by marginal
+ * wins in edge cases (n<30).
+ *
+ * This implementation remains runnable for historical comparison but is not
+ * included in the main benchmark suite.
+ */
+
+import type { SpatialIndex } from '../../../../src/conformance/testsuite.ts';
 
 /**
  * Compact Morton Linear Scan - PRODUCTION IMPLEMENTATION (compact variant)

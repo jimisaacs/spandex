@@ -158,7 +158,7 @@ Analyzed existing BENCHMARKS.md (280 benchmark measurements across 35 scenarios)
 
 8. **compactrtree** (2.7KB) → Archive as FAILED-EXPERIMENTS
    - Purpose: Minimal R-tree (educational)
-   - Performance: 14x slower than RTreeImpl (quadratic split overhead)
+   - Performance: 14x slower than RStarTreeImpl (quadratic split overhead)
    - Slowest in 9/35 scenarios overall
    - Category: `failed-experiments`
    - Rationale: Educational value only, demonstrates "compact != fast", not production-viable

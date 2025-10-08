@@ -198,13 +198,13 @@ R* competitive despite complexity: V8 JIT optimizes predictable branching, Typed
 
 ### Research Project
 
-Use RTreeImpl (R*): Academic correctness, excellent performance, no pathological cases.
+Use RStarTreeImpl (R*): Academic correctness, excellent performance, no pathological cases.
 
 Keep ArrayBufferRTreeImpl: Demonstrates midpoint trade-offs, research baseline.
 
 ### Production
 
-Use RTreeImpl: Faster (6-16%), better tree quality, no trade-offs.
+Use RStarTreeImpl: Faster (6-16%), better tree quality, no trade-offs.
 
 Alternative ArrayBufferRTreeImpl: Simpler code, within 6-16% of R*.
 

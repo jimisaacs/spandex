@@ -13,17 +13,17 @@ type GridRange = GoogleAppsScript.Sheets.Schema.GridRange;
 
 // Active implementations
 import MortonLinearScanImpl from '../src/implementations/mortonlinearscan.ts';
-import RTreeImpl from '../src/implementations/rtree.ts';
+import RStarTreeImpl from '../src/implementations/rstartree.ts';
 
 // Archived implementations
-import LinearScanImpl from '../archive/src/implementations/superseded/linearscan.ts';
-import ArrayBufferRTreeImpl from '../archive/src/implementations/superseded/arraybufferrtree.ts';
 import HybridRTreeImpl from '../archive/src/implementations/failed-experiments/hybridrtree.ts';
+import ArrayBufferRTreeImpl from '../archive/src/implementations/superseded/arraybufferrtree.ts';
+import LinearScanImpl from '../archive/src/implementations/superseded/linearscan.ts';
 
 const implementations = [
 	{ name: 'MortonLinearScan (active)', Class: MortonLinearScanImpl, category: 'active' },
 	{ name: 'LinearScan (archived-superseded)', Class: LinearScanImpl, category: 'archived' },
-	{ name: 'RTree (active)', Class: RTreeImpl, category: 'active' },
+	{ name: 'RStarTree (active)', Class: RStarTreeImpl, category: 'active' },
 	{ name: 'ArrayBufferRTree (archived-superseded)', Class: ArrayBufferRTreeImpl, category: 'archived' },
 	{ name: 'HybridRTree (archived-failed)', Class: HybridRTreeImpl, category: 'archived' },
 ];

@@ -13,16 +13,16 @@
  * - Hybrid wins OR matches within 10% at EITHER point
  */
 
-import ArrayBufferLinearScanImpl from '../src/implementations/superseded/arraybufferlinearscan.ts';
-import RTreeImpl from '../../src/implementations/rtree.ts';
+import RStarTreeImpl from '../../src/implementations/rstartree.ts';
 import HybridRTreeImpl from '../src/implementations/failed-experiments/hybridrtree.ts';
+import ArrayBufferLinearScanImpl from '../src/implementations/superseded/arraybufferlinearscan.ts';
 
 type GridRange = GoogleAppsScript.Sheets.Schema.GridRange;
 
 const implementations = [
 	{ name: 'ArrayBufferLinearScan', Class: ArrayBufferLinearScanImpl },
 	{ name: 'HybridRTree', Class: HybridRTreeImpl },
-	{ name: 'RTree', Class: RTreeImpl },
+	{ name: 'RStarTree', Class: RStarTreeImpl },
 ];
 
 const SIZES = [100, 1000];
