@@ -21,6 +21,8 @@
 		"sync-docs": "deno run -A scripts/sync-docs.ts",
 		"archive:impl": "deno run -A scripts/archive-impl.ts",
 		"unarchive:impl": "deno run -A scripts/unarchive-impl.ts",
+		"hooks:install": "deno run --allow-read=deno.json,.git/hooks/ --allow-write=.git/hooks/ jsr:@hongminhee/deno-task-hooks",
+		"hooks:pre-commit": "deno task fmt --check && deno task lint && deno task check && deno task test",
 		"lint": "deno lint",
 		"fmt": "deno fmt",
 		"check": "deno check"

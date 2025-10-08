@@ -25,6 +25,7 @@ This repository uses GitHub Actions for continuous integration. The workflows au
    - Runs in parallel with Quick Benchmarks to save time
 
 **When workflows run**:
+
 - **Push to any branch** → Test job runs
 - **Pull request** → Test job runs
 - **Push to `main`** → All 3 jobs run in parallel (Test + Quick Benchmarks + Statistical Analysis)
@@ -58,17 +59,20 @@ This repository uses GitHub Actions for continuous integration. The workflows au
 **Both jobs run in parallel** and push independently:
 
 **Quick Benchmarks** (~2 min):
+
 - Runs `bench:update`
 - Commits `BENCHMARKS.md`
 - Pushes back to `main` with `[skip ci]`
 
 **Statistical Analysis** (~30 min):
+
 - Runs `bench:analyze`
 - Commits `docs/analyses/benchmark-statistics.md`
 - Pulls latest changes (in case Quick Benchmarks finished first)
 - Pushes back to `main` with `[skip ci]`
 
 **How race conditions are handled**:
+
 1. Both jobs start at same time from same commit
 2. Whichever job finishes first pushes its commit
 3. The other job pulls latest changes, rebases its commit on top, then pushes
@@ -78,6 +82,7 @@ This repository uses GitHub Actions for continuous integration. The workflows au
 **Why this works**: Different files (`BENCHMARKS.md` vs `docs/analyses/benchmark-statistics.md`) = no merge conflicts
 
 **How `[skip ci]` prevents infinite loops**:
+
 1. You push to `main` → Workflow runs
 2. Benchmark jobs commit with `[skip ci]` message → Push to `main`
 3. GitHub sees `[skip ci]` → Skips running workflow on those commits
@@ -93,17 +98,17 @@ Edit the cron schedule in `.github/workflows/ci.yml`:
 
 ```yaml
 schedule:
-  # Weekly on Sundays at midnight UTC (current):
-  - cron: '0 0 * * 0'
+    # Weekly on Sundays at midnight UTC (current):
+    - cron: '0 0 * * 0'
 
-  # Daily at 2 AM UTC:
-  - cron: '0 2 * * *'
+    # Daily at 2 AM UTC:
+    - cron: '0 2 * * *'
 
-  # First day of month at midnight:
-  - cron: '0 0 1 * *'
+    # First day of month at midnight:
+    - cron: '0 0 1 * *'
 
-  # Disable schedule (only run on push/manual):
-  # Comment out the entire schedule section
+    # Disable schedule (only run on push/manual):
+    # Comment out the entire schedule section
 ```
 
 ### Run benchmarks only on push (not scheduled)
@@ -112,10 +117,10 @@ If you don't want the weekly automatic runs:
 
 ```yaml
 benchmark-quick:
-  if: |
-    (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
-    github.event_name == 'workflow_dispatch'
-    # Removed: github.event_name == 'schedule'
+    if: |
+        (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+        github.event_name == 'workflow_dispatch'
+        # Removed: github.event_name == 'schedule'
 ```
 
 Do the same for `benchmark-stats` job.
@@ -136,21 +141,24 @@ If you prefer manual benchmark updates:
 ### Workflow fails with "permission denied"
 
 The benchmark job needs write permissions. Ensure:
+
 ```yaml
 permissions:
-  contents: write
+    contents: write
 ```
 
 ### Benchmark timeout
 
 If benchmarks take longer than 60 minutes, increase timeout:
+
 ```yaml
-timeout-minutes: 90  # Increase as needed
+timeout-minutes: 90 # Increase as needed
 ```
 
 ### Tests fail on canary but pass on stable
 
 This is expected - canary is Deno's unstable version. The workflow will:
+
 - ✅ Pass if stable passes (what matters)
 - ⚠️ Warn if canary fails (FYI only)
 

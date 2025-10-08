@@ -35,6 +35,7 @@ deno test test/specific.test.ts   # Run single test file
 2. **`bench:analyze`** → Generates `docs/analyses/benchmark-statistics.md` (slow, ~30 min)
 
 **When to run each**:
+
 - **During iteration**: Run `bench:update` frequently for quick feedback
 - **Before completing task**: Run BOTH `bench:update` AND `bench:analyze` to ensure both docs are current
 - **In CI/CD**: Always run BOTH to keep documentation complete
@@ -261,12 +262,12 @@ Benchmarks automatically exclude archived implementations (based on filesystem l
    - **CRITICAL**: Always outputs to `benchmark-statistics.md` (OVERWRITES, don't create experiment-specific files)
    - The data is generic (win rates, CV%, scenarios) - same structure for all experiments
 5. **Document findings**: Create `docs/analyses/[name]-analysis.md` with hypothesis, methodology, outcome
-5. **Update status**: Mark experiment doc with ✅ VALIDATED or ❌ REJECTED
-6. **Resolution**:
+6. **Update status**: Mark experiment doc with ✅ VALIDATED or ❌ REJECTED
+7. **Resolution**:
    - ✅ **VALIDATED**: Update `docs/core/RESEARCH-SUMMARY.md`, keep implementation active, DELETE experiment doc
    - ❌ **REJECTED (moving on)**: Move experiment docs to `archive/docs/experiments/`, archive implementation
    - ❌ **REJECTED (might revisit)**: Leave in `active/experiments/` with notes
-7. **Clean workspace**: **DELETE completed experiments from `docs/active/experiments/`**
+8. **Clean workspace**: **DELETE completed experiments from `docs/active/experiments/`**
 
 **File naming convention** (prevents confusion):
 

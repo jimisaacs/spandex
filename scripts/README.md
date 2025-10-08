@@ -6,12 +6,13 @@
 
 ## ⚠️ CRITICAL: Two Benchmark Scripts - Different Use Cases
 
-| Script                  | Generates                                  | Duration | When to run              |
-| ----------------------- | ------------------------------------------ | -------- | ------------------------ |
-| `update-benchmarks.ts`  | `BENCHMARKS.md`                            | ~2 min   | Frequently during iteration |
-| `analyze-benchmarks.ts` | `docs/analyses/benchmark-statistics.md`    | ~30 min  | Before completing tasks  |
+| Script                  | Generates                               | Duration | When to run                 |
+| ----------------------- | --------------------------------------- | -------- | --------------------------- |
+| `update-benchmarks.ts`  | `BENCHMARKS.md`                         | ~2 min   | Frequently during iteration |
+| `analyze-benchmarks.ts` | `docs/analyses/benchmark-statistics.md` | ~30 min  | Before completing tasks     |
 
 **Workflow**:
+
 ```bash
 # During development - quick feedback:
 deno task bench:update  # Run frequently
@@ -22,6 +23,7 @@ deno task bench:analyze 5 docs/analyses/benchmark-statistics.md
 ```
 
 **Why both?**
+
 1. `BENCHMARKS.md` - Quick performance overview for iteration
 2. `benchmark-statistics.md` - Statistical validation for completion
 
