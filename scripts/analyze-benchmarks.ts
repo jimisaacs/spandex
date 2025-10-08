@@ -127,9 +127,9 @@ async function main() {
 	const RUNS = Deno.args[0] ? parseInt(Deno.args[0]) : 5;
 	const OUTPUT_FILE = Deno.args[1]; // Optional output file
 
-	console.log('\n' + '='.repeat(80));
+	console.log('\n' + '='.repeat(40));
 	console.log('MULTI-RUN BENCHMARK ANALYSIS');
-	console.log('='.repeat(80));
+	console.log('='.repeat(40));
 	console.log(`Runs: ${RUNS}`);
 	if (OUTPUT_FILE) {
 		console.log(`Output: ${OUTPUT_FILE}`);
@@ -149,9 +149,9 @@ async function main() {
 		}
 	}
 
-	console.log('\n' + '='.repeat(80));
+	console.log('\n' + '='.repeat(40));
 	console.log('ALL RUNS COMPLETE - Analyzing results...');
-	console.log('='.repeat(80) + '\n');
+	console.log('='.repeat(40) + '\n');
 
 	// Aggregate results by implementation + scenario
 	const aggregated = new Map<string, AggregatedResult>();
@@ -194,9 +194,9 @@ async function main() {
 	});
 
 	// Output results
-	console.log('='.repeat(100));
+	console.log('='.repeat(40));
 	console.log('BENCHMARK ANALYSIS RESULTS');
-	console.log('='.repeat(100));
+	console.log('='.repeat(40));
 	console.log();
 
 	// Group by scenario for comparison
@@ -242,9 +242,9 @@ async function main() {
 	}
 
 	// Summary statistics: wins per implementation
-	console.log('\n\n='.repeat(100));
+	console.log('\n\n='.repeat(40));
 	console.log('SUMMARY: Performance Rankings');
-	console.log('='.repeat(100));
+	console.log('='.repeat(40));
 
 	const winCounts = new Map<string, number>();
 	for (const impl of implementations) {
