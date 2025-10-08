@@ -305,6 +305,10 @@ async function main() {
 **Runs**: ${RUNS}
 **Method**: Statistical analysis (mean ± stddev, CV%)
 
+> **⚠️ CI Environment Note**: When run in GitHub Actions, expect higher CV% (>20%) due to shared/noisy runners.
+> CI benchmarks are for **regression detection**, not research-grade measurements.
+> For academic rigor, run on dedicated/idle hardware with CV% <5%.
+
 ## Methodology
 
 **Sample Size**: ${RUNS} runs per scenario (each run = mean of Deno's 10-100 internal iterations) → **${RUNS * 10}-${

@@ -282,6 +282,9 @@ const sections: string[] = [
 # Benchmark Results
 
 > Last updated: ${now} | Deno ${denoVersion}
+>
+> **⚠️ Note**: These benchmarks run in GitHub Actions CI (shared runners). Results show relative performance
+> but may have high variability (CV% >20%). For research-grade measurements, run on dedicated hardware.
 
 ## Performance Comparison
 
