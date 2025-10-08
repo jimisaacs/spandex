@@ -139,10 +139,20 @@ deno task check              # Type check
 
 ## Documentation
 
+### Learning
+
+- **[Rectangle Decomposition Primer](./docs/RECTANGLE-DECOMPOSITION-PRIMER.md)** - Understand the core problem and three solution strategies
+- **[Three-part deep dive](./docs/diagrams/)** - Last-Writer-Wins, Shallow Merge, and Spatial Join approaches
+
+### Using
+
 - **[Production Guide](./PRODUCTION-GUIDE.md)** - Quick decision tree for choosing implementations
+- **[Benchmarks](./BENCHMARKS.md)** - Performance data across all implementations
+
+### Research
+
 - **[Research Summary](./docs/core/RESEARCH-SUMMARY.md)** - Complete research findings
 - **[Theoretical Foundation](./docs/core/theoretical-foundation.md)** - Mathematical model and proofs
-- **[Benchmarks](./BENCHMARKS.md)** - Performance data across all implementations
 - **[Documentation Index](./docs/README.md)** - Complete documentation navigation
 
 ## Architecture
