@@ -5,6 +5,11 @@
  * Run: deno task bench:update
  *
  * Fully dynamic - automatically discovers implementations from benchmark output
+ *
+ * ⚠️ IMPORTANT: This generates BENCHMARKS.md (quick, ~2 min).
+ * Run frequently during iteration. Before completing tasks, also run:
+ *   deno task bench:analyze 5 docs/analyses/benchmark-statistics.md
+ * to ensure both benchmark docs are current.
  */
 
 const BENCHMARKS_FILE = './BENCHMARKS.md';

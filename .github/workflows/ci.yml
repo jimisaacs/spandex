@@ -1,0 +1,103 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    # Run benchmarks weekly on Sundays at 00:00 UTC
+    - cron: '0 0 * * 0'
+  workflow_dispatch: # Allow manual trigger
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        deno-version: [2.x, canary]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Deno
+        uses: denoland/setup-deno@v1
+        with:
+          deno-version: ${{ matrix.deno-version }}
+
+      - name: Verify formatting
+        run: deno task fmt --check
+
+      - name: Run linter
+        run: deno task lint
+
+      - name: Type check
+        run: deno task check
+
+      - name: Run tests
+        run: deno task test
+
+  benchmark-quick:
+    name: Quick Benchmarks
+    runs-on: ubuntu-latest
+    if: |
+      (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+      github.event_name == 'schedule' ||
+      github.event_name == 'workflow_dispatch'
+    permissions:
+      contents: write
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Deno
+        uses: denoland/setup-deno@v1
+        with:
+          deno-version: 2.x
+
+      - name: Update BENCHMARKS.md
+        run: deno task bench:update
+
+      - name: Commit and push benchmark results
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "📊 Update BENCHMARKS.md [skip ci]"
+          file_pattern: "BENCHMARKS.md"
+          pull_options: '--rebase --autostash'
+          push_options: '--force-with-lease'
+
+  benchmark-stats:
+    name: Statistical Analysis
+    runs-on: ubuntu-latest
+    if: |
+      (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+      github.event_name == 'schedule' ||
+      github.event_name == 'workflow_dispatch'
+    permissions:
+      contents: write
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Deno
+        uses: denoland/setup-deno@v1
+        with:
+          deno-version: 2.x
+
+      - name: Run statistical analysis
+        run: deno task bench:analyze 5 docs/analyses/benchmark-statistics.md
+
+      - name: Commit and push benchmark statistics
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "📊 Update benchmark statistics [skip ci]"
+          file_pattern: "docs/analyses/benchmark-statistics.md"
+          pull_options: '--rebase --autostash'
+          push_options: '--force-with-lease'

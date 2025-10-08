@@ -18,6 +18,11 @@
  *   ./scripts/analyze-benchmarks.ts 5 results.md  # 5 runs, save to results.md
  *
  * This tool is generic and works with any implementation/scenario in benchmarks/performance.ts
+ *
+ * ⚠️ IMPORTANT: This generates statistical analysis (slow, ~30 min).
+ * Run before completing tasks to ensure stats are current. Also run:
+ *   deno task bench:update
+ * to ensure both benchmark docs are in sync.
  */
 
 interface BenchmarkResult {

@@ -4,6 +4,31 @@
 
 ---
 
+## ⚠️ CRITICAL: Two Benchmark Scripts - Different Use Cases
+
+| Script                  | Generates                                  | Duration | When to run              |
+| ----------------------- | ------------------------------------------ | -------- | ------------------------ |
+| `update-benchmarks.ts`  | `BENCHMARKS.md`                            | ~2 min   | Frequently during iteration |
+| `analyze-benchmarks.ts` | `docs/analyses/benchmark-statistics.md`    | ~30 min  | Before completing tasks  |
+
+**Workflow**:
+```bash
+# During development - quick feedback:
+deno task bench:update  # Run frequently
+
+# Before completing/committing - ensure both docs current:
+deno task bench:update
+deno task bench:analyze 5 docs/analyses/benchmark-statistics.md
+```
+
+**Why both?**
+1. `BENCHMARKS.md` - Quick performance overview for iteration
+2. `benchmark-statistics.md` - Statistical validation for completion
+
+**Both must be current before completing tasks.**
+
+---
+
 ## Benchmark Automation
 
 ### `update-benchmarks.ts`
@@ -20,6 +45,8 @@ Runs benchmarks and generates `BENCHMARKS.md`.
 
 **Output**: `BENCHMARKS.md` (auto-generated, don't edit manually)
 
+**Note**: Run this frequently during iteration. Before completing task, also run `bench:analyze` to update stats.
+
 ### `analyze-benchmarks.ts`
 
 Runs benchmarks multiple times for statistical analysis.
@@ -35,6 +62,8 @@ Runs benchmarks multiple times for statistical analysis.
 3. Generates statistical report with confidence intervals
 
 **Output**: Markdown file with statistical analysis
+
+**Note**: Run before completing tasks to ensure statistical docs are current. Also run `bench:update` to keep both docs in sync.
 
 ---
 
