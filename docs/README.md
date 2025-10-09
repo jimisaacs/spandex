@@ -6,12 +6,12 @@
 
 ## Quick Start
 
-| Audience         | Start Here                                                          | Then Read                                                  |
-| ---------------- | ------------------------------------------------------------------- | ---------------------------------------------------------- |
+| Audience         | Start Here                                                            | Then Read                                                  |
+| ---------------- | --------------------------------------------------------------------- | ---------------------------------------------------------- |
 | **Learning**     | [RECTANGLE-DECOMPOSITION-PRIMER](./RECTANGLE-DECOMPOSITION-PRIMER.md) | [diagrams/](./diagrams/) (3-part series)                   |
-| **Users**        | [Main README](../README.md)                                         | [BENCHMARKS](../BENCHMARKS.md)                             |
-| **Researchers**  | [RESEARCH-SUMMARY](./core/RESEARCH-SUMMARY.md)                      | [theoretical-foundation](./core/theoretical-foundation.md) |
-| **Contributors** | [IMPLEMENTATION-LIFECYCLE](./IMPLEMENTATION-LIFECYCLE.md)           | [RESEARCH-SUMMARY](./core/RESEARCH-SUMMARY.md)             |
+| **Users**        | [Main README](../README.md)                                           | [BENCHMARKS](../BENCHMARKS.md)                             |
+| **Researchers**  | [RESEARCH-SUMMARY](./core/RESEARCH-SUMMARY.md)                        | [theoretical-foundation](./core/theoretical-foundation.md) |
+| **Contributors** | [IMPLEMENTATION-LIFECYCLE](./IMPLEMENTATION-LIFECYCLE.md)             | [RESEARCH-SUMMARY](./core/RESEARCH-SUMMARY.md)             |
 
 ---
 
@@ -36,6 +36,7 @@ archive/docs/           # Rejected experiments
 **[RECTANGLE-DECOMPOSITION-PRIMER](./RECTANGLE-DECOMPOSITION-PRIMER.md)** - Introduction to the fundamental problem and three solution strategies
 
 **Three-part deep dive** (in `diagrams/`):
+
 1. **[Last-Writer-Wins](./diagrams/rectangle-decomposition-lww.md)** - The simplest approach (current implementation)
 2. **[Shallow Merge](./diagrams/rectangle-decomposition-merge.md)** - Combining properties
 3. **[Spatial Join](./diagrams/rectangle-decomposition-spatial-join.md)** - Multiple indexes (recommended for multi-property)

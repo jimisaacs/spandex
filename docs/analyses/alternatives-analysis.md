@@ -183,7 +183,7 @@ getAllFormattedRanges(): Array<{gridRange: GridRange, format: Format}>
 | Interval Tree | O(log²n) | O(n)    | O(log²n)    | O(n log n) | ❌ Needs decomposition |
 | HashMap       | O(r×c)   | O(r×c)  | O(1)        | O(r×c)     | ❌ Needs grouping      |
 
-**Primary operation**: `getAllRanges()` happens on every render, export, serialize, undo/redo\
+**Primary operation**: `query()` (all ranges) happens on every render, export, serialize, undo/redo\
 **Secondary operation**: `insert()` happens during user edits\
 **Rare operation**: Point queries (handled with linear scan, fast enough for n < 100)
 
@@ -214,8 +214,8 @@ From `sparse-data-analysis.md`:
 
 **Rectangle decomposition (flat + R-tree) is the right choice because**:
 
-1. ✅ **Matches API requirements** - Produces `GridRange[]` directly
-2. ✅ **Optimal for common case** - `getAllRanges()` is O(n), can't do better
+1. ✅ **Matches API requirements** - Query returns ranges directly
+2. ✅ **Optimal for common case** - `query()` (all ranges) is O(n), can't do better
 3. ✅ **Simple mental model** - Easy to reason about and maintain
 4. ✅ **Performance validated** - [BENCHMARKS.md](../../BENCHMARKS.md) for empirical data
 5. ✅ **Flexible** - Flat for sparse (n < 100), R-tree for dense (n > 1000)

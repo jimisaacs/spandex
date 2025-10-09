@@ -10,8 +10,8 @@ Quick reference for choosing the right spatial index implementation.
 START
   ↓
 n < 100?
-  ├─ YES → Morton spatial locality (~1.8KB)
-  └─ NO  → R-tree (R* split) (~8.4KB)
+  ├─ YES → Morton spatial locality
+  └─ NO  → R-tree (R* split)
 ```
 
 _See sections below for specific implementation names and import statements._
@@ -22,9 +22,7 @@ _See sections below for specific implementation names and import statements._
 
 ### MortonLinearScanImpl ✅ Most Common
 
-n < 100 (typical spreadsheet use). 2x faster via spatial locality.
-
-Performance: 6.9µs @ n=50, 9.5ms @ n=2500
+n < 100 (typical spreadsheet use). Faster via spatial locality optimization.
 
 ```typescript
 import MortonLinearScanImpl from './src/implementations/mortonlinearscan.ts';
@@ -38,9 +36,7 @@ const dataValidation = new MortonLinearScanImpl<ValidationRule>();
 
 ### RStarTreeImpl ✅ Large Datasets
 
-n ≥ 100. O(log n) hierarchical indexing, R* split algorithm.
-
-Performance: 20.0µs @ n=50, 1.92ms @ n=2500
+n ≥ 100. O(log n) hierarchical indexing with R* split algorithm.
 
 ```typescript
 import RStarTreeImpl from './src/implementations/rstartree.ts';
@@ -58,12 +54,12 @@ for (const range of thousandsOfRanges) {
 
 ## Performance Comparison
 
-**Empirical measurements** (from [BENCHMARKS.md](./BENCHMARKS.md)):
+See [BENCHMARKS.md](./BENCHMARKS.md) for current performance data.
 
-| Implementation       | n=50  | n=2500 | Bundle Size | Best For              |
-| -------------------- | ----- | ------ | ----------- | --------------------- |
-| MortonLinearScanImpl | ~7µs  | ~10ms  | 1.8KB       | Sparse data (n < 100) |
-| RStarTreeImpl        | ~20µs | ~2ms   | 8.4KB       | Large data (n ≥ 100)  |
+**Summary**:
+
+- **Morton (n < 100)**: Lower overhead, faster for sparse data
+- **R-tree (n ≥ 100)**: Hierarchical indexing wins at scale
 
 **Measurement Confidence**:
 
@@ -107,12 +103,12 @@ class SpreadsheetProperties {
 	private fonts = new MortonLinearScanImpl<string>();
 	private validation = new MortonLinearScanImpl<Rule>();
 
-	setBackground(range: GridRange, color: string) {
-		this.backgrounds.insert(range, color);
+	setBackground(bounds: Rectangle, color: string) {
+		this.backgrounds.insert(bounds, color);
 	}
 
-	getBackgrounds(range: GridRange) {
-		return this.backgrounds.query(range);
+	getBackgrounds(bounds: Rectangle) {
+		return this.backgrounds.query(bounds);
 	}
 }
 ```
@@ -141,14 +137,12 @@ All implementations follow the `SpatialIndex<T>` interface:
 
 ```typescript
 interface SpatialIndex<T> {
-	// Insert a range with a value (last-writer-wins)
-	insert(gridRange: GridRange, value: T): void;
+	// Insert a rectangle with a value (last-writer-wins)
+	insert(bounds: Rectangle, value: T): void;
 
-	// Query ranges that intersect with the given range
-	query(gridRange: GridRange): Array<{ gridRange: GridRange; value: T }>;
-
-	// Get all ranges (for export/serialization)
-	getAllRanges(): Array<{ gridRange: GridRange; value: T }>;
+	// Query rectangles that intersect with given bounds
+	// Call with no arguments to get all rectangles
+	query(bounds?: Rectangle): IterableIterator<[Rectangle, T]>;
 
 	// Check if index is empty
 	get isEmpty(): boolean;
@@ -179,7 +173,7 @@ All implementations share the `SpatialIndex<T>` interface, making migration stra
 const oldIndex = new MortonLinearScanImpl<string>();
 // ... populate with data ...
 
-const data = oldIndex.getAllRanges();
+const data = Array.from(oldIndex.query());
 ```
 
 **2. Create new index and bulk import**:
@@ -187,8 +181,8 @@ const data = oldIndex.getAllRanges();
 ```typescript
 const newIndex = new RStarTreeImpl<string>();
 
-for (const { gridRange, value } of data) {
-	newIndex.insert(gridRange, value);
+for (const [bounds, value] of data) {
+	newIndex.insert(bounds, value);
 }
 ```
 
@@ -201,9 +195,9 @@ this.backgroundColors = newIndex;
 
 **Performance Impact**:
 
-- Export (`getAllRanges`): O(n) - negligible for n < 10,000
+- Export (`query()`): O(n) - negligible for typical sizes
 - Bulk import: O(n log n) for R*-tree, O(n²) for LinearScan
-- Total downtime: <100ms for n=1000
+- Downtime minimal for typical migration sizes
 
 ---
 
@@ -229,11 +223,11 @@ class SpreadsheetProperties {
 	}
 
 	migrateToRStarTree() {
-		const data = this.backgrounds.getAllRanges();
+		const data = Array.from(this.backgrounds.query());
 		const newIndex = new RStarTreeImpl<string>();
 
-		for (const { gridRange, value } of data) {
-			newIndex.insert(gridRange, value);
+		for (const [bounds, value] of data) {
+			newIndex.insert(bounds, value);
 		}
 
 		this.backgrounds = newIndex;
@@ -242,7 +236,7 @@ class SpreadsheetProperties {
 }
 ```
 
-**Performance gain**: At n=200, R*-tree is ~5-10x faster than Morton.
+**Performance gain**: Significant speedup at larger data sizes (see BENCHMARKS.md).
 
 ---
 
@@ -260,7 +254,7 @@ class SpreadsheetProperties {
 
 API is identical, just swap the class name.
 
-**Performance gain**: 2x faster (202.7µs → 104.5µs at n=100)
+**Performance gain**: Significant speedup via spatial locality (see BENCHMARKS.md)
 
 ---
 
@@ -277,31 +271,27 @@ class AdaptiveSpatialIndex<T> implements SpatialIndex<T> {
 		this.index = new MortonLinearScanImpl<T>();
 	}
 
-	insert(gridRange: GridRange, value: T): void {
-		this.index.insert(gridRange, value);
+	insert(bounds: Rectangle, value: T): void {
+		this.index.insert(bounds, value);
 		this.checkMigration();
 	}
 
 	private checkMigration() {
-		const n = this.index.getAllRanges().length;
+		const n = Array.from(this.index.query()).length;
 
 		// Migrate up if n exceeds threshold
 		if (n > this.threshold && !(this.index instanceof RStarTreeImpl)) {
-			const data = this.index.getAllRanges();
+			const data = Array.from(this.index.query());
 			this.index = new RStarTreeImpl<T>();
-			for (const { gridRange, value } of data) {
-				this.index.insert(gridRange, value);
+			for (const [bounds, value] of data) {
+				this.index.insert(bounds, value);
 			}
 			console.log(`Auto-migrated to R*-tree at n=${n}`);
 		}
 	}
 
-	query(gridRange: GridRange) {
-		return this.index.query(gridRange);
-	}
-
-	getAllRanges() {
-		return this.index.getAllRanges();
+	query(bounds?: Rectangle) {
+		return this.index.query(bounds);
 	}
 
 	get isEmpty() {
@@ -332,12 +322,13 @@ class LiveMigration<T> {
 		this.newIndex = new RStarTreeImpl<T>();
 
 		// Copy existing data
-		const data = this.oldIndex.getAllRanges();
-		for (const { gridRange, value } of data) {
-			this.newIndex.insert(gridRange, value);
+		const data = Array.from(this.oldIndex.query());
+		let count = 0;
+		for (const [bounds, value] of data) {
+			this.newIndex.insert(bounds, value);
 
 			// Yield to event loop every 100 items
-			if (data.indexOf({ gridRange, value }) % 100 === 0) {
+			if (++count % 100 === 0) {
 				await new Promise((resolve) => setTimeout(resolve, 0));
 			}
 		}
@@ -348,14 +339,14 @@ class LiveMigration<T> {
 		this.migrating = false;
 	}
 
-	query(gridRange: GridRange) {
+	query(bounds?: Rectangle) {
 		// Use new index if migration complete
-		return this.oldIndex.query(gridRange);
+		return this.oldIndex.query(bounds);
 	}
 }
 ```
 
-**Use case**: Large datasets (n > 5000) where bulk import takes >100ms.
+**Use case**: Large datasets where migration needs to be non-blocking.
 
 ---
 
@@ -369,21 +360,20 @@ class LiveMigration<T> {
 
 ```typescript
 function validateMigration<T>(oldIndex: SpatialIndex<T>, newIndex: SpatialIndex<T>) {
-	const oldData = oldIndex.getAllRanges();
-	const newData = newIndex.getAllRanges();
+	const oldData = Array.from(oldIndex.query());
+	const newData = Array.from(newIndex.query());
 
 	if (oldData.length !== newData.length) {
 		throw new Error(`Size mismatch: ${oldData.length} → ${newData.length}`);
 	}
 
 	// Check all ranges preserved (order may differ)
-	for (const oldEntry of oldData) {
-		const found = newData.some((newEntry) =>
-			rangesEqual(oldEntry.gridRange, newEntry.gridRange) &&
-			oldEntry.value === newEntry.value
+	for (const [oldBounds, oldValue] of oldData) {
+		const found = newData.some(([newBounds, newValue]) =>
+			boundsEqual(oldBounds, newBounds) && oldValue === newValue
 		);
 		if (!found) {
-			throw new Error(`Missing entry: ${JSON.stringify(oldEntry)}`);
+			throw new Error(`Missing entry: ${JSON.stringify([oldBounds, oldValue])}`);
 		}
 	}
 
@@ -402,7 +392,7 @@ A: Morton for n < 100, R-tree for n ≥ 100.
 A: Use Morton (optimal for typical n < 100).
 
 **Q: Need smaller bundle?**\
-A: Morton is already compact at 1.8KB minified. This is production-ready for all bundle-constrained environments.
+A: Morton has smallest footprint. Both implementations are production-ready for bundle-constrained environments.
 
 **Q: ArrayBuffer implementations?**\
 A: Research only. Morton supersedes them.

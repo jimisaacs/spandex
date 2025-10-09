@@ -4,7 +4,10 @@
 
 # Benchmark Results
 
-> Last updated: 2025-10-08 | Deno 2.4.5
+> Last updated: 2025-10-09 | Deno 2.4.5
+>
+> **⚠️ Note**: These benchmarks run in GitHub Actions CI (shared runners). Results show relative performance
+> but may have high variability (CV% >20%). For research-grade measurements, run on dedicated hardware.
 
 ## Performance Comparison
 
@@ -28,9 +31,9 @@ Comparing **O(n) linear scan** vs **O(log n) R-tree** across:
 
 | Scenario                     | mortonlinearscan | rstartree | RStarTree       |
 | ---------------------------- | ---------------- | --------- | --------------- |
-| Sparse (n < 100)             | 0.0x             | 0.0x      | 1.0x (baseline) |
-| Large overlapping (n ≈ 1000) | 5.2x             | 3.2x      | 1.0x (baseline) |
-| Large sequential (n ≈ 2500)  | 9.2x             | 2.0x      | 1.0x (baseline) |
+| Sparse (n < 100)             | 0.0x             | 0.1x      | 1.0x (baseline) |
+| Large overlapping (n ≈ 1000) | 6.2x             | 9.9x      | 1.0x (baseline) |
+| Large sequential (n ≈ 2500)  | 13.5x            | 7.0x      | 1.0x (baseline) |
 
 **Key insights**:
 
@@ -47,98 +50,98 @@ Comparing **O(n) linear scan** vs **O(log n) R-tree** across:
 | Implementation   | Time   | Relative |
 | ---------------- | ------ | -------- |
 | mortonlinearscan | 0.00ms | 0.00x    |
-| rstartree        | 0.01ms | 0.01x    |
+| rstartree        | 0.02ms | 0.02x    |
 
 ### diagonal-selection (n=30)
 
 | Implementation   | Time   | Relative |
 | ---------------- | ------ | -------- |
 | mortonlinearscan | 0.01ms | 0.01x    |
-| rstartree        | 0.04ms | 0.04x    |
+| rstartree        | 0.13ms | 0.13x    |
 
 ### large-grid (n=2500)
 
 | Implementation   | Time    | Relative |
 | ---------------- | ------- | -------- |
-| rstartree        | 1.90ms  | 1.90x    |
-| mortonlinearscan | 11.60ms | 11.60x   |
+| rstartree        | 6.90ms  | 6.90x    |
+| mortonlinearscan | 15.20ms | 15.20x   |
 
 ### large-overlapping (n=1250)
 
 | Implementation   | Time   | Relative |
 | ---------------- | ------ | -------- |
-| rstartree        | 3.20ms | 3.20x    |
-| mortonlinearscan | 5.20ms | 5.20x    |
+| mortonlinearscan | 6.20ms | 6.20x    |
+| rstartree        | 9.90ms | 9.90x    |
 
 ### large-ranges (n=500)
 
 | Implementation   | Time   | Relative |
 | ---------------- | ------ | -------- |
-| mortonlinearscan | 0.86ms | 0.86x    |
-| rstartree        | 1.10ms | 1.10x    |
+| mortonlinearscan | 1.10ms | 1.10x    |
+| rstartree        | 3.60ms | 3.60x    |
 
 ### large-sequential (n=2500)
 
-| Implementation   | Time   | Relative |
-| ---------------- | ------ | -------- |
-| rstartree        | 2.00ms | 2.00x    |
-| mortonlinearscan | 9.20ms | 9.20x    |
+| Implementation   | Time    | Relative |
+| ---------------- | ------- | -------- |
+| rstartree        | 7.00ms  | 7.00x    |
+| mortonlinearscan | 13.50ms | 13.50x   |
 
 ### merge-like-blocks (n=15)
 
 | Implementation   | Time   | Relative |
 | ---------------- | ------ | -------- |
 | mortonlinearscan | 0.00ms | 0.00x    |
-| rstartree        | 0.00ms | 0.00x    |
+| rstartree        | 0.01ms | 0.01x    |
 
 ### row-operations (n=20)
 
 | Implementation   | Time   | Relative |
 | ---------------- | ------ | -------- |
 | mortonlinearscan | 0.00ms | 0.00x    |
-| rstartree        | 0.01ms | 0.01x    |
+| rstartree        | 0.02ms | 0.02x    |
 
 ### single-cell-edits (n=50)
 
 | Implementation   | Time   | Relative |
 | ---------------- | ------ | -------- |
 | mortonlinearscan | 0.01ms | 0.01x    |
-| rstartree        | 0.02ms | 0.02x    |
+| rstartree        | 0.06ms | 0.06x    |
 
 ### sparse-grid (n=60)
 
 | Implementation   | Time   | Relative |
 | ---------------- | ------ | -------- |
 | mortonlinearscan | 0.01ms | 0.01x    |
-| rstartree        | 0.02ms | 0.02x    |
+| rstartree        | 0.09ms | 0.09x    |
 
 ### sparse-large-ranges (n=30)
 
 | Implementation   | Time   | Relative |
 | ---------------- | ------ | -------- |
 | mortonlinearscan | 0.00ms | 0.00x    |
-| rstartree        | 0.01ms | 0.01x    |
+| rstartree        | 0.04ms | 0.04x    |
 
 ### sparse-overlapping (n=40)
 
 | Implementation   | Time   | Relative |
 | ---------------- | ------ | -------- |
 | mortonlinearscan | 0.01ms | 0.01x    |
-| rstartree        | 0.07ms | 0.07x    |
+| rstartree        | 0.27ms | 0.27x    |
 
 ### sparse-sequential (n=50)
 
 | Implementation   | Time   | Relative |
 | ---------------- | ------ | -------- |
 | mortonlinearscan | 0.01ms | 0.01x    |
-| rstartree        | 0.02ms | 0.02x    |
+| rstartree        | 0.08ms | 0.08x    |
 
 ### striping-alternating-rows (n=25)
 
 | Implementation   | Time   | Relative |
 | ---------------- | ------ | -------- |
 | mortonlinearscan | 0.00ms | 0.00x    |
-| rstartree        | 0.01ms | 0.01x    |
+| rstartree        | 0.03ms | 0.03x    |
 
 ---
 
@@ -148,99 +151,99 @@ Comparing **O(n) linear scan** vs **O(log n) R-tree** across:
 
 | Implementation   | Time   | Relative |
 | ---------------- | ------ | -------- |
-| mortonlinearscan | 0.01ms | 0.01x    |
-| rstartree        | 0.01ms | 0.01x    |
+| mortonlinearscan | 0.00ms | 0.00x    |
+| rstartree        | 0.03ms | 0.03x    |
 
 ### diagonal-selection (n=30) + 100 queries
 
 | Implementation   | Time   | Relative |
 | ---------------- | ------ | -------- |
-| mortonlinearscan | 0.02ms | 0.02x    |
-| rstartree        | 0.04ms | 0.04x    |
+| mortonlinearscan | 0.01ms | 0.01x    |
+| rstartree        | 0.14ms | 0.14x    |
 
 ### large-grid (n=2500) + 100 queries
 
 | Implementation   | Time    | Relative |
 | ---------------- | ------- | -------- |
-| rstartree        | 2.00ms  | 2.00x    |
-| mortonlinearscan | 12.50ms | 12.50x   |
+| rstartree        | 7.00ms  | 7.00x    |
+| mortonlinearscan | 15.60ms | 15.60x   |
 
 ### large-overlapping (n=1250) + 100 queries
 
-| Implementation   | Time   | Relative |
-| ---------------- | ------ | -------- |
-| rstartree        | 3.30ms | 3.30x    |
-| mortonlinearscan | 5.50ms | 5.50x    |
+| Implementation   | Time    | Relative |
+| ---------------- | ------- | -------- |
+| mortonlinearscan | 6.10ms  | 6.10x    |
+| rstartree        | 10.00ms | 10.00x   |
 
 ### large-ranges (n=500) + 100 queries
 
 | Implementation   | Time   | Relative |
 | ---------------- | ------ | -------- |
-| rstartree        | 1.10ms | 1.10x    |
 | mortonlinearscan | 1.10ms | 1.10x    |
+| rstartree        | 3.60ms | 3.60x    |
 
 ### large-sequential (n=2500) + 100 queries
 
 | Implementation   | Time    | Relative |
 | ---------------- | ------- | -------- |
-| rstartree        | 2.10ms  | 2.10x    |
-| mortonlinearscan | 10.10ms | 10.10x   |
+| rstartree        | 6.70ms  | 6.70x    |
+| mortonlinearscan | 13.60ms | 13.60x   |
 
 ### merge-like-blocks (n=15) + 100 queries
 
 | Implementation   | Time   | Relative |
 | ---------------- | ------ | -------- |
-| mortonlinearscan | 0.01ms | 0.01x    |
+| mortonlinearscan | 0.00ms | 0.00x    |
 | rstartree        | 0.01ms | 0.01x    |
 
 ### row-operations (n=20) + 100 queries
 
 | Implementation   | Time   | Relative |
 | ---------------- | ------ | -------- |
-| mortonlinearscan | 0.01ms | 0.01x    |
-| rstartree        | 0.01ms | 0.01x    |
+| mortonlinearscan | 0.00ms | 0.00x    |
+| rstartree        | 0.03ms | 0.03x    |
 
 ### single-cell-edits (n=50) + 100 queries
 
 | Implementation   | Time   | Relative |
 | ---------------- | ------ | -------- |
-| mortonlinearscan | 0.02ms | 0.02x    |
-| rstartree        | 0.02ms | 0.02x    |
+| mortonlinearscan | 0.01ms | 0.01x    |
+| rstartree        | 0.06ms | 0.06x    |
 
 ### sparse-grid (n=60) + 100 queries
 
 | Implementation   | Time   | Relative |
 | ---------------- | ------ | -------- |
-| mortonlinearscan | 0.02ms | 0.02x    |
-| rstartree        | 0.03ms | 0.03x    |
+| mortonlinearscan | 0.01ms | 0.01x    |
+| rstartree        | 0.09ms | 0.09x    |
 
 ### sparse-large-ranges (n=30) + 100 queries
 
 | Implementation   | Time   | Relative |
 | ---------------- | ------ | -------- |
 | mortonlinearscan | 0.01ms | 0.01x    |
-| rstartree        | 0.01ms | 0.01x    |
+| rstartree        | 0.04ms | 0.04x    |
 
 ### sparse-overlapping (n=40) + 100 queries
 
 | Implementation   | Time   | Relative |
 | ---------------- | ------ | -------- |
-| mortonlinearscan | 0.02ms | 0.02x    |
-| rstartree        | 0.07ms | 0.07x    |
+| mortonlinearscan | 0.01ms | 0.01x    |
+| rstartree        | 0.27ms | 0.27x    |
 
 ### sparse-sequential (n=50) + 100 queries
 
 | Implementation   | Time   | Relative |
 | ---------------- | ------ | -------- |
-| mortonlinearscan | 0.02ms | 0.02x    |
-| rstartree        | 0.02ms | 0.02x    |
+| mortonlinearscan | 0.01ms | 0.01x    |
+| rstartree        | 0.09ms | 0.09x    |
 
 ### striping-alternating-rows (n=25) + 100 queries
 
 | Implementation   | Time   | Relative |
 | ---------------- | ------ | -------- |
 | mortonlinearscan | 0.01ms | 0.01x    |
-| rstartree        | 0.01ms | 0.01x    |
+| rstartree        | 0.03ms | 0.03x    |
 
 ---
 
@@ -250,29 +253,29 @@ Comparing **O(n) linear scan** vs **O(log n) R-tree** across:
 
 | Implementation   | Time   | Relative |
 | ---------------- | ------ | -------- |
-| mortonlinearscan | 0.83ms | 0.83x    |
-| rstartree        | 1.20ms | 1.20x    |
+| mortonlinearscan | 0.99ms | 0.99x    |
+| rstartree        | 3.60ms | 3.60x    |
 
 ### large-sequential (n=1000) 80/20
 
 | Implementation   | Time   | Relative |
 | ---------------- | ------ | -------- |
-| rstartree        | 0.82ms | 0.82x    |
-| mortonlinearscan | 2.00ms | 2.00x    |
+| mortonlinearscan | 2.50ms | 2.50x    |
+| rstartree        | 2.60ms | 2.60x    |
 
 ### sparse-overlapping (n=40) 80/20
 
 | Implementation   | Time   | Relative |
 | ---------------- | ------ | -------- |
 | mortonlinearscan | 0.01ms | 0.01x    |
-| rstartree        | 0.07ms | 0.07x    |
+| rstartree        | 0.27ms | 0.27x    |
 
 ### sparse-sequential (n=50) 80/20
 
 | Implementation   | Time   | Relative |
 | ---------------- | ------ | -------- |
 | mortonlinearscan | 0.01ms | 0.01x    |
-| rstartree        | 0.02ms | 0.02x    |
+| rstartree        | 0.08ms | 0.08x    |
 
 ---
 
@@ -282,22 +285,22 @@ Comparing **O(n) linear scan** vs **O(log n) R-tree** across:
 
 | Implementation   | Time     | Relative |
 | ---------------- | -------- | -------- |
-| rstartree        | 13.60ms  | 13.60x   |
-| mortonlinearscan | 395.80ms | 395.80x  |
+| rstartree        | 45.10ms  | 45.10x   |
+| mortonlinearscan | 149.50ms | 149.50x  |
 
 ### overlapping (n=1000, 10k queries)
 
 | Implementation   | Time    | Relative |
 | ---------------- | ------- | -------- |
-| rstartree        | 14.20ms | 14.20x   |
-| mortonlinearscan | 36.60ms | 36.60x   |
+| mortonlinearscan | 4.70ms  | 4.70x    |
+| rstartree        | 17.60ms | 17.60x   |
 
 ### sequential (n=1000, 10k queries)
 
-| Implementation   | Time    | Relative |
-| ---------------- | ------- | -------- |
-| rstartree        | 1.10ms  | 1.10x    |
-| mortonlinearscan | 26.20ms | 26.20x   |
+| Implementation   | Time   | Relative |
+| ---------------- | ------ | -------- |
+| rstartree        | 2.90ms | 2.90x    |
+| mortonlinearscan | 3.00ms | 3.00x    |
 
 ---
 
@@ -312,14 +315,14 @@ These benchmarks compare **O(n) linear scan** vs **O(log n) R-tree** for differe
 
 **RStarTree is the baseline (1.0x)** - numbers > 1.0x are slower, < 1.0x are faster.
 
-**mortonlinearscan** (1.8KB minified):
+**mortonlinearscan** (1.6KB minified):
 
-- Fastest in 24/35 scenarios, slowest in 10/35 scenarios
+- Fastest in 29/35 scenarios, slowest in 6/35 scenarios
 - Average 1.00x vs RStarTree (same)
 
-**rstartree** (8.4KB minified):
+**rstartree** (5.2KB minified):
 
-- Fastest in 11/35 scenarios, slowest in 25/35 scenarios
+- Fastest in 6/35 scenarios, slowest in 29/35 scenarios
 - Average 1.00x vs RStarTree (same)
 
 **System**: darwin aarch64

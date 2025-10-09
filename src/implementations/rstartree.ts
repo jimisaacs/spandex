@@ -1,35 +1,48 @@
-/// <reference types="@types/google-apps-script" />
-
 /**
- * RStarTreeImpl: Canonical R*-tree implementation (Beckmann et al., 1990)
+ * RStarTreeImpl: R-tree with R* split algorithm (Beckmann et al., 1990)
  *
- * Hierarchical spatial index using R* split algorithm (minimizes overlap + perimeter).
- * Fastest construction, workload-dependent query performance (see docs/r-star-analysis.md).
+ * Hierarchical spatial index using R* split (minimizes perimeter sum, then overlap).
+ * Implements classic Guttman insertion with Beckmann split heuristic.
  *
- * Algorithm: O(log n) insert/query, O(m log m) split where m=10 max entries per node
- * - Choose axis by minimizing perimeter sum
- * - Choose split by minimizing overlap area
- * - Better tree quality than quadratic split, faster construction than midpoint
+ * **Algorithm**:
+ * - Insert: Minimum area enlargement (Guttman, 1984)
+ * - Split: R* algorithm - minimize perimeter sum, then minimize overlap (Beckmann et al., 1990)
+ * - Note: Does NOT implement forced reinsertion (R* innovation for static data)
  *
- * Optimizations: TypedArrays for coordinates, inline geometric operations, memory pooling
+ * **Complexity**:
+ * - Insert: O(log n) traversal + O(m² log m) split amortized (m=10 max entries)
+ * - Query: O(√n) worst case, O(log n) typical for low-overlap trees
+ * - Split: O(m² log m) where m=11 entries → ~400 operations per split
  *
- * Use cases: Large datasets (n ≥ 100), mixed workloads, production systems
+ * **Coordinate system**: Assumes integer coordinates representing discrete cells.
+ * - Area uses inclusive bounds: area([x1,y1,x2,y2]) = (x2-x1+1) * (y2-y1+1)
+ * - Example: Rectangle [0,0,0,0] has area 1 (single cell)
  *
- * References:
+ * **Use cases**: Large datasets (n ≥ 100), mixed workloads, frequent updates.
+ *
+ * **References**:
  * - Beckmann, N. et al. (1990) "The R*-tree: An Efficient and Robust Access Method"
  * - Guttman, A. (1984) "R-trees: A Dynamic Index Structure for Spatial Searching"
- * - See docs/r-star-analysis.md for performance validation
+ * - See docs/analyses/r-star-analysis.md for performance validation
  */
 
-import type { SpatialIndex } from '../conformance/testsuite.ts';
+import * as Rect from '../rect.ts';
+import type { QueryResult, Rectangle, SpatialIndex } from '../types.ts';
 
-type GridRange = GoogleAppsScript.Sheets.Schema.GridRange;
-
-const COORDS = 4; // [xmin, ymin, xmax, ymax]
 const MIN_ENTRIES = 4; // Minimum entries per node (40% fill factor)
 const MAX_ENTRIES = 10; // Maximum entries per node (before split)
-const NEG_INF = -2147483648;
-const POS_INF = 2147483647;
+
+interface Node {
+	isLeaf: boolean;
+	bounds: Rectangle;
+	children: number[]; // node or entry indices
+}
+
+interface Entry<T> {
+	bounds: Rectangle;
+	value: T;
+	active: boolean;
+}
 
 // Performance-critical: Inline AABB intersection test
 function hits(
@@ -55,27 +68,27 @@ function subtract(
 	by1: number,
 	bx2: number,
 	by2: number,
-): Array<readonly [number, number, number, number]> {
-	const fragments: Array<readonly [number, number, number, number]> = [];
+): Array<Rectangle> {
+	const fragments: Array<Rectangle> = [];
 	// Top strip
-	if (ay1 < by1) fragments.push([ax1, ay1, ax2, by1 - 1]);
+	if (ay1 < by1) fragments.push(Rect.canonicalized([ax1, ay1, ax2, by1 - 1]));
 	// Bottom strip
-	if (ay2 > by2) fragments.push([ax1, by2 + 1, ax2, ay2]);
+	if (ay2 > by2) fragments.push(Rect.canonicalized([ax1, by2 + 1, ax2, ay2]));
 	// Overlapping Y range for side strips
 	const yMin = ay1 > by1 ? ay1 : by1;
 	const yMax = ay2 < by2 ? ay2 : by2;
 	if (yMin <= yMax) {
 		// Left strip
-		if (ax1 < bx1) fragments.push([ax1, yMin, bx1 - 1, yMax]);
+		if (ax1 < bx1) fragments.push(Rect.canonicalized([ax1, yMin, bx1 - 1, yMax]));
 		// Right strip
-		if (ax2 > bx2) fragments.push([bx2 + 1, yMin, ax2, yMax]);
+		if (ax2 > bx2) fragments.push(Rect.canonicalized([bx2 + 1, yMin, ax2, yMax]));
 	}
 	return fragments;
 }
 
 // Area of bounding box (for split heuristics)
 function area(x1: number, y1: number, x2: number, y2: number): number {
-	if (x1 === NEG_INF || x2 === POS_INF || y1 === NEG_INF || y2 === POS_INF) return Infinity;
+	if (x1 === -Infinity || x2 === Infinity || y1 === -Infinity || y2 === Infinity) return Infinity;
 	return (x2 - x1 + 1) * (y2 - y1 + 1);
 }
 
@@ -100,77 +113,53 @@ function expansion(
 	return newArea - oldArea;
 }
 
-// Convert GridRange to internal rectangle format [xmin, ymin, xmax, ymax]
-function toRect(g: GridRange): readonly [number, number, number, number] {
-	return [
-		g.startColumnIndex ?? 0,
-		g.startRowIndex ?? 0,
-		(g.endColumnIndex ?? Infinity) === Infinity ? POS_INF : (g.endColumnIndex ?? Infinity) - 1,
-		(g.endRowIndex ?? Infinity) === Infinity ? POS_INF : (g.endRowIndex ?? Infinity) - 1,
-	];
-}
-
-// Convert internal rectangle to GridRange format
-function toGridRange(x1: number, y1: number, x2: number, y2: number): GridRange {
-	return {
-		startRowIndex: y1 === NEG_INF ? undefined : y1,
-		endRowIndex: y2 === POS_INF ? undefined : y2 + 1,
-		startColumnIndex: x1 === NEG_INF ? undefined : x1,
-		endColumnIndex: x2 === POS_INF ? undefined : x2 + 1,
-	};
-}
-
 export default class RStarTreeImpl<T> implements SpatialIndex<T> {
-	// Node storage: TypedArrays for performance
-	private nodeTypes: Uint8Array; // 0=internal, 1=leaf
-	private nodeBounds: Int32Array; // [x1,y1,x2,y2] per node
-	private nodeChildren: Array<number[]>; // Child indices (node or entry)
-	private nodeCount = 0;
-	private nodeCapacity: number;
-
-	// Entry storage: TypedArrays for coordinates
-	private entryBounds: Int32Array; // [x1,y1,x2,y2] per entry
-	private entryValues: T[];
-	private entryActive: Uint8Array; // 1=active, 0=deleted
-	private entryCount = 0;
-	private entryCapacity: number;
-
+	private nodes: Node[] = [];
+	private entries: Entry<T>[] = [];
 	private rootIdx = -1;
-	private globalValue?: T;
+	private isAll = false;
+	private _size = 0; // Cached count of active entries
 
-	constructor() {
-		this.nodeCapacity = 100;
-		this.nodeTypes = new Uint8Array(this.nodeCapacity);
-		this.nodeBounds = new Int32Array(this.nodeCapacity * COORDS);
-		this.nodeChildren = new Array(this.nodeCapacity);
+	/**
+	 * MEMORY GROWTH NOTE:
+	 * Dead entries (active=false) accumulate in the entries array over time.
+	 * This causes linear memory growth with overlapping updates.
+	 *
+	 * Typical memory usage: ~50 bytes per entry (active + dead)
+	 * After 10k overlapping updates: ~250-500KB for dead entries
+	 *
+	 * For long-running applications with frequent overlaps, consider:
+	 * 1. Periodically rebuild the index from scratch (copy active entries to new instance)
+	 * 2. Monitor memory usage and trigger rebuild at threshold
+	 * 3. Use a different index structure for update-heavy workloads
+	 */
 
-		this.entryCapacity = 100;
-		this.entryBounds = new Int32Array(this.entryCapacity * COORDS);
-		this.entryValues = new Array(this.entryCapacity);
-		this.entryActive = new Uint8Array(this.entryCapacity);
-	}
+	insert(bounds: Rectangle, value: T): void {
+		// Validate and canonicalize user input
+		bounds = Rect.validated(bounds);
 
-	insert(gridRange: GridRange, value: T): void {
-		// Global range (infinite bounds)
-		if (
-			!gridRange.startRowIndex && !gridRange.endRowIndex &&
-			!gridRange.startColumnIndex && !gridRange.endColumnIndex
-		) {
-			this.globalValue = value;
+		// Global range (infinite bounds) - fast path
+		if (Rect.isAll(bounds)) {
+			this.entries = [{ bounds: Rect.ALL, value, active: true }];
+			this.nodes = [];
+			this.isAll = true;
 			this.rootIdx = -1;
-			this.nodeCount = 0;
-			this.entryCount = 0;
+			this._size = 1;
 			return;
 		}
 
-		const [nx1, ny1, nx2, ny2] = toRect(gridRange);
-		if (nx1 > nx2 || ny1 > ny2) throw new Error('Invalid GridRange');
+		const [nx1, ny1, nx2, ny2] = bounds;
 
-		this.globalValue = undefined;
+		// Transitioning from global to normal - clear orphaned global entry
+		if (this.isAll) {
+			this.entries = [];
+			this._size = 0;
+		}
+		this.isAll = false;
 
 		// Initialize tree if empty
 		if (this.rootIdx === -1) {
-			this.rootIdx = this.createNode(1); // Leaf
+			this.rootIdx = this.createNode(true); // Leaf
 		}
 
 		let root = this.rootIdx;
@@ -178,35 +167,34 @@ export default class RStarTreeImpl<T> implements SpatialIndex<T> {
 		// Find and remove overlapping entries
 		const overlapping = this.searchEntries(root, nx1, ny1, nx2, ny2);
 
-		for (const entryIdx of overlapping) {
-			this.entryActive[entryIdx] = 0;
-		}
-
 		// Generate fragments (new entry + decomposed overlaps)
-		const fragments: Array<[number, number, number, number, T]> = [[nx1, ny1, nx2, ny2, value]];
+		// Must do this BEFORE marking inactive, so we can access entry.value
+		const fragments: Array<[Rectangle, T]> = [[bounds, value]];
 
 		for (const idx of overlapping) {
-			const base = idx * COORDS;
-			const ex1 = this.entryBounds[base];
-			const ey1 = this.entryBounds[base + 1];
-			const ex2 = this.entryBounds[base + 2];
-			const ey2 = this.entryBounds[base + 3];
-			const ev = this.entryValues[idx];
+			const entry = this.entries[idx];
+			const [ex1, ey1, ex2, ey2] = entry.bounds;
 
-			for (const [fx1, fy1, fx2, fy2] of subtract(ex1, ey1, ex2, ey2, nx1, ny1, nx2, ny2)) {
-				fragments.push([fx1, fy1, fx2, fy2, ev]);
+			for (const frag of subtract(ex1, ey1, ex2, ey2, nx1, ny1, nx2, ny2)) {
+				fragments.push([frag, entry.value]);
 			}
 		}
 
+		// Now mark overlapping entries as inactive
+		for (const entryIdx of overlapping) {
+			this.entries[entryIdx].active = false;
+			this._size--;
+		}
+
 		// Insert all fragments into tree
-		for (const [x1, y1, x2, y2, v] of fragments) {
-			const entryIdx = this.addEntry(x1, y1, x2, y2, v);
+		for (const [rect, v] of fragments) {
+			const entryIdx = this.addEntry(rect, v);
 			const splitNodeIdx = this.insertIntoNode(root, entryIdx);
 
 			if (splitNodeIdx !== -1) {
 				// Root split - create new root
-				const newRootIdx = this.createNode(0); // Internal
-				this.nodeChildren[newRootIdx] = [root, splitNodeIdx];
+				const newRootIdx = this.createNode(false); // Internal
+				this.nodes[newRootIdx].children = [root, splitNodeIdx];
 				this.updateBounds(newRootIdx);
 				this.rootIdx = newRootIdx;
 				root = newRootIdx; // Update cached root
@@ -214,67 +202,37 @@ export default class RStarTreeImpl<T> implements SpatialIndex<T> {
 		}
 	}
 
-	getAllRanges(): Array<{ gridRange: GridRange; value: T }> {
-		if (this.globalValue != null) {
-			return [{ gridRange: {}, value: this.globalValue }];
-		}
+	*query(bounds: Rectangle = Rect.ALL): IterableIterator<QueryResult<T>> {
+		// Validate and canonicalize user input
+		bounds = Rect.validated(bounds);
 
-		const results: Array<{ gridRange: GridRange; value: T }> = [];
-		for (let i = 0; i < this.entryCount; i++) {
-			if (this.entryActive[i]) {
-				const base = i * COORDS;
-				results.push({
-					gridRange: toGridRange(
-						this.entryBounds[base],
-						this.entryBounds[base + 1],
-						this.entryBounds[base + 2],
-						this.entryBounds[base + 3],
-					),
-					value: this.entryValues[i],
-				});
-			}
-		}
-		return results;
-	}
-
-	query(gridRange: GridRange): Array<{ gridRange: GridRange; value: T }> {
-		if (this.globalValue != null) {
-			return [{ gridRange: {}, value: this.globalValue }];
+		if (this.isAll) {
+			yield [Rect.ALL, this.entries[0].value];
+			return;
 		}
 
 		const root = this.rootIdx;
-		if (root === -1) return [];
+		if (root === -1) return;
 
-		const [qx1, qy1, qx2, qy2] = toRect(gridRange);
+		const [qx1, qy1, qx2, qy2] = bounds;
 		const entryIndices = this.searchEntries(root, qx1, qy1, qx2, qy2);
 
-		const results: Array<{ gridRange: GridRange; value: T }> = [];
 		for (const idx of entryIndices) {
-			const base = idx * COORDS;
-			results.push({
-				gridRange: toGridRange(
-					this.entryBounds[base],
-					this.entryBounds[base + 1],
-					this.entryBounds[base + 2],
-					this.entryBounds[base + 3],
-				),
-				value: this.entryValues[idx],
-			});
+			const entry = this.entries[idx];
+			yield [entry.bounds, entry.value];
 		}
-		return results;
 	}
 
 	get isEmpty(): boolean {
-		return this.globalValue == null && this.rootIdx === -1;
+		return this.rootIdx === -1 && !this.isAll;
 	}
 
+	/**
+	 * Number of non-overlapping ranges stored in index.
+	 * Useful for fragmentation analysis and performance testing.
+	 */
 	get size(): number {
-		// Count active entries
-		let count = 0;
-		for (let i = 0; i < this.entryCount; i++) {
-			if (this.entryActive[i]) count++;
-		}
-		return count;
+		return this._size;
 	}
 
 	/**
@@ -299,27 +257,18 @@ export default class RStarTreeImpl<T> implements SpatialIndex<T> {
 			nodeCount++;
 			maxDepth = Math.max(maxDepth, depth);
 
-			const isLeaf = this.nodeTypes[nodeIdx] === 1;
-			const children = this.nodeChildren[nodeIdx];
-			const childCount = children.length;
+			const node = this.nodes[nodeIdx];
+			const { isLeaf, children } = node;
 
 			if (!isLeaf) {
 				// Internal node - measure overlap between sibling subtrees
-				for (let i = 0; i < childCount; i++) {
-					const childIdxI = children[i];
-					const iBase = childIdxI * COORDS;
-					const ix1 = this.nodeBounds[iBase];
-					const iy1 = this.nodeBounds[iBase + 1];
-					const ix2 = this.nodeBounds[iBase + 2];
-					const iy2 = this.nodeBounds[iBase + 3];
+				for (let i = 0; i < children.length; i++) {
+					const childI = this.nodes[children[i]];
+					const [ix1, iy1, ix2, iy2] = childI.bounds;
 
-					for (let j = i + 1; j < childCount; j++) {
-						const childIdxJ = children[j];
-						const jBase = childIdxJ * COORDS;
-						const jx1 = this.nodeBounds[jBase];
-						const jy1 = this.nodeBounds[jBase + 1];
-						const jx2 = this.nodeBounds[jBase + 2];
-						const jy2 = this.nodeBounds[jBase + 3];
+					for (let j = i + 1; j < children.length; j++) {
+						const childJ = this.nodes[children[j]];
+						const [jx1, jy1, jx2, jy2] = childJ.bounds;
 
 						// Calculate intersection area
 						const x1 = Math.max(ix1, jx1);
@@ -333,30 +282,20 @@ export default class RStarTreeImpl<T> implements SpatialIndex<T> {
 					}
 
 					// Recurse into child subtree
-					traverse(childIdxI, depth + 1);
+					traverse(children[i], depth + 1);
 				}
 			} else {
 				// Leaf node - measure dead space
-				const nodeBase = nodeIdx * COORDS;
-				const nodeBBoxArea = area(
-					this.nodeBounds[nodeBase],
-					this.nodeBounds[nodeBase + 1],
-					this.nodeBounds[nodeBase + 2],
-					this.nodeBounds[nodeBase + 3],
-				);
+				const [nx1, ny1, nx2, ny2] = node.bounds;
+				const nodeBBoxArea = area(nx1, ny1, nx2, ny2);
 
 				if (nodeBBoxArea !== Infinity) {
 					// Sum area of all entries in this leaf
 					let totalEntryArea = 0;
-					for (let i = 0; i < childCount; i++) {
-						const entryIdx = children[i];
-						const entryBase = entryIdx * COORDS;
-						const entryArea = area(
-							this.entryBounds[entryBase],
-							this.entryBounds[entryBase + 1],
-							this.entryBounds[entryBase + 2],
-							this.entryBounds[entryBase + 3],
-						);
+					for (const entryIdx of children) {
+						const entry = this.entries[entryIdx];
+						const [ex1, ey1, ex2, ey2] = entry.bounds;
+						const entryArea = area(ex1, ey1, ex2, ey2);
 						if (entryArea !== Infinity) {
 							totalEntryArea += entryArea;
 						}
@@ -381,47 +320,34 @@ export default class RStarTreeImpl<T> implements SpatialIndex<T> {
 
 	// ===== NODE OPERATIONS =====
 
-	private createNode(type: number): number {
-		const idx = this.nodeCount++;
-		this.ensureNodeCapacity(this.nodeCount);
-
-		this.nodeTypes[idx] = type;
-		this.nodeChildren[idx] = [];
-		// Initialize with invalid bounds
-		const base = idx * COORDS;
-		this.nodeBounds[base] = 0;
-		this.nodeBounds[base + 1] = 0;
-		this.nodeBounds[base + 2] = 0;
-		this.nodeBounds[base + 3] = 0;
-
+	private createNode(isLeaf: boolean): number {
+		const idx = this.nodes.length;
+		this.nodes.push({
+			isLeaf,
+			bounds: [0, 0, 0, 0],
+			children: [],
+		});
 		return idx;
 	}
 
 	private updateBounds(nodeIdx: number): void {
-		const isLeaf = this.nodeTypes[nodeIdx] === 1;
-		const children = this.nodeChildren[nodeIdx];
+		const node = this.nodes[nodeIdx];
+		const { isLeaf, children } = node;
 
 		if (children.length === 0) return;
 
-		const base = nodeIdx * COORDS;
 		let xmin: number, ymin: number, xmax: number, ymax: number;
-
-		const childrenLen = children.length;
 
 		if (isLeaf) {
 			// Leaf: compute bbox from entry coordinates
-			const firstBase = children[0] * COORDS;
-			xmin = this.entryBounds[firstBase];
-			ymin = this.entryBounds[firstBase + 1];
-			xmax = this.entryBounds[firstBase + 2];
-			ymax = this.entryBounds[firstBase + 3];
+			const [fx1, fy1, fx2, fy2] = this.entries[children[0]].bounds;
+			xmin = fx1;
+			ymin = fy1;
+			xmax = fx2;
+			ymax = fy2;
 
-			for (let i = 1; i < childrenLen; i++) {
-				const childBase = children[i] * COORDS;
-				const cx1 = this.entryBounds[childBase];
-				const cy1 = this.entryBounds[childBase + 1];
-				const cx2 = this.entryBounds[childBase + 2];
-				const cy2 = this.entryBounds[childBase + 3];
+			for (let i = 1; i < children.length; i++) {
+				const [cx1, cy1, cx2, cy2] = this.entries[children[i]].bounds;
 				if (cx1 < xmin) xmin = cx1;
 				if (cy1 < ymin) ymin = cy1;
 				if (cx2 > xmax) xmax = cx2;
@@ -429,18 +355,14 @@ export default class RStarTreeImpl<T> implements SpatialIndex<T> {
 			}
 		} else {
 			// Internal: compute bbox from child node bounds
-			const firstBase = children[0] * COORDS;
-			xmin = this.nodeBounds[firstBase];
-			ymin = this.nodeBounds[firstBase + 1];
-			xmax = this.nodeBounds[firstBase + 2];
-			ymax = this.nodeBounds[firstBase + 3];
+			const [fx1, fy1, fx2, fy2] = this.nodes[children[0]].bounds;
+			xmin = fx1;
+			ymin = fy1;
+			xmax = fx2;
+			ymax = fy2;
 
-			for (let i = 1; i < childrenLen; i++) {
-				const childBase = children[i] * COORDS;
-				const cx1 = this.nodeBounds[childBase];
-				const cy1 = this.nodeBounds[childBase + 1];
-				const cx2 = this.nodeBounds[childBase + 2];
-				const cy2 = this.nodeBounds[childBase + 3];
+			for (let i = 1; i < children.length; i++) {
+				const [cx1, cy1, cx2, cy2] = this.nodes[children[i]].bounds;
 				if (cx1 < xmin) xmin = cx1;
 				if (cy1 < ymin) ymin = cy1;
 				if (cx2 > xmax) xmax = cx2;
@@ -448,67 +370,45 @@ export default class RStarTreeImpl<T> implements SpatialIndex<T> {
 			}
 		}
 
-		this.nodeBounds[base] = xmin;
-		this.nodeBounds[base + 1] = ymin;
-		this.nodeBounds[base + 2] = xmax;
-		this.nodeBounds[base + 3] = ymax;
+		node.bounds = [xmin, ymin, xmax, ymax];
 	}
 
 	// ===== ENTRY OPERATIONS =====
 
-	private addEntry(x1: number, y1: number, x2: number, y2: number, value: T): number {
-		const idx = this.entryCount++;
-		this.ensureEntryCapacity(this.entryCount);
-
-		const base = idx * COORDS;
-		this.entryBounds[base] = x1;
-		this.entryBounds[base + 1] = y1;
-		this.entryBounds[base + 2] = x2;
-		this.entryBounds[base + 3] = y2;
-		this.entryValues[idx] = value;
-		this.entryActive[idx] = 1;
-
+	private addEntry(bounds: Rectangle, value: T): number {
+		const idx = this.entries.length;
+		this.entries.push({ bounds, value, active: true });
+		this._size++;
 		return idx;
 	}
 
 	// ===== TREE TRAVERSAL =====
 
 	private insertIntoNode(nodeIdx: number, entryIdx: number): number {
-		const isLeaf = this.nodeTypes[nodeIdx] === 1;
+		const node = this.nodes[nodeIdx];
 
-		if (isLeaf) {
+		if (node.isLeaf) {
 			// Add entry to leaf
-			this.nodeChildren[nodeIdx].push(entryIdx);
+			node.children.push(entryIdx);
 			this.updateBounds(nodeIdx);
 
 			// Split if over capacity
-			if (this.nodeChildren[nodeIdx].length > MAX_ENTRIES) {
+			if (node.children.length > MAX_ENTRIES) {
 				return this.splitNode(nodeIdx);
 			}
 			return -1;
 		}
 
 		// Internal node: choose subtree with minimum expansion
-		const children = this.nodeChildren[nodeIdx];
-		const childrenLen = children.length;
-		const entryBase = entryIdx * COORDS;
-		const ex1 = this.entryBounds[entryBase];
-		const ey1 = this.entryBounds[entryBase + 1];
-		const ex2 = this.entryBounds[entryBase + 2];
-		const ey2 = this.entryBounds[entryBase + 3];
-		const nodeBounds = this.nodeBounds;
+		const { children } = node;
+		const [ex1, ey1, ex2, ey2] = this.entries[entryIdx].bounds;
 
 		let bestChildIdx = children[0];
 		let minExpansion = Infinity;
 		let minArea = Infinity;
 
-		for (let i = 0; i < childrenLen; i++) {
-			const childIdx = children[i];
-			const childBase = childIdx * COORDS;
-			const cx1 = nodeBounds[childBase];
-			const cy1 = nodeBounds[childBase + 1];
-			const cx2 = nodeBounds[childBase + 2];
-			const cy2 = nodeBounds[childBase + 3];
+		for (const childIdx of children) {
+			const [cx1, cy1, cx2, cy2] = this.nodes[childIdx].bounds;
 
 			const exp = expansion(cx1, cy1, cx2, cy2, ex1, ey1, ex2, ey2);
 			const a = area(cx1, cy1, cx2, cy2);
@@ -525,10 +425,10 @@ export default class RStarTreeImpl<T> implements SpatialIndex<T> {
 
 		if (splitIdx !== -1) {
 			// Child split - add sibling
-			this.nodeChildren[nodeIdx].push(splitIdx);
+			node.children.push(splitIdx);
 			this.updateBounds(nodeIdx);
 
-			if (this.nodeChildren[nodeIdx].length > MAX_ENTRIES) {
+			if (node.children.length > MAX_ENTRIES) {
 				return this.splitNode(nodeIdx);
 			}
 		} else {
@@ -539,12 +439,14 @@ export default class RStarTreeImpl<T> implements SpatialIndex<T> {
 	}
 
 	private splitNode(nodeIdx: number): number {
-		const isLeaf = this.nodeTypes[nodeIdx] === 1;
-		const children = this.nodeChildren[nodeIdx];
-		const bounds = isLeaf ? this.entryBounds : this.nodeBounds;
+		const node = this.nodes[nodeIdx];
+		const { isLeaf, children } = node;
+
+		// Helper to get bounds for a child index
+		const getBounds = (idx: number): Rectangle => isLeaf ? this.entries[idx].bounds : this.nodes[idx].bounds;
 
 		// R* split algorithm (Beckmann et al., 1990)
-		// Choose split axis: test both X and Y, pick the one minimizing perimeter sum
+		// Phase 1: ChooseSplitAxis - test both X and Y, pick one minimizing perimeter sum (margin)
 
 		let bestAxis = 0; // 0=X, 1=Y
 		let minPerimeterSum = Infinity;
@@ -553,9 +455,7 @@ export default class RStarTreeImpl<T> implements SpatialIndex<T> {
 		for (let axis = 0; axis < 2; axis++) {
 			// Sort children by lower bound along this axis
 			const sorted = children.slice().sort((a, b) => {
-				const aBase = a * COORDS;
-				const bBase = b * COORDS;
-				return bounds[aBase + axis] - bounds[bBase + axis];
+				return getBounds(a)[axis] - getBounds(b)[axis];
 			});
 
 			// Try all distributions with MIN_ENTRIES ≤ k ≤ MAX_ENTRIES
@@ -566,11 +466,7 @@ export default class RStarTreeImpl<T> implements SpatialIndex<T> {
 				// Compute bounding boxes
 				let g1x1 = Infinity, g1y1 = Infinity, g1x2 = -Infinity, g1y2 = -Infinity;
 				for (const idx of group1) {
-					const base = idx * COORDS;
-					const x1 = bounds[base];
-					const y1 = bounds[base + 1];
-					const x2 = bounds[base + 2];
-					const y2 = bounds[base + 3];
+					const [x1, y1, x2, y2] = getBounds(idx);
 					if (x1 < g1x1) g1x1 = x1;
 					if (y1 < g1y1) g1y1 = y1;
 					if (x2 > g1x2) g1x2 = x2;
@@ -579,11 +475,7 @@ export default class RStarTreeImpl<T> implements SpatialIndex<T> {
 
 				let g2x1 = Infinity, g2y1 = Infinity, g2x2 = -Infinity, g2y2 = -Infinity;
 				for (const idx of group2) {
-					const base = idx * COORDS;
-					const x1 = bounds[base];
-					const y1 = bounds[base + 1];
-					const x2 = bounds[base + 2];
-					const y2 = bounds[base + 3];
+					const [x1, y1, x2, y2] = getBounds(idx);
 					if (x1 < g2x1) g2x1 = x1;
 					if (y1 < g2y1) g2y1 = y1;
 					if (x2 > g2x2) g2x2 = x2;
@@ -602,25 +494,20 @@ export default class RStarTreeImpl<T> implements SpatialIndex<T> {
 			}
 		}
 
-		// Final split: use best axis, minimize overlap
+		// Phase 2: ChooseSplitIndex - along best axis, find split point minimizing overlap
 		const sorted = children.slice().sort((a, b) => {
-			const aBase = a * COORDS;
-			const bBase = b * COORDS;
-			return bounds[aBase + bestAxis] - bounds[bBase + bestAxis];
+			return getBounds(a)[bestAxis] - getBounds(b)[bestAxis];
 		});
 
 		let bestSplit = MIN_ENTRIES;
 		let minOverlap = Infinity;
 
-		// Optimization: Incremental bbox computation (O(m) instead of O(m²))
+		// Optimization: Incremental bbox computation reduces cost from O(m²) to O(m·k)
+		// where k = number of valid splits (~7 for m=11) → ~77 ops instead of ~121
 		// Pre-compute group1 bbox for MIN_ENTRIES
 		let g1x1 = Infinity, g1y1 = Infinity, g1x2 = -Infinity, g1y2 = -Infinity;
 		for (let i = 0; i < MIN_ENTRIES; i++) {
-			const base = sorted[i] * COORDS;
-			const x1 = bounds[base];
-			const y1 = bounds[base + 1];
-			const x2 = bounds[base + 2];
-			const y2 = bounds[base + 3];
+			const [x1, y1, x2, y2] = getBounds(sorted[i]);
 			if (x1 < g1x1) g1x1 = x1;
 			if (y1 < g1y1) g1y1 = y1;
 			if (x2 > g1x2) g1x2 = x2;
@@ -630,11 +517,7 @@ export default class RStarTreeImpl<T> implements SpatialIndex<T> {
 		// Pre-compute group2 bbox for MIN_ENTRIES
 		let g2x1 = Infinity, g2y1 = Infinity, g2x2 = -Infinity, g2y2 = -Infinity;
 		for (let i = MIN_ENTRIES; i < children.length; i++) {
-			const base = sorted[i] * COORDS;
-			const x1 = bounds[base];
-			const y1 = bounds[base + 1];
-			const x2 = bounds[base + 2];
-			const y2 = bounds[base + 3];
+			const [x1, y1, x2, y2] = getBounds(sorted[i]);
 			if (x1 < g2x1) g2x1 = x1;
 			if (y1 < g2y1) g2y1 = y1;
 			if (x2 > g2x2) g2x2 = x2;
@@ -650,30 +533,22 @@ export default class RStarTreeImpl<T> implements SpatialIndex<T> {
 		// Incrementally move entries from group2 to group1
 		for (let k = MIN_ENTRIES + 1; k <= children.length - MIN_ENTRIES; k++) {
 			const movingIdx = sorted[k - 1]; // Entry being moved from group2 to group1
-			const base = movingIdx * COORDS;
-			const x1 = bounds[base];
-			const y1 = bounds[base + 1];
-			const x2 = bounds[base + 2];
-			const y2 = bounds[base + 3];
+			const [x1, y1, x2, y2] = getBounds(movingIdx);
 
-			// Update group1 bbox (expand)
+			// Update group1 bbox (expand - always grows or stays same)
 			if (x1 < g1x1) g1x1 = x1;
 			if (y1 < g1y1) g1y1 = y1;
 			if (x2 > g1x2) g1x2 = x2;
 			if (y2 > g1y2) g1y2 = y2;
 
-			// Update group2 bbox (recompute only if necessary - rare case)
-			// For simplicity, recompute group2 each time (still better than O(m²) for all splits)
+			// Update group2 bbox (must recompute - may shrink)
+			// Could optimize with dual-pass or shrink detection, but adds complexity for m=10
 			g2x1 = Infinity;
 			g2y1 = Infinity;
 			g2x2 = -Infinity;
 			g2y2 = -Infinity;
 			for (let i = k; i < children.length; i++) {
-				const b = sorted[i] * COORDS;
-				const bx1 = bounds[b];
-				const by1 = bounds[b + 1];
-				const bx2 = bounds[b + 2];
-				const by2 = bounds[b + 3];
+				const [bx1, by1, bx2, by2] = getBounds(sorted[i]);
 				if (bx1 < g2x1) g2x1 = bx1;
 				if (by1 < g2y1) g2y1 = by1;
 				if (bx2 > g2x2) g2x2 = bx2;
@@ -692,11 +567,11 @@ export default class RStarTreeImpl<T> implements SpatialIndex<T> {
 		}
 
 		// Create sibling node
-		const siblingIdx = this.createNode(isLeaf ? 1 : 0);
+		const siblingIdx = this.createNode(isLeaf);
 
 		// Assign children using best split
-		this.nodeChildren[nodeIdx] = sorted.slice(0, bestSplit);
-		this.nodeChildren[siblingIdx] = sorted.slice(bestSplit);
+		node.children = sorted.slice(0, bestSplit);
+		this.nodes[siblingIdx].children = sorted.slice(bestSplit);
 
 		// Update bounding boxes
 		this.updateBounds(nodeIdx);
@@ -715,30 +590,21 @@ export default class RStarTreeImpl<T> implements SpatialIndex<T> {
 	): number[] {
 		if (nodeIdx === -1) return results;
 
-		const nodeBase = nodeIdx * COORDS;
-		const nx1 = this.nodeBounds[nodeBase];
-		const ny1 = this.nodeBounds[nodeBase + 1];
-		const nx2 = this.nodeBounds[nodeBase + 2];
-		const ny2 = this.nodeBounds[nodeBase + 3];
+		const node = this.nodes[nodeIdx];
+		const [nx1, ny1, nx2, ny2] = node.bounds;
 
 		// Spatial pruning: early exit if no overlap
 		if (!hits(nx1, ny1, nx2, ny2, qx1, qy1, qx2, qy2)) return results;
 
-		const isLeaf = this.nodeTypes[nodeIdx] === 1;
-		const children = this.nodeChildren[nodeIdx];
+		const { isLeaf, children } = node;
 
 		if (isLeaf) {
 			// Leaf: accumulate matching entries
-			const childrenLen = children.length;
-			for (let i = 0; i < childrenLen; i++) {
-				const entryIdx = children[i];
-				if (!this.entryActive[entryIdx]) continue;
+			for (const entryIdx of children) {
+				const entry = this.entries[entryIdx];
+				if (!entry.active) continue;
 
-				const entryBase = entryIdx * COORDS;
-				const ex1 = this.entryBounds[entryBase];
-				const ey1 = this.entryBounds[entryBase + 1];
-				const ex2 = this.entryBounds[entryBase + 2];
-				const ey2 = this.entryBounds[entryBase + 3];
+				const [ex1, ey1, ex2, ey2] = entry.bounds;
 
 				if (hits(ex1, ey1, ex2, ey2, qx1, qy1, qx2, qy2)) {
 					results.push(entryIdx);
@@ -748,50 +614,9 @@ export default class RStarTreeImpl<T> implements SpatialIndex<T> {
 		}
 
 		// Internal: recurse into children (accumulator pattern)
-		const childrenLen = children.length;
-		for (let i = 0; i < childrenLen; i++) {
-			this.searchEntries(children[i], qx1, qy1, qx2, qy2, results);
+		for (const childIdx of children) {
+			this.searchEntries(childIdx, qx1, qy1, qx2, qy2, results);
 		}
 		return results;
-	}
-
-	// ===== CAPACITY MANAGEMENT =====
-
-	private ensureNodeCapacity(needed: number): void {
-		if (needed <= this.nodeCapacity) return;
-
-		const newCap = Math.max(needed, Math.floor(this.nodeCapacity * 1.5));
-
-		const newTypes = new Uint8Array(newCap);
-		const newBounds = new Int32Array(newCap * COORDS);
-		const newChildren = new Array(newCap);
-
-		newTypes.set(this.nodeTypes);
-		newBounds.set(this.nodeBounds);
-		for (let i = 0; i < this.nodeCount; i++) newChildren[i] = this.nodeChildren[i];
-
-		this.nodeTypes = newTypes;
-		this.nodeBounds = newBounds;
-		this.nodeChildren = newChildren;
-		this.nodeCapacity = newCap;
-	}
-
-	private ensureEntryCapacity(needed: number): void {
-		if (needed <= this.entryCapacity) return;
-
-		const newCap = Math.max(needed, Math.floor(this.entryCapacity * 1.5));
-
-		const newBounds = new Int32Array(newCap * COORDS);
-		const newValues = new Array<T>(newCap);
-		const newActive = new Uint8Array(newCap);
-
-		newBounds.set(this.entryBounds);
-		for (let i = 0; i < this.entryCount; i++) newValues[i] = this.entryValues[i];
-		newActive.set(this.entryActive);
-
-		this.entryBounds = newBounds;
-		this.entryValues = newValues;
-		this.entryActive = newActive;
-		this.entryCapacity = newCap;
 	}
 }

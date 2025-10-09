@@ -27,10 +27,10 @@ You can independently:
 
 **2D Range Decomposition**: Maintain non-overlapping 2D ranges with last-writer-wins (LWW) semantics.
 
-**Key Constraint**: Half-open intervals `[start, end)` where `end` is excluded
+**Key Constraint**: Core library uses **closed intervals** `[min, max]` where both endpoints are included
 
-- `[0, 5)` = rows/cols 0, 1, 2, 3, 4 (NOT 5!)
-- Common mistake: Assuming `endRowIndex: 5` includes row 5
+- `[0, 0, 4, 4]` = x:[0,4], y:[0,4] (all inclusive)
+- **Note**: Google Sheets adapter uses half-open intervals `[start, end)` and handles conversion
 
 **Algorithm**: Rectangle decomposition (A \ B → ≤4 fragments)
 
@@ -60,7 +60,7 @@ You can independently:
 
 ### Invariants (Must Hold After Every Operation)
 
-1. **Consistency**: `isEmpty ⟺ getAllRanges().length === 0`
+1. **Consistency**: `isEmpty ⟺ query() returns empty iterator`
 2. **Non-duplication**: No duplicate (bounds, value) pairs
 3. **Disjointness**: No overlapping rectangles (∀ i≠j: rᵢ ∩ rⱼ = ∅)
 
@@ -129,7 +129,7 @@ Check `src/implementations/` for all active implementations (auto-discovered).
    });
    ```
    - Run: `deno task test:newimpl`
-   - ALL 13 axioms must pass
+   - ALL conformance axioms must pass
 
 4. **Benchmark**: Run statistical analysis
    ```bash
@@ -225,23 +225,27 @@ Check `src/implementations/` for all active implementations (auto-discovered).
 
 ```typescript
 interface SpatialIndex<T> {
-	insert(gridRange: GridRange, value: T): void;
-	query(gridRange: GridRange): Array<{ gridRange: GridRange; value: T }>;
-	getAllRanges(): Array<{ gridRange: GridRange; value: T }>;
+	insert(bounds: Rectangle, value: T): void;
+	query(bounds?: Rectangle): IterableIterator<[Rectangle, T]>;
 	readonly isEmpty: boolean;
 }
 ```
 
-**GridRange** (Google Apps Script):
+**Rectangle** (type-agnostic coordinate tuple):
 
 ```typescript
-interface GridRange {
-	startRowIndex?: number; // Included (default 0)
-	endRowIndex?: number; // Excluded (default Infinity)
-	startColumnIndex?: number; // Included (default 0)
-	endColumnIndex?: number; // Excluded (default Infinity)
-}
+type Rectangle = readonly [
+	xmin: number, // Included
+	ymin: number, // Included
+	xmax: number, // Included
+	ymax: number, // Included
+];
 ```
+
+**Semantics**: Closed intervals `[min, max]` - both endpoints included
+**Example**: `[0, 0, 4, 4]` represents x:[0,4], y:[0,4] (all inclusive)
+
+**Note**: `GridRange` is Google Sheets-specific and only used in the adapter layer (`src/adapters/google-sheets.ts`). Core library uses `Rectangle` for type-agnostic bounds.
 
 ### Code Style
 
@@ -448,7 +452,7 @@ When running an experiment autonomously:
 
 3. ✅ Create `test/mortonlinearscan.test.ts` with conformance tests
    - Run `deno task test:mortonlinearscan`
-   - Verify all 13 axioms pass
+   - Verify all conformance axioms pass
 
 4. ✅ Run `deno task bench:analyze 5 docs/active/experiments/morton-results.md`
    - Compare Morton vs Hilbert vs baseline

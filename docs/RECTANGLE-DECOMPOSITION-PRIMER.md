@@ -9,6 +9,7 @@
 ## The Core Problem
 
 Imagine you're building a spreadsheet system. Users can:
+
 - Color cells A1:C2 red
 - Then color cells B0:D2 blue
 
@@ -56,11 +57,11 @@ We explore three different approaches, each with different tradeoffs:
 
 ## Quick Comparison
 
-| Approach           | Insert      | Query      | Storage (example)           | Best for                   |
-| ------------------ | ----------- | ---------- | --------------------------- | -------------------------- |
-| **LWW**            | Simple      | Simple     | 2 ranges                    | Single property only       |
-| **Shallow Merge**  | Complex     | Simple     | 4 ranges                    | Properties always together |
-| **Spatial Join**   | Simple      | Join       | 3 ranges (across 2 indexes) | Independent properties     |
+| Approach          | Insert  | Query  | Storage (example)           | Best for                   |
+| ----------------- | ------- | ------ | --------------------------- | -------------------------- |
+| **LWW**           | Simple  | Simple | 2 ranges                    | Single property only       |
+| **Shallow Merge** | Complex | Simple | 4 ranges                    | Properties always together |
+| **Spatial Join**  | Simple  | Join   | 3 ranges (across 2 indexes) | Independent properties     |
 
 ---
 
@@ -69,6 +70,7 @@ We explore three different approaches, each with different tradeoffs:
 **Recommendation**: **Spatial Join** (Strategy #3)
 
 Why?
+
 1. Google Sheets API has separate request types per property (updateCells, repeatCell, updateBorders, etc.)
 2. Users edit different properties at different times
 3. Insert performance matters (batch operations) more than query performance (render once)
@@ -79,11 +81,13 @@ Why?
 ## Reading Path
 
 **If you want to understand all three**:
+
 1. Start with [Last-Writer-Wins](./diagrams/rectangle-decomposition-lww.md) - the foundation
 2. Then [Shallow Merge](./diagrams/rectangle-decomposition-merge.md) - property combination
 3. Finally [Spatial Join](./diagrams/rectangle-decomposition-spatial-join.md) - multiple indexes
 
 **If you just want to use this library**:
+
 - Read the [main README](../README.md) and [PRODUCTION-GUIDE](../PRODUCTION-GUIDE.md)
 - The library currently implements **LWW** (Strategy #1)
 - Spatial Join (Strategy #3) is the recommended next feature for multi-property use cases

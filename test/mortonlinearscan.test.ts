@@ -1,10 +1,10 @@
-import { testSpatialIndexAxioms } from '../src/conformance/testsuite.ts';
+import { testAsciiSnapshotAxioms, type TestConfig, testSpatialIndexAxioms } from '../src/conformance/mod.ts';
 import MortonLinearScanImpl from '../src/implementations/mortonlinearscan.ts';
-import RStarTreeImpl from '../src/implementations/rstartree.ts';
 
-// Run all conformance tests
-testSpatialIndexAxioms({
+const config: TestConfig = {
 	name: 'MortonLinearScanImpl',
-	implementation: MortonLinearScanImpl,
-	reference: RStarTreeImpl,
-});
+	implementation: () => new MortonLinearScanImpl(),
+};
+
+testSpatialIndexAxioms(config);
+testAsciiSnapshotAxioms(config);

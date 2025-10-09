@@ -154,7 +154,7 @@ Not layered! Not priority queue! DECOMPOSITION.
 | Approach                | API Match | Memory    | Query Time      | Problem                      |
 | ----------------------- | --------- | --------- | --------------- | ---------------------------- |
 | **Rectangle Decomp** ✅ | Perfect   | O(n)      | O(n) or O(logn) | None - optimal for this case |
-| Priority Queue          | Poor      | O(cells)  | O(depth)        | getAllRanges() expensive     |
+| Priority Queue          | Poor      | O(cells)  | O(depth)        | Export expensive             |
 | Layered (CSS-style)     | Poor      | O(layers) | O(layers)       | Needs merge on export        |
 | Cell-by-cell Map        | Poor      | O(cells)  | O(1)            | Massive memory (10M cells!)  |
 

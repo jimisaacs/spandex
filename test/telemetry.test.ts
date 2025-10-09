@@ -1,15 +1,9 @@
-import { assert, assertEquals, assertExists } from '@std/assert';
+import { assertEquals, assertExists } from '@std/assert';
 import MortonLinearScanImpl from '../src/implementations/mortonlinearscan.ts';
+import { rect } from '../src/rect.ts';
 import { TelemetryCollector, TelemetrySnapshot } from '../src/telemetry/index.ts';
 
-const range = (r1?: number, r2?: number, c1?: number, c2?: number) => ({
-	startRowIndex: r1,
-	endRowIndex: r2,
-	startColumnIndex: c1,
-	endColumnIndex: c2,
-});
-
-Deno.test('Telemetry: Disabled telemetry has no overhead', () => {
+Deno.test('Telemetry - Disabled telemetry has no overhead', () => {
 	const telemetry = new TelemetryCollector({ enabled: false });
 	const index = new MortonLinearScanImpl<string>();
 	const wrapped = telemetry.wrap(index, 'test');
@@ -18,7 +12,7 @@ Deno.test('Telemetry: Disabled telemetry has no overhead', () => {
 	assertEquals(wrapped, index);
 });
 
-Deno.test('Telemetry: Collects insert metrics', () => {
+Deno.test('Telemetry - Collects insert metrics', () => {
 	let reported: TelemetrySnapshot | undefined = undefined;
 
 	const telemetry = new TelemetryCollector({
@@ -33,11 +27,11 @@ Deno.test('Telemetry: Collects insert metrics', () => {
 	const wrapped = telemetry.wrap(index, 'backgroundColor');
 
 	// Perform operations
-	wrapped.insert(range(0, 5, 0, 5), 'red');
-	wrapped.insert(range(5, 10, 0, 5), 'blue');
-	wrapped.insert(range(10, 15, 0, 5), 'green');
-	wrapped.insert(range(2, 7, 2, 7), 'yellow'); // Overlapping
-	wrapped.getAllRanges(); // Trigger reporting
+	wrapped.insert(rect(0, 0, 4, 4), 'red');
+	wrapped.insert(rect(0, 5, 4, 9), 'blue');
+	wrapped.insert(rect(0, 10, 4, 14), 'green');
+	wrapped.insert(rect(2, 2, 6, 6), 'yellow'); // Overlapping
+	wrapped.query(); // Trigger reporting
 
 	assertExists(reported, 'telemetry should generate report');
 	const snapshot = reported as TelemetrySnapshot; // Type-safe after assertExists
@@ -46,7 +40,7 @@ Deno.test('Telemetry: Collects insert metrics', () => {
 	assertEquals(snapshot.implementationName, 'MortonLinearScanImpl');
 });
 
-Deno.test('Telemetry: Detects overlapping inserts', () => {
+Deno.test('Telemetry - Detects overlapping inserts', () => {
 	let reported: TelemetrySnapshot | undefined;
 
 	const telemetry = new TelemetryCollector({
@@ -61,20 +55,20 @@ Deno.test('Telemetry: Detects overlapping inserts', () => {
 	const wrapped = telemetry.wrap(index, 'test');
 
 	// Non-overlapping
-	wrapped.insert(range(0, 5, 0, 5), 'a');
-	wrapped.insert(range(5, 10, 0, 5), 'b');
+	wrapped.insert(rect(0, 0, 4, 4), 'a');
+	wrapped.insert(rect(0, 5, 4, 9), 'b');
 
 	// Overlapping
-	wrapped.insert(range(2, 7, 2, 7), 'c');
+	wrapped.insert(rect(2, 2, 6, 6), 'c');
 
-	wrapped.getAllRanges(); // Trigger (4 ops total)
+	wrapped.query(); // Trigger (4 ops total)
 
 	assertExists(reported, 'telemetry should generate report');
 	assertEquals(reported!.insertPatterns.sequential, 2);
 	assertEquals(reported!.insertPatterns.overlapping, 1);
 });
 
-Deno.test('Telemetry: Tracks n distribution', () => {
+Deno.test('Telemetry - Tracks n distribution', () => {
 	let reported: TelemetrySnapshot | undefined;
 
 	const telemetry = new TelemetryCollector({
@@ -89,20 +83,20 @@ Deno.test('Telemetry: Tracks n distribution', () => {
 	const wrapped = telemetry.wrap(index, 'test');
 
 	// Build up from n=1 to n=5
-	wrapped.insert(range(0, 5, 0, 5), 'a');
-	wrapped.insert(range(5, 10, 0, 5), 'b');
-	wrapped.insert(range(10, 15, 0, 5), 'c');
-	wrapped.insert(range(15, 20, 0, 5), 'd');
-	wrapped.insert(range(20, 25, 0, 5), 'e');
+	wrapped.insert(rect(0, 0, 4, 4), 'a');
+	wrapped.insert(rect(0, 5, 4, 9), 'b');
+	wrapped.insert(rect(0, 10, 4, 14), 'c');
+	wrapped.insert(rect(0, 15, 4, 19), 'd');
+	wrapped.insert(rect(0, 20, 4, 24), 'e');
 
-	wrapped.getAllRanges(); // Trigger (6 ops total)
+	wrapped.query(); // Trigger (6 ops total)
 
 	assertExists(reported, 'telemetry should generate report');
 	assertEquals(reported!.nDistribution.min, 1);
 	assertEquals(reported!.nDistribution.max, 5);
 });
 
-Deno.test('Telemetry: Collects query metrics', () => {
+Deno.test('Telemetry - Collects query metrics', () => {
 	let reported: TelemetrySnapshot | undefined;
 
 	const telemetry = new TelemetryCollector({
@@ -116,22 +110,22 @@ Deno.test('Telemetry: Collects query metrics', () => {
 	const index = new MortonLinearScanImpl<string>();
 	const wrapped = telemetry.wrap(index, 'test');
 
-	wrapped.insert(range(0, 5, 0, 5), 'a');
-	wrapped.insert(range(5, 10, 0, 5), 'b');
+	wrapped.insert(rect(0, 0, 4, 4), 'a');
+	wrapped.insert(rect(0, 5, 4, 9), 'b');
 
 	// Small viewport query
-	wrapped.query(range(0, 2, 0, 2));
+	wrapped.query(rect(0, 0, 1, 1));
 
 	// Large query
-	wrapped.query(range(0, 100, 0, 100));
+	wrapped.query(rect(0, 0, 99, 99));
 
-	wrapped.getAllRanges(); // Trigger
+	wrapped.query(); // Trigger
 
 	assertExists(reported, 'telemetry should generate report');
 	assertEquals(reported!.operations.queries, 2);
 });
 
-Deno.test('Telemetry: Performance metrics captured', () => {
+Deno.test('Telemetry - Performance metrics captured', () => {
 	let reported: TelemetrySnapshot | undefined;
 
 	const telemetry = new TelemetryCollector({
@@ -147,10 +141,10 @@ Deno.test('Telemetry: Performance metrics captured', () => {
 
 	// Generate some operations
 	for (let i = 0; i < 10; i++) {
-		wrapped.insert(range(i * 5, (i + 1) * 5, 0, 5), `value_${i}`);
+		wrapped.insert(rect(0, i * 5, 4, (i + 1) * 5 - 1), `value_${i}`);
 	}
 
-	wrapped.getAllRanges(); // Trigger
+	wrapped.query(); // Trigger
 
 	assertExists(reported, 'telemetry should generate report');
 	assertExists(reported!.performance.insertP50, 'should capture P50 insert time');
@@ -158,7 +152,7 @@ Deno.test('Telemetry: Performance metrics captured', () => {
 	assertExists(reported!.performance.insertP99, 'should capture P99 insert time');
 });
 
-Deno.test('Telemetry: Force report works', () => {
+Deno.test('Telemetry - Force report works', () => {
 	let reported: TelemetrySnapshot | undefined;
 
 	const telemetry = new TelemetryCollector({
@@ -172,7 +166,7 @@ Deno.test('Telemetry: Force report works', () => {
 	const index = new MortonLinearScanImpl<string>();
 	const wrapped = telemetry.wrap(index, 'test');
 
-	wrapped.insert(range(0, 5, 0, 5), 'a');
+	wrapped.insert(rect(0, 0, 4, 4), 'a');
 
 	// Force report before threshold
 	const snapshot = telemetry.forceReport('MortonLinearScanImpl', 'test');
@@ -181,7 +175,7 @@ Deno.test('Telemetry: Force report works', () => {
 	assertEquals(snapshot.operations.inserts, 1);
 });
 
-Deno.test('Telemetry: Session ID included', () => {
+Deno.test('Telemetry - Session ID included', () => {
 	let reported: TelemetrySnapshot | undefined;
 
 	const telemetry = new TelemetryCollector({
@@ -196,8 +190,8 @@ Deno.test('Telemetry: Session ID included', () => {
 	const index = new MortonLinearScanImpl<string>();
 	const wrapped = telemetry.wrap(index, 'test');
 
-	wrapped.insert(range(0, 5, 0, 5), 'a');
-	wrapped.getAllRanges(); // Trigger (2 ops total)
+	wrapped.insert(rect(0, 0, 4, 4), 'a');
+	wrapped.query(); // Trigger (2 ops total)
 
 	assertExists(reported, 'telemetry should generate report');
 	assertEquals(reported!.sessionId, 'test-session-123');

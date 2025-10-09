@@ -456,7 +456,7 @@ Result: A \ B produces 4 disjoint fragments (Top, Bottom, Left, Right)
 
 **Axioms** (must hold ∀ implementations):
 
-1. **Consistency**: `isEmpty ⟺ |getAllRanges()| = 0`
+1. **Consistency**: `isEmpty ⟺ query() returns empty iterator`
 2. **Non-duplication**: No identical (bounds, value) pairs
 3. **Last-writer-wins**: Insertion order matters for overlaps
 4. **Correctness**: Property-based random testing

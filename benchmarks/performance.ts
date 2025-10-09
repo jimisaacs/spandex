@@ -1,4 +1,5 @@
-/// <reference types="@types/google-apps-script" />
+import type { Rectangle } from '../src/types.ts';
+import { seededRandom } from '../src/conformance/utils.ts';
 
 // Parse command-line arguments
 const args = Deno.args;
@@ -90,98 +91,53 @@ const implementations = [
 // Sparse scenarios (n < 100) - realistic per-property usage
 const sparseScenarios = {
 	'sparse-sequential (n=50)': Array.from({ length: 50 }, (_, i) => ({
-		range: { startRowIndex: i * 10, endRowIndex: i * 10 + 1, startColumnIndex: 0, endColumnIndex: 1 },
+		range: [0, i * 10, 0, i * 10] as Rectangle,
 		value: `seq_${i}`,
 	})),
 
 	'sparse-grid (n=60)': Array.from({ length: 60 }, (_, i) => ({
-		range: {
-			startRowIndex: Math.floor(i / 6) * 10,
-			endRowIndex: Math.floor(i / 6) * 10 + 2,
-			startColumnIndex: (i % 6) * 10,
-			endColumnIndex: (i % 6) * 10 + 2,
-		},
+		range: [(i % 6) * 10, Math.floor(i / 6) * 10, (i % 6) * 10 + 1, Math.floor(i / 6) * 10 + 1] as Rectangle,
 		value: `grid_${i}`,
 	})),
 
 	'sparse-overlapping (n=40)': Array.from({ length: 40 }, (_, i) => ({
-		range: {
-			startRowIndex: Math.floor(i / 4) * 5,
-			endRowIndex: Math.floor(i / 4) * 5 + 8,
-			startColumnIndex: (i % 4) * 5,
-			endColumnIndex: (i % 4) * 5 + 8,
-		},
+		range: [(i % 4) * 5, Math.floor(i / 4) * 5, (i % 4) * 5 + 7, Math.floor(i / 4) * 5 + 7] as Rectangle,
 		value: `overlap_${i}`,
 	})),
 
 	'sparse-large-ranges (n=30)': Array.from({ length: 30 }, (_, i) => ({
-		range: {
-			startRowIndex: i * 50,
-			endRowIndex: i * 50 + 30,
-			startColumnIndex: i * 50,
-			endColumnIndex: i * 50 + 30,
-		},
+		range: [i * 50, i * 50, i * 50 + 29, i * 50 + 29] as Rectangle,
 		value: `large_${i}`,
 	})),
 
 	// NEW: Real-world spreadsheet patterns
 	'single-cell-edits (n=50)': Array.from({ length: 50 }, (_, i) => ({
-		range: {
-			startRowIndex: Math.floor(i / 10),
-			endRowIndex: Math.floor(i / 10) + 1,
-			startColumnIndex: i % 10,
-			endColumnIndex: (i % 10) + 1,
-		},
+		range: [i % 10, Math.floor(i / 10), i % 10, Math.floor(i / 10)] as Rectangle,
 		value: `cell_${i}`,
 	})),
 
 	'column-operations (n=20)': Array.from({ length: 20 }, (_, i) => ({
-		range: {
-			startRowIndex: 0,
-			endRowIndex: 1000, // Full column height
-			startColumnIndex: i,
-			endColumnIndex: i + 1,
-		},
+		range: [i, 0, i, 999] as Rectangle, // Full column height
 		value: `col_${i}`,
 	})),
 
 	'row-operations (n=20)': Array.from({ length: 20 }, (_, i) => ({
-		range: {
-			startRowIndex: i,
-			endRowIndex: i + 1,
-			startColumnIndex: 0,
-			endColumnIndex: 26, // Full row width (A-Z)
-		},
+		range: [0, i, 25, i] as Rectangle, // Full row width (A-Z)
 		value: `row_${i}`,
 	})),
 
 	'diagonal-selection (n=30)': Array.from({ length: 30 }, (_, i) => ({
-		range: {
-			startRowIndex: i,
-			endRowIndex: i + 5,
-			startColumnIndex: i,
-			endColumnIndex: i + 5,
-		},
+		range: [i, i, i + 4, i + 4] as Rectangle,
 		value: `diag_${i}`,
 	})),
 
 	'striping-alternating-rows (n=25)': Array.from({ length: 25 }, (_, i) => ({
-		range: {
-			startRowIndex: i * 2, // Every other row
-			endRowIndex: i * 2 + 1,
-			startColumnIndex: 0,
-			endColumnIndex: 10,
-		},
+		range: [0, i * 2, 9, i * 2] as Rectangle, // Every other row
 		value: `stripe_${i}`,
 	})),
 
 	'merge-like-blocks (n=15)': Array.from({ length: 15 }, (_, i) => ({
-		range: {
-			startRowIndex: Math.floor(i / 3) * 20,
-			endRowIndex: Math.floor(i / 3) * 20 + 15,
-			startColumnIndex: (i % 3) * 15,
-			endColumnIndex: (i % 3) * 15 + 12,
-		},
+		range: [(i % 3) * 15, Math.floor(i / 3) * 20, (i % 3) * 15 + 11, Math.floor(i / 3) * 20 + 14] as Rectangle,
 		value: `block_${i}`,
 	})),
 };
@@ -189,37 +145,22 @@ const sparseScenarios = {
 // Large scenarios (n > 1000) - stress testing
 const largeScenarios = {
 	'large-sequential (n=2500)': Array.from({ length: 2500 }, (_, i) => ({
-		range: { startRowIndex: i, endRowIndex: i + 1, startColumnIndex: 0, endColumnIndex: 1 },
+		range: [0, i, 0, i] as Rectangle,
 		value: `seq_${i}`,
 	})),
 
 	'large-grid (n=2500)': Array.from({ length: 2500 }, (_, i) => ({
-		range: {
-			startRowIndex: Math.floor(i / 10) * 2,
-			endRowIndex: Math.floor(i / 10) * 2 + 1,
-			startColumnIndex: (i % 10) * 2,
-			endColumnIndex: (i % 10) * 2 + 1,
-		},
+		range: [(i % 10) * 2, Math.floor(i / 10) * 2, (i % 10) * 2, Math.floor(i / 10) * 2] as Rectangle,
 		value: `grid_${i}`,
 	})),
 
 	'large-overlapping (n=1250)': Array.from({ length: 1250 }, (_, i) => ({
-		range: {
-			startRowIndex: Math.floor(i / 5),
-			endRowIndex: Math.floor(i / 5) + 5,
-			startColumnIndex: i % 10,
-			endColumnIndex: (i % 10) + 5,
-		},
+		range: [i % 10, Math.floor(i / 5), (i % 10) + 4, Math.floor(i / 5) + 4] as Rectangle,
 		value: `overlap_${i}`,
 	})),
 
 	'large-ranges (n=500)': Array.from({ length: 500 }, (_, i) => ({
-		range: {
-			startRowIndex: i * 50,
-			endRowIndex: i * 50 + 100,
-			startColumnIndex: i * 50,
-			endColumnIndex: i * 50 + 100,
-		},
+		range: [i * 50, i * 50, i * 50 + 99, i * 50 + 99] as Rectangle,
 		value: `large_${i}`,
 	})),
 };
@@ -254,12 +195,7 @@ for (const { name, Class } of implementations) {
 			for (let i = 0; i < 100; i++) {
 				const row = i * 5;
 				const col = (i % 10) * 5;
-				index.query({
-					startRowIndex: row,
-					endRowIndex: row + 20,
-					startColumnIndex: col,
-					endColumnIndex: col + 20,
-				});
+				index.query([col, row, col + 19, row + 19] as Rectangle);
 			}
 		});
 	}
@@ -274,12 +210,7 @@ for (const { name, Class } of implementations) {
 			for (let i = 0; i < 100; i++) {
 				const row = i * 10;
 				const col = (i % 10) * 10;
-				index.query({
-					startRowIndex: row,
-					endRowIndex: row + 50,
-					startColumnIndex: col,
-					endColumnIndex: col + 50,
-				});
+				index.query([col, row, col + 49, row + 49] as Rectangle);
 			}
 		});
 	}
@@ -294,12 +225,9 @@ for (const { name, Class } of implementations) {
 	Deno.bench(`${name} - mixed: sparse-sequential (n=50) 80/20`, () => {
 		const index = new Class();
 		for (let i = 0; i < 50; i++) {
-			index.insert(
-				{ startRowIndex: i * 10, endRowIndex: i * 10 + 1, startColumnIndex: 0, endColumnIndex: 1 },
-				`seq_${i}`,
-			);
+			index.insert([0, i * 10, 0, i * 10] as Rectangle, `seq_${i}`);
 			if (i % 5 === 0) {
-				index.query({ startRowIndex: 0, endRowIndex: 100, startColumnIndex: 0, endColumnIndex: 10 });
+				index.query([0, 0, 9, 99] as Rectangle);
 			}
 		}
 	});
@@ -308,16 +236,11 @@ for (const { name, Class } of implementations) {
 		const index = new Class();
 		for (let i = 0; i < 40; i++) {
 			index.insert(
-				{
-					startRowIndex: Math.floor(i / 4) * 5,
-					endRowIndex: Math.floor(i / 4) * 5 + 8,
-					startColumnIndex: (i % 4) * 5,
-					endColumnIndex: (i % 4) * 5 + 8,
-				},
+				[(i % 4) * 5, Math.floor(i / 4) * 5, (i % 4) * 5 + 7, Math.floor(i / 4) * 5 + 7] as Rectangle,
 				`overlap_${i}`,
 			);
 			if (i % 5 === 0) {
-				index.query({ startRowIndex: 0, endRowIndex: 50, startColumnIndex: 0, endColumnIndex: 20 });
+				index.query([0, 0, 19, 49] as Rectangle);
 			}
 		}
 	});
@@ -326,14 +249,9 @@ for (const { name, Class } of implementations) {
 	Deno.bench(`${name} - mixed: large-sequential (n=1000) 80/20`, () => {
 		const index = new Class();
 		for (let i = 0; i < 1000; i++) {
-			index.insert({ startRowIndex: i, endRowIndex: i + 1, startColumnIndex: 0, endColumnIndex: 1 }, `seq_${i}`);
+			index.insert([0, i, 0, i] as Rectangle, `seq_${i}`);
 			if (i % 5 === 0) {
-				index.query({
-					startRowIndex: Math.floor(i / 50) * 50,
-					endRowIndex: Math.floor(i / 50) * 50 + 100,
-					startColumnIndex: 0,
-					endColumnIndex: 10,
-				});
+				index.query([0, Math.floor(i / 50) * 50, 9, Math.floor(i / 50) * 50 + 99] as Rectangle);
 			}
 		}
 	});
@@ -342,21 +260,11 @@ for (const { name, Class } of implementations) {
 		const index = new Class();
 		for (let i = 0; i < 500; i++) {
 			index.insert(
-				{
-					startRowIndex: Math.floor(i / 5),
-					endRowIndex: Math.floor(i / 5) + 5,
-					startColumnIndex: i % 10,
-					endColumnIndex: (i % 10) + 5,
-				},
+				[i % 10, Math.floor(i / 5), (i % 10) + 4, Math.floor(i / 5) + 4] as Rectangle,
 				`overlap_${i}`,
 			);
 			if (i % 5 === 0) {
-				index.query({
-					startRowIndex: Math.floor(i / 50) * 10,
-					endRowIndex: Math.floor(i / 50) * 10 + 20,
-					startColumnIndex: 0,
-					endColumnIndex: 20,
-				});
+				index.query([0, Math.floor(i / 50) * 10, 19, Math.floor(i / 50) * 10 + 19] as Rectangle);
 			}
 		}
 	});
@@ -375,16 +283,11 @@ for (const { name, Class } of implementations) {
  */
 
 // Helper for random query ranges
-function generateQueryRange(max: number): GoogleAppsScript.Sheets.Schema.GridRange {
-	const row = Math.floor(Math.random() * max);
-	const col = Math.floor(Math.random() * max);
-	const size = 5 + Math.floor(Math.random() * 10);
-	return {
-		startRowIndex: row,
-		endRowIndex: row + size,
-		startColumnIndex: col,
-		endColumnIndex: col + size,
-	};
+function generateQueryRange(max: number, random: () => number): Rectangle {
+	const row = Math.floor(random() * max);
+	const col = Math.floor(random() * max);
+	const size = 5 + Math.floor(random() * 10);
+	return [col, row, col + size - 1, row + size - 1] as Rectangle;
 }
 
 // Scenario 1: Sequential data (tests best-case tree structure)
@@ -396,17 +299,16 @@ for (const { name, Class } of implementations) {
 			const index = new Class();
 			// Warm-up: Build index with sequential data (NOT measured)
 			for (let i = 0; i < 1000; i++) {
-				index.insert({
-					startRowIndex: i * 10,
-					endRowIndex: i * 10 + 5,
-					startColumnIndex: (i % 10) * 10,
-					endColumnIndex: (i % 10) * 10 + 5,
-				}, `value${i}`);
+				index.insert(
+					[(i % 10) * 10, i * 10, (i % 10) * 10 + 4, i * 10 + 4] as Rectangle,
+					`value${i}`,
+				);
 			}
 
 			// Measured: Pure query performance
+			const random = seededRandom(42);
 			for (let i = 0; i < 10000; i++) {
-				const results = index.query(generateQueryRange(1000));
+				const results = index.query(generateQueryRange(1000, random));
 				// Touch results to prevent dead code elimination
 				if (results.length > 1000) throw new Error('Unexpected');
 			}
@@ -423,17 +325,16 @@ for (const { name, Class } of implementations) {
 			const index = new Class();
 			// Warm-up: Build index with high overlap (NOT measured)
 			for (let i = 0; i < 1000; i++) {
-				index.insert({
-					startRowIndex: Math.floor(i / 5),
-					endRowIndex: Math.floor(i / 5) + 50,
-					startColumnIndex: i % 10,
-					endColumnIndex: (i % 10) + 50,
-				}, `value${i}`);
+				index.insert(
+					[i % 10, Math.floor(i / 5), (i % 10) + 49, Math.floor(i / 5) + 49] as Rectangle,
+					`value${i}`,
+				);
 			}
 
 			// Measured: Query performance with high overlap
+			const random = seededRandom(123);
 			for (let i = 0; i < 10000; i++) {
-				const results = index.query(generateQueryRange(200));
+				const results = index.query(generateQueryRange(200, random));
 				if (results.length > 1000) throw new Error('Unexpected');
 			}
 		},
@@ -449,17 +350,16 @@ for (const { name, Class } of implementations) {
 			const index = new Class();
 			// Warm-up: Build large index (NOT measured)
 			for (let i = 0; i < 5000; i++) {
-				index.insert({
-					startRowIndex: i * 5,
-					endRowIndex: i * 5 + 10,
-					startColumnIndex: (i % 50) * 5,
-					endColumnIndex: (i % 50) * 5 + 10,
-				}, `value${i}`);
+				index.insert(
+					[(i % 50) * 5, i * 5, (i % 50) * 5 + 9, i * 5 + 9] as Rectangle,
+					`value${i}`,
+				);
 			}
 
 			// Measured: Query performance at scale
+			const random = seededRandom(456);
 			for (let i = 0; i < 10000; i++) {
-				const results = index.query(generateQueryRange(5000));
+				const results = index.query(generateQueryRange(5000, random));
 				if (results.length > 5000) throw new Error('Unexpected');
 			}
 		},
@@ -474,7 +374,7 @@ Deno.bench('Correctness verification', () => {
 	const results = implementations.map(({ Class }) => {
 		const index = new Class();
 		largeScenarios['large-overlapping (n=1250)'].forEach((op) => index.insert(op.range, op.value));
-		return index.getAllRanges().length;
+		return index.query().length;
 	});
 
 	if (!results.every((count) => count === results[0])) {

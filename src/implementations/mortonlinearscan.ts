@@ -1,5 +1,3 @@
-/// <reference types="@types/google-apps-script" />
-
 /**
  * Morton Curve (Z-Order) Linear Scan - PRODUCTION IMPLEMENTATION
  *
@@ -9,11 +7,11 @@
  * **Algorithm**: Morton curve uses bit interleaving to map 2D coordinates to 1D.
  * For a point (x, y), interleave bits: x₀y₀x₁y₁x₂y₂... where xᵢ is the i-th bit of x.
  *
- * **Performance**: 25% faster than Hilbert (6.9µs → 5.2µs @ n=50) due to constant-time
+ * **Performance**: 25% faster than Hilbert (7.0µs → 5.6µs @ n=50) due to constant-time
  * encoding. Simpler bit operations outweigh Hilbert's theoretically better locality.
  *
  * **Complexity**:
- * - Insert: O(n) average (scan + splice), O(n log n) worst case
+ * - Insert: O(n log n) - single pass scan + sort
  * - Query: O(n) linear scan
  * - Space: O(n)
  *
@@ -29,18 +27,8 @@
  * - Performance analysis: docs/analyses/morton-vs-hilbert-analysis.md
  */
 
-import type { SpatialIndex } from '../conformance/testsuite.ts';
-
-type GridRange = GoogleAppsScript.Sheets.Schema.GridRange;
-type Rectangle = readonly [xmin: number, ymin: number, xmax: number, ymax: number];
-
-/**
- * Maximum coordinate value for Morton code mapping.
- *
- * Set to 2^16 = 65,536 (matches archived Hilbert implementation).
- * Covers typical spreadsheet usage (most sheets < 10K rows/cols).
- */
-const MAX_COORD = 1 << 16; // 65536
+import * as Rect from '../rect.ts';
+import type { QueryResult, Rectangle, SpatialIndex } from '../types.ts';
 
 /**
  * Calculate Morton code (Z-order) for a 2D point using bit interleaving.
@@ -56,8 +44,8 @@ const MAX_COORD = 1 << 16; // 65536
  * **Implementation**: Uses "magic bits" method with bit masks for efficiency.
  * Faster than naive bit-by-bit interleaving.
  *
- * @param x - X coordinate (column)
- * @param y - Y coordinate (row)
+ * @param x - X coordinate
+ * @param y - Y coordinate
  * @returns Morton code (1D index preserving spatial locality)
  *
  * **Note**: Coordinates are masked to 16 bits. Larger coordinates wrap/collide
@@ -86,28 +74,6 @@ function mortonCode(x: number, y: number): number {
 	return x | (y << 1);
 }
 
-/** Convert GridRange (half-open) to Rectangle (closed) */
-function toInclusive(gridRange: GridRange): Rectangle {
-	return [
-		gridRange.startColumnIndex ?? 0,
-		gridRange.startRowIndex ?? 0,
-		(gridRange.endColumnIndex ?? MAX_COORD) - 1,
-		(gridRange.endRowIndex ?? MAX_COORD) - 1,
-	];
-}
-
-/** Convert Rectangle (closed) to GridRange (half-open) */
-function toExclusive(rect: Rectangle): GridRange {
-	const endCol = rect[2] + 1;
-	const endRow = rect[3] + 1;
-	return {
-		startColumnIndex: rect[0] === 0 ? undefined : rect[0],
-		startRowIndex: rect[1] === 0 ? undefined : rect[1],
-		endColumnIndex: endCol === MAX_COORD ? undefined : endCol,
-		endRowIndex: endRow === MAX_COORD ? undefined : endRow,
-	};
-}
-
 /** Check if two rectangles intersect */
 function intersects(a: Rectangle, b: Rectangle): boolean {
 	return !(a[2] < b[0] || a[0] > b[2] || a[3] < b[1] || a[1] > b[3]);
@@ -115,8 +81,6 @@ function intersects(a: Rectangle, b: Rectangle): boolean {
 
 /** Subtract rectangle b from a, returning 0-4 non-overlapping fragments */
 function subtract(a: Rectangle, b: Rectangle): Rectangle[] {
-	if (!intersects(a, b)) return [a];
-
 	const [ax1, ay1, ax2, ay2] = a;
 	const [bx1, by1, bx2, by2] = b;
 
@@ -125,13 +89,13 @@ function subtract(a: Rectangle, b: Rectangle): Rectangle[] {
 	const fragments: Rectangle[] = [];
 
 	// Top strip (before B starts in y direction)
-	if (ay1 < by1) fragments.push([ax1, ay1, ax2, by1 - 1]);
+	if (ay1 < by1) fragments.push(Rect.canonicalized([ax1, ay1, ax2, by1 - 1]));
 	// Bottom strip (after B ends in y direction)
-	if (ay2 > by2) fragments.push([ax1, by2 + 1, ax2, ay2]);
+	if (ay2 > by2) fragments.push(Rect.canonicalized([ax1, by2 + 1, ax2, ay2]));
 	// Left strip
-	if (ax1 < bx1) fragments.push([ax1, Math.max(ay1, by1), bx1 - 1, Math.min(ay2, by2)]);
+	if (ax1 < bx1) fragments.push(Rect.canonicalized([ax1, Math.max(ay1, by1), bx1 - 1, Math.min(ay2, by2)]));
 	// Right strip
-	if (ax2 > bx2) fragments.push([bx2 + 1, Math.max(ay1, by1), ax2, Math.min(ay2, by2)]);
+	if (ax2 > bx2) fragments.push(Rect.canonicalized([bx2 + 1, Math.max(ay1, by1), ax2, Math.min(ay2, by2)]));
 
 	return fragments.filter((f) => f[0] <= f[2] && f[1] <= f[3]);
 }
@@ -152,7 +116,7 @@ function binarySearch(entries: Array<Entry<unknown>>, morton: number): number {
 }
 
 interface Entry<T> {
-	rect: Rectangle;
+	bounds: Rectangle;
 	value: T;
 	morton: number;
 }
@@ -167,72 +131,70 @@ export default class MortonLinearScanImpl<T> implements SpatialIndex<T> {
 		return this.entries.length === 0;
 	}
 
+	/**
+	 * Number of non-overlapping ranges stored in index.
+	 * Useful for fragmentation analysis and performance testing.
+	 */
 	get size(): number {
 		return this.entries.length;
 	}
 
-	insert(gridRange: GridRange, value: T): void {
-		const range = toInclusive(gridRange);
-		const entries = this.entries;
+	insert(bounds: Rectangle, value: T): void {
+		// Validate and canonicalize user input
+		bounds = Rect.validated(bounds);
 
-		// Single-pass: find overlaps AND remove non-overlapping entries in-place
-		const overlapping: Array<Entry<T>> = [];
+		// Global range (infinite bounds) - fast path
+		if (Rect.isAll(bounds)) {
+			this.entries = [{ bounds, value, morton: 0 }];
+			return;
+		}
+
+		// Single-pass O(n): decompose overlaps and keep non-overlapping entries
+		const fragments: Array<Entry<T>> = [];
+		const entries = this.entries;
 		let writeIdx = 0;
 		for (let i = 0; i < entries.length; i++) {
-			if (intersects(range, entries[i].rect)) {
-				overlapping.push(entries[i]);
+			const entry = entries[i];
+			if (intersects(bounds, entry.bounds)) {
+				const frags = subtract(entry.bounds, bounds);
+				for (let j = 0; j < frags.length; j++) {
+					const frag = frags[j];
+					const centerX = (frag[0] + frag[2]) >> 1;
+					const centerY = (frag[1] + frag[3]) >> 1;
+					const morton = mortonCode(centerX, centerY);
+					fragments.push({ bounds: frag, value: entry.value, morton });
+				}
 			} else {
-				entries[writeIdx++] = entries[i];
+				entries[writeIdx++] = entry;
 			}
 		}
 		entries.length = writeIdx;
 
-		// Re-insert old fragments (that don't overlap with new range)
-		for (let i = 0; i < overlapping.length; i++) {
-			const old = overlapping[i];
-			const fragments = subtract(old.rect, range);
-			for (let j = 0; j < fragments.length; j++) {
-				const frag = fragments[j];
-				const centerX = (frag[0] + frag[2]) >> 1;
-				const centerY = (frag[1] + frag[3]) >> 1;
-				const morton = mortonCode(centerX, centerY);
-				const pos = binarySearch(entries, morton);
-				entries.splice(pos, 0, { rect: frag, value: old.value, morton });
-			}
-		}
-
-		// Insert new range with Morton ordering
-		const centerX = (range[0] + range[2]) >> 1;
-		const centerY = (range[1] + range[3]) >> 1;
+		// Insert new range
+		const centerX = (bounds[0] + bounds[2]) >> 1;
+		const centerY = (bounds[1] + bounds[3]) >> 1;
 		const morton = mortonCode(centerX, centerY);
-		const pos = binarySearch(entries, morton);
-		entries.splice(pos, 0, { rect: range, value, morton });
-	}
+		fragments.push({ bounds, value, morton });
 
-	getAllRanges(): Array<{ gridRange: GridRange; value: T }> {
-		const entries = this.entries;
-		const results = new Array(entries.length);
-		for (let i = 0; i < entries.length; i++) {
-			results[i] = { gridRange: toExclusive(entries[i].rect), value: entries[i].value };
+		// Sort by Morton code
+		for (let i = 0; i < fragments.length; i++) {
+			const entry = fragments[i];
+			const pos = binarySearch(entries, entry.morton);
+			entries.splice(pos, 0, entry);
 		}
-		return results;
 	}
 
-	query(gridRange: GridRange): Array<{ gridRange: GridRange; value: T }> {
-		const range = toInclusive(gridRange);
-		const entries = this.entries; // Cache property access
-		const results: Array<{ gridRange: GridRange; value: T }> = [];
+	*query(bounds: Rectangle = Rect.ALL): IterableIterator<QueryResult<T>> {
+		// Validate and canonicalize user input
+		bounds = Rect.validated(bounds);
 
 		// Linear scan (Morton ordering may help with cache locality)
+		const entries = this.entries;
 		for (let i = 0; i < entries.length; i++) {
 			const entry = entries[i];
-			if (intersects(range, entry.rect)) {
-				results.push({
-					gridRange: toExclusive(entry.rect),
-					value: entry.value,
-				});
+			if (intersects(bounds, entry.bounds)) {
+				yield [entry.bounds, entry.value];
 			}
 		}
-		return results;
 	}
 }

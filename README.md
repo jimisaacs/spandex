@@ -75,33 +75,41 @@ import MortonLinearScanImpl from './src/implementations/mortonlinearscan.ts';
 // Create a spatial index for background colors
 const backgroundColors = new MortonLinearScanImpl<string>();
 
-// Insert a red background for rows 0-4, columns 0-4 (25 cells)
-backgroundColors.insert({
-	startRowIndex: 0,
-	endRowIndex: 5, // Remember: [0, 5) means 0,1,2,3,4 NOT including 5!
-	startColumnIndex: 0,
-	endColumnIndex: 5,
-}, 'red');
+// Insert a red background: columns 0-4, rows 0-4 (25 cells)
+// Rectangle format: [xmin, ymin, xmax, ymax] with CLOSED intervals
+backgroundColors.insert([0, 0, 4, 4], 'red');
 
-// Insert a blue background for rows 2-6, columns 2-6 (25 cells, overlaps!)
-backgroundColors.insert({
-	startRowIndex: 2,
-	endRowIndex: 7,
-	startColumnIndex: 2,
-	endColumnIndex: 7,
-}, 'blue');
+// Insert a blue background: columns 2-6, rows 2-6 (25 cells, overlaps!)
+backgroundColors.insert([2, 2, 6, 6], 'blue');
 
 // Result: 3 non-overlapping ranges (last-writer-wins)
-const ranges = backgroundColors.getAllRanges();
+const ranges = Array.from(backgroundColors.query());
 console.log(ranges.length); // 3
 
 // What happened?
-// ├─ Red top strip: rows [0,2) × cols [0,5) → still red
-// ├─ Red left strip: rows [2,5) × cols [0,2) → still red
-// └─ Blue center: rows [2,7) × cols [2,7) → blue (overwrote overlap)
+// ├─ Red top strip: cols [0,4] × rows [0,1] → still red
+// ├─ Red left strip: cols [0,1] × rows [2,4] → still red
+// └─ Blue center: cols [2,6] × rows [2,6] → blue (overwrote overlap)
 ```
 
 **Output**: The index automatically decomposed the overlapping ranges into 3 disjoint rectangles.
+
+**Google Sheets Integration**: Use the adapter for GridRange compatibility:
+
+```typescript
+import MortonLinearScanImpl from './src/implementations/mortonlinearscan.ts';
+import { createGridRangeAdapter } from './src/adapters/google-sheets.ts';
+
+const index = createGridRangeAdapter(new MortonLinearScanImpl<string>());
+
+// Now uses Google Sheets GridRange format (half-open intervals)
+index.insert({
+	startRowIndex: 0,
+	endRowIndex: 5, // Half-open: means rows 0,1,2,3,4 (NOT 5)
+	startColumnIndex: 0,
+	endColumnIndex: 5,
+}, 'red');
+```
 
 ## Installation
 
@@ -113,7 +121,7 @@ git clone <repository-url>
 cd spatial-indexing-research
 
 # Run tests (verifies everything works)
-deno task test           # 57 tests (42 conformance + 8 telemetry + 3 integration + 6 adversarial)
+deno task test           # All tests passing
 deno task bench          # Performance benchmarks
 deno task bench:update   # Regenerate BENCHMARKS.md
 
@@ -121,7 +129,7 @@ deno task bench:update   # Regenerate BENCHMARKS.md
 import { MortonLinearScanImpl } from 'https://raw.githubusercontent.com/...';
 ```
 
-Uses `GoogleAppsScript.Sheets.Schema.GridRange` from `@types/google-apps-script`.
+**Note**: Core library uses generic `Rectangle` type `[xmin, ymin, xmax, ymax]`. For Google Sheets `GridRange` compatibility, use `createGridRangeAdapter()` from `src/adapters/google-sheets.ts`.
 
 ## Development
 
@@ -159,22 +167,44 @@ deno task check              # Type check
 
 ```
 src/
-├── implementations/        # Active implementations (see directory for current list)
+├── types.ts                          # Core types (Rectangle, SpatialIndex, QueryResult)
+├── rect.ts                           # Rectangle utilities (canonicalization, sentinels)
+├── implementations/                  # Active implementations
 │   ├── mortonlinearscan.ts           # ✅ Production: O(n), n<100
 │   └── rstartree.ts                  # ✅ Production: O(log n), n≥100
-└── conformance/            # Axiom-based testing
-    ├── testsuite.ts                  # Test axioms + property tests
-    └── mod.ts                        # Exports
+├── conformance/                      # Axiom-based testing
+│   ├── testsuite.ts                  # 25 core axioms
+│   ├── ascii-snapshot-axioms.ts      # 15 ASCII snapshot tests
+│   ├── ascii-snapshot.ts             # ASCII rendering/parsing utilities
+│   ├── cross-implementation.ts       # Cross-validation tests
+│   └── mod.ts                        # Exports
+├── adapters/                         # External API adapters
+│   └── google-sheets.ts              # GridRange ⟷ Rectangle conversion
+├── telemetry/                        # Production telemetry (opt-in)
+│   └── index.ts                      # Metrics collection wrapper
+└── partitioned-spatial-index.ts      # Per-attribute spatial partitioning
 
-archive/                    # Historical implementations
-└── src/implementations/    # Superseded and failed experiments
+test/                                 # Test entry points
+├── mortonlinearscan.test.ts          # Conformance tests
+├── rstartree.test.ts                 # Conformance tests
+├── partitioned-spatial-index.test.ts # Partitioned index tests
+├── telemetry.test.ts                 # Telemetry tests
+├── adversarial.test.ts               # Worst-case pattern tests
+└── integration.test.ts               # Cross-implementation tests
+
+archive/                              # Historical implementations (docs + git history)
+├── IMPLEMENTATION-HISTORY.md         # One-line index with git SHAs
+└── docs/experiments/                 # Full analysis of archived work
 ```
 
 ## Testing
 
-**Conformance**: 21 axioms per implementation validate mathematical correctness (empty state, overlap resolution, LWW semantics, boundary conditions, query edge cases, value reachability, coordinate extremes). 42 conformance tests (21 axioms × 2 implementations) + 8 telemetry + 3 integration + 6 adversarial = 57 tests total, 100% passing.
+Comprehensive test suite validates:
 
-**Adversarial**: Pathological patterns (concentric, diagonal, checkerboard, random) empirically validate O(n) fragmentation bound. Worst-case shows 2.3x avg fragmentation (not exponential).
+- **Conformance axioms**: Core correctness properties (LWW semantics, overlap resolution, disjointness invariants)
+- **ASCII snapshot tests**: Visual regression testing with human-readable grid representations
+- **Adversarial patterns**: Worst-case fragmentation validation (concentric, diagonal, checkerboard patterns empirically validate O(n) bound, not exponential)
+- **Integration tests**: Cross-implementation consistency verification
 
 - [Conformance test suite](./src/conformance/testsuite.ts)
 - [Test coverage improvements](./docs/analyses/test-coverage-improvements.md) - 4 new axioms added (Oct 2025)

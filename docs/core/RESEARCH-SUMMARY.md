@@ -22,18 +22,15 @@
 
 ### 1. Morton Optimization: Pure Functions + Micro-optimizations
 
-**Breakthrough**: Extracting pure functions, caching property access, and using tight loops improved Morton from 54% to 71% win rate (25/35 scenarios).
+**Breakthrough**: Extracting pure functions, caching property access, and using tight loops significantly improved Morton win rate.
 
-**Result**: Optimized Morton is the production implementation for sparse data (n<100), achieving 1.8KB minified with dominant performance.
+**Result**: Optimized Morton is the production implementation for sparse data (n<100) with dominant performance.
 
 **Key Insight**: Micro-optimizations compound. Eliminating `this` lookups, caching `entries` reference, and using indexed `for` loops saved ~5-10% per operation, resulting in dominant performance across all sparse data scenarios.
 
-**Data** (after optimization):
-
-- Morton: 25/35 wins (71%), 1.8KB minified - **Production**
-- R*-tree: 10/35 wins (29%), 8.4KB minified - **Production for n≥100**
-
 **Optimizations applied**: Pure functions (no `this` overhead), cached `this.entries`, tight `for` loops, pre-allocated arrays
+
+**Result**: Morton dominates for sparse data, R*-tree wins at scale. See BENCHMARKS.md for current performance data.
 
 **Impact**: Validated that algorithm structure matters more than encoding complexity. Single-pass insertion + spatial ordering is the winning combination.
 
@@ -41,9 +38,7 @@
 
 **Breakthrough**: Space-filling curves (Morton/Z-order) transform linear scan performance.
 
-**Result**: `MortonLinearScanImpl` outperforms naive linear scan (empirically measured: faster via spatial ordering).
-
-**Data**: At n=50, `MortonLinearScanImpl` vs `RStarTreeImpl` 20.0µs (Morton faster for small n)
+**Result**: MortonLinearScanImpl outperforms naive linear scan via spatial ordering. Dominates at small n.
 
 **Mechanism**: Morton curve (bit interleaving) keeps spatially adjacent rectangles close in memory with constant-time encoding, improving cache utilization.
 
@@ -219,10 +214,12 @@
 - **Bundle size**: Already optimal for each active implementation
   - Morton: ~1.8KB minified (optimal for spatial locality algorithm)
   - RTree: ~8.4KB minified (appropriate for hierarchical structure complexity)
-- **Test coverage**: ✅ Improved significantly
-  - Added 4 new conformance axioms (17 → 21 total)
-  - New coverage: boundary conditions, query edge cases, value reachability, coordinate extremes
-  - Test count: 51 core tests (42 conformance + 8 telemetry + 3 integration), 6 adversarial = 57 total
+- **Test coverage**: ✅ Production-ready comprehensive coverage
+  - Axiom-based conformance tests (core correctness properties, no redundancy)
+  - ASCII snapshot regression tests (visual validation across implementations)
+  - Cross-implementation consistency validation (fragment count verification)
+  - Adversarial worst-case fragmentation tests (geometric bound validation)
+  - All tests passing ✅
 
 **Conclusion**: Implementations are production-ready and well-optimized. Future performance gains require new algorithms (Morton curve, hybrid approaches) rather than micro-optimizations.
 
@@ -279,11 +276,10 @@ See `src/implementations/` for current implementations, `archive/` for failed ex
 
 **Axiom-based correctness**, not code coverage.
 
-**Conformance tests** (21 axioms per implementation):
-Empty state, value preservation, overlap resolution (LWW), edge cases, property-based (100 random ops), fragment generation (≤4), idempotency, disjointness, query correctness, invalid rejection, stress test, boundary conditions, query edge cases, value reachability, coordinate extremes, infinite ranges, large-overlapping fragment count verification, equivalence, performance comparison.
+**Conformance tests**: Core correctness properties (LWW semantics, overlap resolution, disjointness invariants, fragment bounds), boundary conditions, query correctness, and cross-implementation consistency. All implementations must pass identical test suite.
 
 **Adversarial tests** (worst-case validation):
-Six pathological patterns designed to maximize fragmentation empirically validate O(n) bound:
+Pathological patterns designed to maximize fragmentation empirically validate O(n) bound:
 
 | Pattern          | Purpose                                          | Result                               |
 | ---------------- | ------------------------------------------------ | ------------------------------------ |

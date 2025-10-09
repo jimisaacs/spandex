@@ -19,7 +19,7 @@ Spatial indexing research for 2D range decomposition in spreadsheet systems. Mai
 ### Testing
 
 ```bash
-deno task test                    # Run all active tests (55 tests)
+deno task test                    # Run all active tests (113 tests)
 deno task test:watch              # Watch mode
 deno task test:morton             # Test specific implementation
 deno task test:rstartree          # Test specific implementation
@@ -121,24 +121,29 @@ deno task unarchive:impl <name>             # Restore from archive
 
 ### Core Interfaces
 
-**`SpatialIndex<T>`** (src/conformance/testsuite.ts:5-10) - All implementations must implement this interface:
+**`SpatialIndex<T>`** (src/types.ts) - All implementations must implement this interface:
 
-- `insert(gridRange: GridRange, value: T): void` - Last-writer-wins semantics
-- `query(gridRange: GridRange): Array<...>` - Find intersecting ranges
-- `getAllRanges(): Array<...>` - Export all ranges
+- `insert(bounds: Rectangle, value: T): void` - Last-writer-wins semantics
+- `query(bounds?: Rectangle): IterableIterator<[Rectangle, T]>` - Find intersecting ranges, or all ranges if no argument
 - `isEmpty: boolean` - Check if empty
 
-**`GridRange`** - Google Apps Script type for 2D ranges (half-open intervals):
+**`Rectangle`** - Core type-agnostic coordinate tuple (closed intervals):
 
-- `startRowIndex` (included), `endRowIndex` (excluded)
-- `startColumnIndex` (included), `endColumnIndex` (excluded)
+```typescript
+type Rectangle = readonly [xmin: number, ymin: number, xmax: number, ymax: number];
+```
+
+- All coordinates included: `xmin, ymin, xmax, ymax` (closed intervals `[min, max]`)
+- Example: `[0, 0, 4, 4]` represents x:[0,4], y:[0,4] (both endpoints included)
+
+**Note**: `GridRange` is Google Sheets-specific with half-open intervals and only exists in the adapter layer (`src/adapters/google-sheets.ts`). Core library uses `Rectangle` with closed intervals.
 
 ### Implementation Families
 
 **Current active implementations** (see `src/implementations/` directory):
 
-- **Morton spatial locality linear scan** - Production choice for sparse data (n < 100), uses Morton curve (Z-order) for spatial locality, ~1.8KB minified
-- __R-Tree with R_ split_* - Production choice for large data (n ≥ 100), O(log n) hierarchical indexing, ~8.4KB minified
+- **Morton spatial locality linear scan** - Production choice for sparse data (n < 100), uses Morton curve (Z-order) for spatial locality
+- **R-Tree with R* split** - Production choice for large data (n ≥ 100), O(log n) hierarchical indexing
 
 **Archived implementations** (see `archive/src/implementations/` for historical research):
 
@@ -153,9 +158,9 @@ All implementations are auto-discovered by benchmarks from their filesystem loca
 
 **Conformance tests** (src/conformance/testsuite.ts):
 
-- 13 axioms validate mathematical correctness (empty state, LWW semantics, overlap resolution, disjointness)
-- Every implementation must pass all axioms
-- Reference implementation: Naive linear scan (test oracle, archived)
+- Core axioms validate mathematical correctness (empty state, LWW semantics, overlap resolution, disjointness, fragment counts)
+- ASCII snapshot tests validate visual rendering and round-trip parsing
+- Every implementation must pass all conformance tests
 
 **Adversarial tests** (test/adversarial.test.ts):
 
@@ -175,7 +180,7 @@ All implementations are auto-discovered by benchmarks from their filesystem loca
 
 After every operation, these must hold:
 
-1. **Consistency**: `isEmpty ⟺ getAllRanges().length === 0`
+1. **Consistency**: `isEmpty ⟺ query() returns empty iterator`
 2. **Non-duplication**: No duplicate (bounds, value) pairs
 3. **Disjointness**: No overlapping rectangles (∀ i≠j: rᵢ ∩ rⱼ = ∅)
 
@@ -386,16 +391,24 @@ deno task bench:analyze 5 docs/analyses/benchmark-statistics.md  # Updates stats
 
 **See**: docs/active/semantic-vs-performance-principle.md for detailed rationale and optimization opportunities.
 
-### Half-Open Intervals
+### Interval Semantics
 
-**Critical**: This library uses `[start, end)` where `end` is **excluded**.
+**Critical**: Core library uses **closed intervals**, adapter uses **half-open intervals**.
+
+**Core library (`Rectangle`)**: Closed intervals `[min, max]` where both endpoints are **included**
+
+```typescript
+[0, 0, 4, 4] = x:[0,4], y:[0,4] (all inclusive)
+```
+
+**Adapter layer (`GridRange`)**: Half-open intervals `[start, end)` where `end` is **excluded**
 
 ```typescript
 // startRowIndex: 0, endRowIndex: 5 means rows 0, 1, 2, 3, 4 (NOT 5!)
 [0, 5) = [0, 1, 2, 3, 4]
 ```
 
-Common mistake: Assuming `endRowIndex: 5` includes row 5. It doesn't!
+The adapter converts between Google Sheets' half-open semantics and the core library's closed intervals.
 
 ### Rectangle Decomposition
 
@@ -422,8 +435,8 @@ Insert algorithm (A \ B → ≤4 fragments):
 
 | Ranges          | Use                                 | Performance                     |
 | --------------- | ----------------------------------- | ------------------------------- |
-| < 100           | Spatial locality optimized (Morton) | ~6µs @ n=50                     |
-| ≥ 100           | R-Tree with R* split                | ~20µs @ n=50, ~2ms @ n=2500     |
+| < 100           | Spatial locality optimized (Morton) | Fastest for sparse data         |
+| ≥ 100           | R-Tree with R* split                | Fastest for large datasets      |
 | Bundle-critical | Compact linear scan                 | Smallest size, acceptable speed |
 
 See PRODUCTION-GUIDE.md and BENCHMARKS.md for detailed decision tree and current performance data.

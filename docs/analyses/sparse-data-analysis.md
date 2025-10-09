@@ -130,7 +130,7 @@ sheet.getRange('B2:B20').setBorder('thick');
 const serialized = sheet.toJSON();
 ```
 
-**Operation**: `getAllRanges()` - O(n) for both approaches\
+**Operation**: `query()` (all ranges) - O(n) for both approaches\
 **Frequency**: Once per save/export
 
 ### Query Pattern (Rare)
@@ -224,8 +224,8 @@ For the spreadsheet property storage use case:
 
 - **Architecture**: Separate spatial index per property (backgrounds, borders, etc.)
 - **Data distribution**: Sparse (< 100 ranges per property typically)
-- **Access pattern**: Write-heavy (insert), occasional serialize (getAllRanges), rare queries
-- **Optimal choice**: **Linear scan implementations** (HilbertLinearScanImpl specifically) with O(n) operations
+- **Access pattern**: Write-heavy (insert), occasional serialize (query all), rare queries
+- **Optimal choice**: **Linear scan implementations** with O(n) operations
 
 The R-tree implementation serves as an **academic reference** and would be appropriate for:
 

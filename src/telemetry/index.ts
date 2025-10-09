@@ -1,6 +1,4 @@
-/// <reference types="@types/google-apps-script" />
-
-import type { SpatialIndex } from '../conformance/testsuite.ts';
+import type { Rectangle, SpatialIndex } from '../types.ts';
 
 /**
  * Production Telemetry System
@@ -72,7 +70,7 @@ export interface TelemetrySnapshot {
 	operations: {
 		inserts: number;
 		queries: number;
-		getAllRanges: number;
+		unboundedQueries: number; // query() with no bounds (returns all ranges)
 	};
 
 	/** Query patterns */
@@ -131,7 +129,7 @@ export class TelemetryCollector {
 	// Metrics buffers
 	private insertMetrics: InsertMetric[] = [];
 	private queryMetrics: QueryMetric[] = [];
-	private getAllRangesCount = 0;
+	private unboundedQueriesCount = 0;
 	private operationCount = 0;
 
 	constructor(config: TelemetryConfig) {
@@ -164,19 +162,22 @@ export class TelemetryCollector {
 
 				// Intercept insert()
 				if (prop === 'insert') {
-					return (gridRange: GoogleAppsScript.Sheets.Schema.GridRange, value: T) => {
+					return (bounds: Rectangle, value: T) => {
 						const start = performance.now();
 
 						// Check if this insert will cause overlap
-						const existingRanges = target.query(gridRange);
+						const existingRanges = Array.from(target.query(bounds)).map(([bounds, value]) => ({
+							bounds,
+							value,
+						}));
 						const hadOverlap = existingRanges.length > 0;
-						const overlapArea = hadOverlap ? this.calculateOverlapArea(gridRange, existingRanges) : 0;
+						const overlapArea = hadOverlap ? this.calculateOverlapArea(bounds, existingRanges) : 0;
 
 						// Execute original insert
-						const result = (original as SpatialIndex<T>['insert']).call(target, gridRange, value);
+						const result = (original as SpatialIndex<T>['insert']).call(target, bounds, value);
 
 						const duration = performance.now() - start;
-						const nAfter = target.getAllRanges().length;
+						const nAfter = Array.from(target.query()).length;
 
 						this.recordInsert({
 							timestamp: Date.now(),
@@ -192,33 +193,31 @@ export class TelemetryCollector {
 
 				// Intercept query()
 				if (prop === 'query') {
-					return (gridRange: GoogleAppsScript.Sheets.Schema.GridRange) => {
+					return (bounds?: Rectangle) => {
 						const start = performance.now();
-						const n = target.getAllRanges().length;
-						const queryArea = this.calculateArea(gridRange);
+						const n = Array.from(target.query()).length;
+						const queryArea = bounds ? this.calculateArea(bounds) : undefined;
 
-						const result = (original as SpatialIndex<T>['query']).call(target, gridRange);
+						const result = (original as SpatialIndex<T>['query']).call(target, bounds);
 
 						const duration = performance.now() - start;
 
-						this.recordQuery({
-							timestamp: Date.now(),
-							durationMs: duration,
-							n,
-							queryArea,
-						});
+						// Only record query metrics if bounds provided (not unbounded query)
+						if (bounds !== undefined) {
+							this.recordQuery({
+								timestamp: Date.now(),
+								durationMs: duration,
+								n,
+								queryArea: queryArea!,
+							});
+						} else {
+							// Count as unbounded query operation (returns all ranges)
+							this.unboundedQueriesCount++;
+							this.operationCount++;
+							this.checkReporting(implementationName, propertyName);
+						}
 
 						return result;
-					};
-				}
-
-				// Intercept getAllRanges()
-				if (prop === 'getAllRanges') {
-					return () => {
-						this.getAllRangesCount++;
-						this.operationCount++;
-						this.checkReporting(implementationName, propertyName);
-						return (original as SpatialIndex<T>['getAllRanges']).call(target);
 					};
 				}
 
@@ -259,7 +258,7 @@ export class TelemetryCollector {
 			operations: {
 				inserts: this.insertMetrics.length,
 				queries: this.queryMetrics.length,
-				getAllRanges: this.getAllRangesCount,
+				unboundedQueries: this.unboundedQueriesCount,
 			},
 			queryPatterns: this.analyzeQueryPatterns(),
 			insertPatterns: this.analyzeInsertPatterns(),
@@ -328,42 +327,38 @@ export class TelemetryCollector {
 		return sorted[Math.max(0, index)];
 	}
 
-	private calculateArea(gridRange: GoogleAppsScript.Sheets.Schema.GridRange): number {
-		const rows = (gridRange.endRowIndex ?? Infinity) - (gridRange.startRowIndex ?? 0);
-		const cols = (gridRange.endColumnIndex ?? Infinity) - (gridRange.startColumnIndex ?? 0);
+	private calculateArea(bounds: Rectangle): number {
+		const [x, y, x2, y2] = bounds;
+		const rows = y2 - y + 1; // Closed interval
+		const cols = x2 - x + 1;
 		return rows * cols;
 	}
 
 	private calculateOverlapArea<T>(
-		newRange: GoogleAppsScript.Sheets.Schema.GridRange,
-		existingRanges: Array<{ gridRange: GoogleAppsScript.Sheets.Schema.GridRange; value: T }>,
+		newRange: Rectangle,
+		existingRanges: Array<{ bounds: Rectangle; value: T }>,
 	): number {
 		// Calculate total area of overlap between newRange and existingRanges
 		let totalOverlap = 0;
 		for (const existing of existingRanges) {
-			totalOverlap += this.calculateIntersectionArea(newRange, existing.gridRange);
+			totalOverlap += this.calculateIntersectionArea(newRange, existing.bounds);
 		}
 		return totalOverlap;
 	}
 
-	private calculateIntersectionArea(
-		r1: GoogleAppsScript.Sheets.Schema.GridRange,
-		r2: GoogleAppsScript.Sheets.Schema.GridRange,
-	): number {
-		const r1Start = r1.startRowIndex ?? 0;
-		const r1End = r1.endRowIndex ?? Infinity;
-		const r1cStart = r1.startColumnIndex ?? 0;
-		const r1cEnd = r1.endColumnIndex ?? Infinity;
+	private calculateIntersectionArea(r1: Rectangle, r2: Rectangle): number {
+		const [r1x, r1y, r1x2, r1y2] = r1;
+		const [r2x, r2y, r2x2, r2y2] = r2;
 
-		const r2Start = r2.startRowIndex ?? 0;
-		const r2End = r2.endRowIndex ?? Infinity;
-		const r2cStart = r2.startColumnIndex ?? 0;
-		const r2cEnd = r2.endColumnIndex ?? Infinity;
+		const overlapX1 = Math.max(r1x, r2x);
+		const overlapY1 = Math.max(r1y, r2y);
+		const overlapX2 = Math.min(r1x2, r2x2);
+		const overlapY2 = Math.min(r1y2, r2y2);
 
-		const overlapRows = Math.max(0, Math.min(r1End, r2End) - Math.max(r1Start, r2Start));
-		const overlapCols = Math.max(0, Math.min(r1cEnd, r2cEnd) - Math.max(r1cStart, r2cStart));
-
-		return overlapRows * overlapCols;
+		if (overlapX1 <= overlapX2 && overlapY1 <= overlapY2) {
+			return (overlapX2 - overlapX1 + 1) * (overlapY2 - overlapY1 + 1);
+		}
+		return 0;
 	}
 
 	private generateSessionId(): string {
@@ -373,7 +368,7 @@ export class TelemetryCollector {
 	private reset(): void {
 		this.insertMetrics = [];
 		this.queryMetrics = [];
-		this.getAllRangesCount = 0;
+		this.unboundedQueriesCount = 0;
 		this.operationCount = 0;
 	}
 

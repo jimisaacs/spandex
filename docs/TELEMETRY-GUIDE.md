@@ -50,7 +50,7 @@ wrapped.query({ startRow: 0, endRow: 10, startCol: 0, endCol: 10 });
 
 ### Operation Counts (`operations`)
 
-- `inserts`, `queries`, `getAllRanges`
+- `inserts`, `queries`
 - **Shows**: Read vs write workload balance
 
 ### Query Patterns (`queryPatterns`)

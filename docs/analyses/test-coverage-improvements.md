@@ -1,5 +1,16 @@
 # Test Coverage Improvements (2025-10-07)
 
+**⚠️ HISTORICAL SNAPSHOT**: This document describes test improvements from October 7, 2025.
+Subsequent refactoring removed redundant tests while adding critical missing tests (query consistency,
+Last-Writer-Wins ordering validation), resulting in the current production test suite of **117 tests**
+(80 conformance + 17 partitioned + 8 telemetry + 6 adversarial + 2 integration + 4 adapters).
+See `src/conformance/testsuite.ts` and `test/` directory for current state.
+
+**Note**: This document references `getAllRanges()` which was part of the API at the time but has since
+been unified into `query()` (with no arguments for all ranges).
+
+---
+
 ## Summary
 
 Added 4 new conformance test axioms to the test suite, increasing coverage from 13 to 17 axioms (51 total tests including per-implementation tests). All edge cases now explicitly tested.

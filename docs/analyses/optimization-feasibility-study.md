@@ -28,7 +28,7 @@ Comprehensive analysis of all 3 active implementations for optimization opportun
 
 1. Boundary conditions (single-cell, single-row/column, coordinate zero)
 2. Query edge cases (empty, infinite, exact match, partial overlap)
-3. Value reachability invariant (query/getAllRanges consistency)
+3. Value reachability invariant (all values queryable)
 4. Coordinate extremes (large coordinates, mixed scales)
 
 **Test count**: 51 tests (up from 43)
