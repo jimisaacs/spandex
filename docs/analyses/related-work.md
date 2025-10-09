@@ -175,9 +175,9 @@ Libraries like RBush optimize for one use case. We provide **both**, with guidan
 
 ---
 
-### 3. **Google Apps Script Integration**
+### 3. **Google Sheets Integration**
 
-All implementations use `GoogleAppsScript.Sheets.Schema.GridRange` type natively. No conversion overhead.
+All implementations use Google Sheets `GridRange` type via custom adapter (`src/adapters/gridrange.ts`). Minimal conversion overhead (half-open ⟷ closed interval transformation).
 
 Other libraries would need adapter layer to translate to/from their coordinate systems.
 

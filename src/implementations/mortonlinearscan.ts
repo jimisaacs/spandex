@@ -127,18 +127,6 @@ interface Entry<T> {
 export default class MortonLinearScanImpl<T> implements SpatialIndex<T> {
 	private entries: Array<Entry<T>> = [];
 
-	get isEmpty(): boolean {
-		return this.entries.length === 0;
-	}
-
-	/**
-	 * Number of non-overlapping ranges stored in index.
-	 * Useful for fragmentation analysis and performance testing.
-	 */
-	get size(): number {
-		return this.entries.length;
-	}
-
 	insert(bounds: Rectangle, value: T): void {
 		// Validate and canonicalize user input
 		bounds = Rect.validated(bounds);
@@ -196,5 +184,13 @@ export default class MortonLinearScanImpl<T> implements SpatialIndex<T> {
 				yield [entry.bounds, entry.value];
 			}
 		}
+	}
+
+	/**
+	 * Number of non-overlapping ranges stored in index.
+	 * Useful for fragmentation analysis and performance testing.
+	 */
+	get size(): number {
+		return this.entries.length;
 	}
 }

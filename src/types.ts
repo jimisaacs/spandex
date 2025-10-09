@@ -39,6 +39,54 @@ export interface SpatialIndex<T> {
 	insert(bounds: Rectangle, value: T): void;
 	/** Query ranges intersecting bounds, or all ranges if bounds undefined. Returns iterator for streaming results. */
 	query(bounds?: Rectangle): IterableIterator<QueryResult<T>>;
-	/** Check if empty */
-	readonly isEmpty: boolean;
+}
+
+/**
+ * Factory function for creating spatial index instances.
+ * Allows caller to specify which underlying index implementation to use.
+ */
+export type IndexFactory = <V>() => SpatialIndex<V>;
+
+/**
+ * Partitioned query result from spatial index (tuple with labeled elements).
+ *
+ * Consistent with `QueryResult<T>` but returns `Partial<T>` since each
+ * partition may only have some attributes defined.
+ *
+ * @example
+ * ```typescript
+ * for (const [bounds, attributes] of index.query(rect)) {
+ *   console.log(bounds, attributes.background);
+ * }
+ * ```
+ */
+export type PartitionedQueryResult<T extends Record<string, unknown>> = QueryResult<Partial<T>>;
+
+/**
+ * Partitioned Spatial Index Interface
+ *
+ * Manages independent per-attribute spatial partitions with type-safe access.
+ * Each attribute gets its own spatial index partition, enabling efficient
+ * storage and querying of sparse, multi-attribute spatial data.
+ *
+ * **Pattern**: Vertical partitioning with spatial join on query
+ *
+ * **Use cases**:
+ * - Spreadsheet cell properties (each property = partition)
+ * - GIS layered data (each layer = partition)
+ * - Multi-attribute spatial databases
+ *
+ * @template T - Record type mapping attribute keys to their value types
+ */
+export interface PartitionedSpatialIndex<T extends Record<string, unknown>> extends SpatialIndex<Partial<T>> {
+	/**
+	 * Insert a value for a specific attribute across a spatial range.
+	 *
+	 * **Semantics**: Last-writer-wins within each partition independently.
+	 *
+	 * @param bounds - Spatial bounds
+	 * @param key - Attribute key (type-safe, must be keyof T)
+	 * @param value - Value to insert (type-safe, must be T[K])
+	 */
+	set<K extends keyof T>(bounds: Rectangle, key: K, value: T[K]): void;
 }

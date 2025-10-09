@@ -9,9 +9,7 @@ Quick reference for managing implementations in this research project.
 Requirements: Implement `SpatialIndex<T>`, add JSDoc comments, use `implements` keyword
 
 ```typescript
-/// <reference types="@types/google-apps-script" />
-
-import type { SpatialIndex } from '../conformance/testsuite.ts';
+import type { SpatialIndex } from '../types.ts';
 
 /**
  * NewImpl: Brief description
@@ -113,8 +111,6 @@ You can create one-off benchmarks that compare active vs archived implementation
 **Example:** `archive/benchmarks/my-comparison.ts`
 
 ```typescript
-/// <reference types="@types/google-apps-script" />
-
 // Import active implementations directly
 import MortonLinearScanImpl from '../../src/implementations/mortonlinearscan.ts';
 import RStarTreeImpl from '../../src/implementations/rstartree.ts';

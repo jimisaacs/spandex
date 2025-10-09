@@ -49,8 +49,8 @@ The conformance test suite (src/conformance/testsuite.ts) had good coverage of c
 
 - Inserts non-overlapping ranges (grid pattern)
 - Verifies all values reachable via query()
-- Verifies all values reachable via getAllRanges()
-- Verifies query() and getAllRanges() return same values
+- Verifies all values reachable via query() (no args)
+- Verifies query(bounds) and query() return same values
 - Tests that no values are lost (beyond LWW overwrites)
 
 **4. Coordinate Extremes** (lines 424-439)
@@ -69,13 +69,14 @@ The conformance test suite (src/conformance/testsuite.ts) had good coverage of c
 
 ### All Implementations Pass
 
-- **HilbertLinearScanImpl**: 21 tests (17 axioms + 4 implementation-specific) ✓
+- **MortonLinearScanImpl**: 21 tests (17 axioms + 4 implementation-specific) ✓
 - **RStarTreeImpl**: 19 tests (17 axioms + 2 implementation-specific) ✓
-- **CompactLinearScanImpl**: 2 tests (equivalence tests) ✓
 - **Integration tests**: 3 tests ✓
 - **Adversarial tests**: 6 tests ✓
 
-**Total**: 51 tests passing
+**Total**: 46 tests passing (active implementations only)
+
+**Historical note**: HilbertLinearScanImpl and CompactLinearScanImpl were archived after being superseded by MortonLinearScanImpl.
 
 ### Coverage Improvements
 
@@ -99,7 +100,7 @@ The conformance test suite (src/conformance/testsuite.ts) had good coverage of c
 
 3. **Value reachability verified**
    - Non-overlapping values always queryable
-   - query() and getAllRanges() return consistent results
+   - query(bounds) and query() return consistent results
    - No silent data loss beyond LWW semantics
 
 4. **Coordinate scaling works correctly**
@@ -130,11 +131,11 @@ The conformance test suite (src/conformance/testsuite.ts) had good coverage of c
 
 2. **Coordinate extremes matter**
    - R*-tree uses TypedArrays (Int32Array) with 32-bit bounds
-   - HilbertLinearScan uses 16-bit Hilbert curve (MAX_COORD = 65536)
+   - MortonLinearScan uses 16-bit Morton curve (MAX_COORD = 65536)
    - Tests verify both handle large coordinates correctly (within their bounds)
 
 3. **Query consistency is testable**
-   - query() and getAllRanges() should return same value sets
+   - query(bounds) and query() should return same value sets
    - This invariant was implicit, now explicit
 
 ## Future Improvements

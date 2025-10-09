@@ -99,3 +99,15 @@ export function validated(a: Rectangle): Rectangle {
 export function rect(xmin = -Infinity, ymin = -Infinity, xmax = Infinity, ymax = Infinity): Rectangle {
 	return validated([xmin, ymin, xmax, ymax]);
 }
+
+/**
+ * Check if rectangle A fully contains rectangle B.
+ * @param a - Rectangle A
+ * @param b - Rectangle B
+ * @returns true if A contains B
+ */
+export function contains(a: Rectangle, b: Rectangle): boolean {
+	const [ax, ay, ax2, ay2] = a;
+	const [bx, by, bx2, by2] = b;
+	return ax <= bx && ay <= by && ax2 >= bx2 && ay2 >= by2;
+}

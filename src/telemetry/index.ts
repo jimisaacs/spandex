@@ -274,7 +274,7 @@ export class TelemetryCollector {
 	}
 
 	private calculateDistribution(samples: number[]): TelemetrySnapshot['nDistribution'] {
-		if (samples.length === 0) {
+		if (!samples.length) {
 			return { min: 0, max: 0, mean: 0, median: 0, p95: 0, p99: 0, samples: [] };
 		}
 
@@ -292,7 +292,7 @@ export class TelemetryCollector {
 
 	private analyzeQueryPatterns(): TelemetrySnapshot['queryPatterns'] {
 		const totalArea = this.queryMetrics.reduce((sum, m) => sum + m.queryArea, 0);
-		const avgQueryArea = this.queryMetrics.length > 0 ? totalArea / this.queryMetrics.length : 0;
+		const avgQueryArea = this.queryMetrics.length ? totalArea / this.queryMetrics.length : 0;
 
 		// Heuristic: >80% of infinite space = full export, <10% = viewport
 		const fullExportQueries = this.queryMetrics.filter((m) => m.queryArea > 1e10).length;
@@ -310,9 +310,7 @@ export class TelemetryCollector {
 		const overlapping = this.insertMetrics.filter((m) => m.hadOverlap).length;
 
 		const overlapAreas = this.insertMetrics.filter((m) => m.hadOverlap && m.overlapArea).map((m) => m.overlapArea!);
-		const avgOverlapArea = overlapAreas.length > 0
-			? overlapAreas.reduce((a, b) => a + b, 0) / overlapAreas.length
-			: 0;
+		const avgOverlapArea = overlapAreas.length ? overlapAreas.reduce((a, b) => a + b, 0) / overlapAreas.length : 0;
 
 		return {
 			sequential,
@@ -322,7 +320,7 @@ export class TelemetryCollector {
 	}
 
 	private percentile(sorted: number[], p: number): number {
-		if (sorted.length === 0) return 0;
+		if (!sorted.length) return 0;
 		const index = Math.ceil(sorted.length * p) - 1;
 		return sorted[Math.max(0, index)];
 	}

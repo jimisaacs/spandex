@@ -8,7 +8,7 @@ import {
 	assertIsError,
 } from '@std/assert';
 import { rect } from '../rect.ts';
-import type { QueryResult, Rectangle, SpatialIndex } from '../types.ts';
+import type { Rectangle, SpatialIndex } from '../types.ts';
 import { CANONICAL_FRAGMENT_COUNTS } from './constants.ts';
 
 export interface TestConfig {
@@ -18,22 +18,17 @@ export interface TestConfig {
 
 /**
  * Invariants that must hold after every operation:
- * 1. Consistency: isEmpty ⟺ query() returns empty iterator
- * 2. Non-duplication: No duplicate (bounds, value) pairs
- * 3. Disjoint: No overlapping rectangles (∀ rᵢ, rⱼ: i ≠ j ⟹ rᵢ ∩ rⱼ = ∅)
+ * 1. Non-duplication: No duplicate (bounds, value) pairs
+ * 2. Disjoint: No overlapping rectangles (∀ rᵢ, rⱼ: i ≠ j ⟹ rᵢ ∩ rⱼ = ∅)
  */
 export const assertInvariants = <T>(index: SpatialIndex<T>, context: string): void => {
 	const ranges = Array.from(index.query());
-	const empty = index.isEmpty;
 
-	// Invariant 1: Consistency
-	assertEquals(empty, ranges.length === 0, `${context}: isEmpty ≠ (ranges.length === 0)`);
-
-	// Invariant 2: Non-duplication
+	// Invariant 1: Non-duplication
 	const signatures = ranges.map((r) => `${r[0][0]},${r[0][1]},${r[0][2]},${r[0][3]}:${r[1]}`);
 	assertEquals(signatures.length, new Set(signatures).size, `${context}: duplicate ranges`);
 
-	// Invariant 3: Disjoint (no overlapping rectangles)
+	// Invariant 2: Disjoint (no overlapping rectangles)
 	for (let i = 0; i < ranges.length; i++) {
 		for (let j = i + 1; j < ranges.length; j++) {
 			const r1 = ranges[i][0];
@@ -62,7 +57,6 @@ export function testSpatialIndexAxioms(config: TestConfig): void {
 	Deno.test(`${name} - Empty state`, () => {
 		const index = implementation<string>();
 		assertInvariants(index, 'initial');
-		assert(index.isEmpty, 'new index should be empty');
 		assertEquals(Array.from(index.query()).length, 0, 'empty index should return no ranges');
 	});
 
@@ -74,7 +68,6 @@ export function testSpatialIndexAxioms(config: TestConfig): void {
 		const ranges = Array.from(index.query());
 		assertEquals(ranges.length, 1, `expected 1 range, got ${ranges.length}`);
 		assertEquals(ranges[0][1], 'test', 'value should be preserved');
-		assertFalse(index.isEmpty, 'non-empty index should not report empty');
 	});
 
 	Deno.test(`${name} - Idempotency`, () => {
@@ -211,7 +204,7 @@ export function testSpatialIndexAxioms(config: TestConfig): void {
 
 		// Verify index remains valid after rejected inserts
 		assertInvariants(index, 'after invalid insertion attempts');
-		assert(index.isEmpty, 'index should remain empty after all invalid insertions were rejected');
+		assert(index.query().next().done, 'index should remain empty after all invalid insertions were rejected');
 	});
 
 	Deno.test(`${name} - Query method`, () => {

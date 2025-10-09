@@ -23,27 +23,29 @@ Spreadsheet APIs track properties (colors, formats, validation rules) across 2D 
 
 ## Coordinate System
 
-**Important**: This library uses **half-open intervals** `[start, end)` where:
+**Internal vs External Semantics**:
 
-- `start` is **included** (closed)
-- `end` is **excluded** (open)
+- **Core library** (`Rectangle`): Uses **closed intervals** `[min, max]` where both endpoints are included
+  - Example: `[0, 0, 4, 4]` = x:[0,4], y:[0,4] (all coordinates 0-4 inclusive)
+  - Why? Simplifies geometric operations (no ±1 adjustments)
 
-**Example**: `startRowIndex: 0, endRowIndex: 5` means rows **0, 1, 2, 3, 4** (NOT 5!)
+- **GridRange adapter**: Uses **half-open intervals** `[start, end)` where end is excluded
+  - Example: `{startRowIndex: 0, endRowIndex: 5}` = rows 0-4 (NOT 5!)
+  - Why? Matches Google Sheets API and standard programming practice
 
-**Visual**:
+**Common mistake**: Assuming `endRowIndex: 5` includes row 5. It doesn't!
+
+**Visual** (GridRange format):
 
 ```
 [0, 5) = [0, 1, 2, 3, 4]    ✅ Correct
        ≠ [0, 1, 2, 3, 4, 5]  ❌ Wrong!
 ```
 
-**Why half-open?** Matches Google Sheets API (`GridRange`) and standard programming practice:
+**Why half-open for GridRange?** Matches Google Sheets API:
 
-- Array slice: `arr[0:5]` means indices 0-4
 - Empty range: `[5, 5)` is empty (not invalid)
 - Adjacent ranges: `[0, 5)` + `[5, 10)` = no gap, no overlap
-
-**Common mistake**: Assuming `endRowIndex: 5` includes row 5. It doesn't!
 
 **Visual guide**: See [coordinate-system.md](./docs/diagrams/coordinate-system.md) for more examples and common mistakes.
 
@@ -98,7 +100,7 @@ console.log(ranges.length); // 3
 
 ```typescript
 import MortonLinearScanImpl from './src/implementations/mortonlinearscan.ts';
-import { createGridRangeAdapter } from './src/adapters/google-sheets.ts';
+import { createGridRangeAdapter } from './src/adapters/gridrange.ts';
 
 const index = createGridRangeAdapter(new MortonLinearScanImpl<string>());
 
@@ -129,7 +131,7 @@ deno task bench:update   # Regenerate BENCHMARKS.md
 import { MortonLinearScanImpl } from 'https://raw.githubusercontent.com/...';
 ```
 
-**Note**: Core library uses generic `Rectangle` type `[xmin, ymin, xmax, ymax]`. For Google Sheets `GridRange` compatibility, use `createGridRangeAdapter()` from `src/adapters/google-sheets.ts`.
+**Note**: Core library uses generic `Rectangle` type `[xmin, ymin, xmax, ymax]`. For Google Sheets `GridRange` compatibility, use `createGridRangeAdapter()` from `src/adapters/gridrange.ts`.
 
 ## Development
 
@@ -179,15 +181,16 @@ src/
 │   ├── cross-implementation.ts       # Cross-validation tests
 │   └── mod.ts                        # Exports
 ├── adapters/                         # External API adapters
-│   └── google-sheets.ts              # GridRange ⟷ Rectangle conversion
+│   ├── gridrange.ts                  # GridRange ⟷ Rectangle conversion
+│   └── a1.ts                         # A1 notation → Rectangle conversion
 ├── telemetry/                        # Production telemetry (opt-in)
 │   └── index.ts                      # Metrics collection wrapper
-└── partitioned-spatial-index.ts      # Per-attribute spatial partitioning
+└── lazypartitionedindex.ts           # Per-attribute spatial partitioning (lazy vertical partitioning)
 
 test/                                 # Test entry points
 ├── mortonlinearscan.test.ts          # Conformance tests
 ├── rstartree.test.ts                 # Conformance tests
-├── partitioned-spatial-index.test.ts # Partitioned index tests
+├── lazypartitionedindex.test.ts      # Partitioned index tests
 ├── telemetry.test.ts                 # Telemetry tests
 ├── adversarial.test.ts               # Worst-case pattern tests
 └── integration.test.ts               # Cross-implementation tests

@@ -1,69 +1,17 @@
 /**
- * Google Sheets adapter: GridRange (half-open) ⟷ Rectangle (closed)
- */
-
-/// <reference types="@types/google-apps-script" />
-
-import { rect } from '../rect.ts';
-import type { QueryResult, Rectangle, SpatialIndex } from '../types.ts';
-
-type GridRange = GoogleAppsScript.Sheets.Schema.GridRange;
-
-/**
- * GridRange → Rectangle (lossless, undefined ⟷ ±Infinity)
+ * A1 notation adapter: A1SheetRange → Rectangle (closed)
  *
- * @example `{startRowIndex: 0, endRowIndex: 5, startColumnIndex: 0, endColumnIndex: 10}` → `[0, 0, 9, 4]`
+ * Converts Google Sheets A1 notation (e.g., "A1:C3", "B:D", "2:4") to Rectangle coordinates.
  */
-export function gridRangeToRectangle(
-	{
-		startColumnIndex: x1 = -Infinity,
-		startRowIndex: y1 = -Infinity,
-		endColumnIndex: x2 = Infinity,
-		endRowIndex: y2 = Infinity,
-	}: GridRange,
-): Rectangle {
-	return rect(
-		x1 < 0 ? -Infinity : x1,
-		y1 < 0 ? -Infinity : y1,
-		x2 < Infinity ? x2 - 1 : Infinity,
-		y2 < Infinity ? y2 - 1 : Infinity,
-	);
-}
 
-/**
- * Rectangle → GridRange (lossless, negative/Infinity → undefined)
- *
- * @example `[0, 0, 9, 4]` → `{startRowIndex: 0, endRowIndex: 5, startColumnIndex: 0, endColumnIndex: 10}`
- */
-export function rectangleToGridRange([x1, y1, x2, y2]: Rectangle): GridRange {
-	const range: GridRange = {};
-	if (x1 >= 0) range.startColumnIndex = x1;
-	if (y1 >= 0) range.startRowIndex = y1;
-	if (x2 < Infinity) range.endColumnIndex = x2 + 1;
-	if (y2 < Infinity) range.endRowIndex = y2 + 1;
-	return range;
-}
-
-/**
- * Wrap SpatialIndex to accept/return GridRange instead of Rectangle.
- */
-export function createGridRangeAdapter<T>(index: SpatialIndex<T>) {
-	return {
-		insert(gridRange: GridRange, value: T): void {
-			index.insert(gridRangeToRectangle(gridRange), value);
-		},
-		query(gridRange?: GridRange): IterableIterator<QueryResult<T>> {
-			return index.query(gridRange ? gridRangeToRectangle(gridRange) : undefined);
-		},
-		get isEmpty(): boolean {
-			return index.isEmpty;
-		},
-	} as const;
-}
-
-// Core Types
-export type RangeValue = string | number | boolean | null;
-export type Formula = `=${string}`;
+import type {
+	PartitionedQueryResult,
+	PartitionedSpatialIndex,
+	QueryResult,
+	Rectangle,
+	SpatialIndex,
+} from '../types.ts';
+import { type GridRange, gridRangeToRectangle } from './gridrange.ts';
 
 // A1 notation types for type-safe range operations
 // deno-fmt-ignore
@@ -79,17 +27,6 @@ export type A1SheetRange = A1Cell | A1CellRange | A1ColumnRange | A1RowRange;
 
 function columnLetterToNumber(letter: string): number {
 	return [...letter].reduce((result, char) => result * 26 + (char.charCodeAt(0) - 64), 0);
-}
-
-function numberToColumnLetter(num: number): string {
-	let result = '';
-	let n = num;
-	while (n > 0) {
-		const remainder = (n - 1) % 26;
-		result = String.fromCharCode(65 + remainder) + result;
-		n = Math.floor((n - 1) / 26);
-	}
-	return result || 'A';
 }
 
 function a1ToGridRange(a1Notation: A1SheetRange): GridRange {
@@ -145,8 +82,21 @@ export function createA1Adapter<T>(index: SpatialIndex<T>) {
 		query(a1SheetRange?: A1SheetRange): IterableIterator<QueryResult<T>> {
 			return index.query(a1SheetRange ? a1ToRectangle(a1SheetRange) : undefined);
 		},
-		get isEmpty(): boolean {
-			return index.isEmpty;
+	} as const;
+}
+
+export function createPartitionedA1Adapter<T extends Record<string, unknown>>(
+	index: PartitionedSpatialIndex<T>,
+) {
+	return {
+		set<K extends keyof T>(a1SheetRange: A1SheetRange, key: K, value: T[K]): void {
+			index.set(a1ToRectangle(a1SheetRange), key, value);
+		},
+		insert(a1SheetRange: A1SheetRange, value: Partial<T>): void {
+			index.insert(a1ToRectangle(a1SheetRange), value);
+		},
+		query(a1SheetRange?: A1SheetRange): IterableIterator<PartitionedQueryResult<T>> {
+			return index.query(a1SheetRange ? a1ToRectangle(a1SheetRange) : undefined);
 		},
 	} as const;
 }

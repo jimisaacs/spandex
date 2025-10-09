@@ -6,7 +6,7 @@
  */
 
 import { assertEquals } from '@std/assert';
-import { createA1Adapter } from '../src/adapters/google-sheets.ts';
+import { createA1Adapter } from '../src/adapters/a1.ts';
 import { assertSnapshot, parseMarkdownFixtures, renderToAscii } from '../src/conformance/ascii-snapshot.ts';
 import MortonLinearScanImpl from '../src/implementations/mortonlinearscan.ts';
 

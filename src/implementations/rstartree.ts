@@ -223,14 +223,6 @@ export default class RStarTreeImpl<T> implements SpatialIndex<T> {
 		}
 	}
 
-	get isEmpty(): boolean {
-		return this.rootIdx === -1 && !this.isAll;
-	}
-
-	/**
-	 * Number of non-overlapping ranges stored in index.
-	 * Useful for fragmentation analysis and performance testing.
-	 */
 	get size(): number {
 		return this._size;
 	}
@@ -334,7 +326,7 @@ export default class RStarTreeImpl<T> implements SpatialIndex<T> {
 		const node = this.nodes[nodeIdx];
 		const { isLeaf, children } = node;
 
-		if (children.length === 0) return;
+		if (!children.length) return;
 
 		let xmin: number, ymin: number, xmax: number, ymax: number;
 

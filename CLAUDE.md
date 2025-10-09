@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) and Cursor IDE when 
 
 ## Project Overview
 
-Spatial indexing research for 2D range decomposition in spreadsheet systems. Maintains non-overlapping ranges with last-writer-wins semantics using half-open intervals `[start, end)`.
+Spatial indexing research for 2D range decomposition in spreadsheet systems. Maintains non-overlapping ranges with last-writer-wins semantics using closed intervals `[min, max]`.
 
 **Core Problem**: Insert overlapping 2D rectangles, automatically decompose into disjoint fragments (≤4 per overlap).
 
@@ -125,25 +125,30 @@ deno task unarchive:impl <name>             # Restore from archive
 
 - `insert(bounds: Rectangle, value: T): void` - Last-writer-wins semantics
 - `query(bounds?: Rectangle): IterableIterator<[Rectangle, T]>` - Find intersecting ranges, or all ranges if no argument
-- `isEmpty: boolean` - Check if empty
 
-**`Rectangle`** - Core type-agnostic coordinate tuple (closed intervals):
+**`Rectangle`** - Core type-agnostic coordinate tuple:
 
 ```typescript
 type Rectangle = readonly [xmin: number, ymin: number, xmax: number, ymax: number];
 ```
 
-- All coordinates included: `xmin, ymin, xmax, ymax` (closed intervals `[min, max]`)
-- Example: `[0, 0, 4, 4]` represents x:[0,4], y:[0,4] (both endpoints included)
+**Internal representation**: Closed intervals `[min, max]` where both endpoints are included
 
-**Note**: `GridRange` is Google Sheets-specific with half-open intervals and only exists in the adapter layer (`src/adapters/google-sheets.ts`). Core library uses `Rectangle` with closed intervals.
+- All coordinates included: `xmin, ymin, xmax, ymax`
+- Example: `[0, 0, 4, 4]` represents x:[0,4], y:[0,4] (both endpoints included)
+- Why closed? Simplifies geometric operations (no `±1` adjustments in intersection/subtraction)
+
+**External API**: `GridRange` (Google Sheets) uses half-open intervals `[start, end)` where end is excluded
+
+- Conversion happens at boundaries via `createGridRangeAdapter()` in `src/adapters/gridrange.ts`
+- Adapter handles transformation: half-open `[start, end)` ⟷ closed `[start, end-1]`
 
 ### Implementation Families
 
 **Current active implementations** (see `src/implementations/` directory):
 
 - **Morton spatial locality linear scan** - Production choice for sparse data (n < 100), uses Morton curve (Z-order) for spatial locality
-- **R-Tree with R* split** - Production choice for large data (n ≥ 100), O(log n) hierarchical indexing
+- __R-Tree with R_ split_* - Production choice for large data (n ≥ 100), O(log n) hierarchical indexing
 
 **Archived implementations** (see `archive/src/implementations/` for historical research):
 
@@ -180,9 +185,8 @@ All implementations are auto-discovered by benchmarks from their filesystem loca
 
 After every operation, these must hold:
 
-1. **Consistency**: `isEmpty ⟺ query() returns empty iterator`
-2. **Non-duplication**: No duplicate (bounds, value) pairs
-3. **Disjointness**: No overlapping rectangles (∀ i≠j: rᵢ ∩ rⱼ = ∅)
+1. **Non-duplication**: No duplicate (bounds, value) pairs
+2. **Disjointness**: No overlapping rectangles (∀ i≠j: rᵢ ∩ rⱼ = ∅)
 
 Validated by `assertInvariants()` in conformance tests.
 

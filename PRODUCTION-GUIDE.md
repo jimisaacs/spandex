@@ -143,9 +143,6 @@ interface SpatialIndex<T> {
 	// Query rectangles that intersect with given bounds
 	// Call with no arguments to get all rectangles
 	query(bounds?: Rectangle): IterableIterator<[Rectangle, T]>;
-
-	// Check if index is empty
-	get isEmpty(): boolean;
 }
 ```
 
@@ -240,12 +237,12 @@ class SpreadsheetProperties {
 
 ---
 
-#### From OptimizedLinearScan to MortonLinearScan (Optimization)
+#### From OptimizedLinearScan to MortonLinearScan (Historical Migration)
 
-**Trigger**: Free 2x speedup, no downside
+**Historical context**: If you were using archived `OptimizedLinearScanImpl`, migrate to `MortonLinearScanImpl` for 25% speedup.
 
 ```diff
-- import OptimizedLinearScanImpl from './src/implementations/optimizedlinearscan.ts';
+- import OptimizedLinearScanImpl from './archive/src/implementations/.../optimizedlinearscan.ts';
 + import MortonLinearScanImpl from './src/implementations/mortonlinearscan.ts';
 
 - const index = new OptimizedLinearScanImpl<string>();
@@ -254,7 +251,7 @@ class SpreadsheetProperties {
 
 API is identical, just swap the class name.
 
-**Performance gain**: Significant speedup via spatial locality (see BENCHMARKS.md)
+**Performance gain**: 25% speedup via Morton spatial locality (see docs/analyses/morton-vs-hilbert-analysis.md)
 
 ---
 
@@ -292,10 +289,6 @@ class AdaptiveSpatialIndex<T> implements SpatialIndex<T> {
 
 	query(bounds?: Rectangle) {
 		return this.index.query(bounds);
-	}
-
-	get isEmpty() {
-		return this.index.isEmpty;
 	}
 }
 ```

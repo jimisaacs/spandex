@@ -1,5 +1,5 @@
-import type { Rectangle } from '../src/types.ts';
 import { seededRandom } from '../src/conformance/utils.ts';
+import type { Rectangle } from '../src/types.ts';
 
 // Parse command-line arguments
 const args = Deno.args;

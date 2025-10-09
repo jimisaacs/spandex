@@ -7,7 +7,8 @@
 ## Glossary
 
 - **AABB**: Axis-Aligned Bounding Box. Rectangle with edges parallel to coordinate axes.
-- **GridRange**: Google Sheets API type with fields `{startRowIndex?, endRowIndex?, startColumnIndex?, endColumnIndex?}`. Uses **half-open intervals** `[start, end)` where `start` is included but `end` is not. 0-indexed. `undefined` means unbounded (entire row/column).
+- **Rectangle**: Core library type `[xmin, ymin, xmax, ymax]` using **closed intervals** `[min, max]` where both endpoints are included. Used by all implementations. Example: `[0, 0, 9, 9]` represents columns 0-9, rows 0-9.
+- **GridRange**: Google Sheets API type with fields `{startRowIndex?, endRowIndex?, startColumnIndex?, endColumnIndex?}`. Uses **half-open intervals** `[start, end)` where `start` is included but `end` is not. 0-indexed. `undefined` means unbounded (entire row/column). Converted to Rectangle via adapter layer.
 - **Spatial Partition**: A set of disjoint (non-overlapping) rectangles that tile a region of space. Maintained via geometric set difference.
 - **Rectangle Decomposition**: Geometric operation `A \ B` (set subtraction) that produces ≤4 disjoint fragments. Used to maintain spatial partitions under insertions. See [visual guide](../diagrams/rectangle-decomposition.md).
 - **Last Writer Wins** (LWW): When ranges overlap, the most recent insertion takes precedence. This is the conflict resolution strategy.
@@ -384,29 +385,41 @@ The above empirical observation can be proven mathematically using geometric con
 
 **Standard**: `[xmin, ymin, xmax, ymax]` per ISO 19107:2019 (x=columns, y=rows)
 
-**Coordinate system by implementation**:
+**Layered Architecture**:
 
-**Implementation Choices**:
+The library uses a clear separation between core and external APIs:
 
-- **API**: All implementations accept GridRange with half-open intervals `[start, end)` (Google Sheets standard)
-- **Internal Storage**: All implementations convert to closed intervals `[min, max]` by subtracting 1 from end coordinates
-- **Return Values**: Converted back to half-open `[start, end)` by adding 1 to max coordinates
-- **Unbounded**: `undefined` → `Infinity` (represents entire rows/columns)
+**Core Library** (implementations):
+
+- Uses `Rectangle` type with closed intervals `[min, max]`
+- All geometric operations work with closed intervals
+- No knowledge of external API types (GridRange, A1 notation, etc.)
+
+**Adapter Layer** (optional):
+
+- Converts external API types to Rectangle and vice versa
+- `src/adapters/gridrange.ts`: GridRange (half-open) ⟷ Rectangle (closed)
+- `src/adapters/a1.ts`: A1 notation → Rectangle (closed)
 
 **Coordinate System Summary**:
 
-| Layer                  | Format                   | Example: Rows 0-9         |
-| ---------------------- | ------------------------ | ------------------------- |
-| API Input (GridRange)  | Half-open `[start, end)` | `startRow: 0, endRow: 10` |
-| Internal Storage       | Closed `[min, max]`      | `[0, 9]`                  |
-| API Output (GridRange) | Half-open `[start, end)` | `startRow: 0, endRow: 10` |
+| Layer                  | Format                | Example: Rows 0-9           |
+| ---------------------- | --------------------- | --------------------------- |
+| Core (implementations) | Rectangle (closed)    | `[0, 0, 9, 9]`              |
+| Adapter (GridRange)    | GridRange (half-open) | `{startRow: 0, endRow: 10}` |
+| Adapter (A1)           | A1 notation           | `"A1:J10"`                  |
 
-**Conversion Functions** (present in all implementations):
+**Conversion** (in adapter layer):
 
-- `toRectangle(gridRange)`: GridRange → internal `[min, max]` (subtracts 1 from end coords)
-- `toGridRange(rectangle)`: internal `[min, max]` → GridRange (adds 1 to max coords)
+- GridRange → Rectangle: Subtract 1 from end coordinates (`endRow: 10` → `ymax: 9`)
+- Rectangle → GridRange: Add 1 to max coordinates (`ymax: 9` → `endRow: 10`)
+- `undefined` in GridRange → `±Infinity` in Rectangle (unbounded dimensions)
 
-**Rationale**: Closed intervals simplify geometric operations (no `±1` adjustments in intersection/subtraction logic).
+**Rationale**:
+
+- Closed intervals simplify geometric operations (no `±1` adjustments needed)
+- Clear separation between core algorithms and external API concerns
+- Implementations remain generic and reusable across different API contexts
 
 ### Operations
 
@@ -456,9 +469,9 @@ Result: A \ B produces 4 disjoint fragments (Top, Bottom, Left, Right)
 
 **Axioms** (must hold ∀ implementations):
 
-1. **Consistency**: `isEmpty ⟺ query() returns empty iterator`
-2. **Non-duplication**: No identical (bounds, value) pairs
-3. **Last-writer-wins**: Insertion order matters for overlaps
+1. **Non-duplication**: No identical (bounds, value) pairs
+2. **Last-writer-wins**: Insertion order matters for overlaps
+3. **Disjointness**: No overlapping rectangles (maintained after each operation)
 4. **Correctness**: Property-based random testing
 
 ## References

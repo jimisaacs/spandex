@@ -155,7 +155,7 @@ function renderGridToAscii<T>(
 	}
 
 	// Render legend
-	if (legend.size > 0) {
+	if (legend.size) {
 		lines.push('');
 		lines.push(...renderLegend(legend));
 	}
@@ -218,7 +218,7 @@ export function parseAscii(ascii: string): ParsedSnapshot {
 	// Parse column letters
 	const header = lines[headerIdx];
 	const colMatches = [...header.matchAll(/([A-Z]+)/g)];
-	const startCol = colMatches.length > 0 ? letterToCol(colMatches[0][1]) : 0;
+	const startCol = colMatches.length ? letterToCol(colMatches[0][1]) : 0;
 	const width = colMatches.length;
 
 	// Find first data row (has row number)

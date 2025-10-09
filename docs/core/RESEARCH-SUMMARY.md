@@ -294,8 +294,8 @@ Pathological patterns designed to maximize fragmentation empirically validate O(
 
 See [adversarial-patterns.md](../analyses/adversarial-patterns.md) for full analysis and [test/adversarial.test.ts](../../test/adversarial.test.ts) for implementation.
 
-**Invariants** (3 global properties):
-Consistency (`isEmpty` ⟺ zero ranges), non-duplication, disjointness (no overlaps).
+**Invariants** (2 global properties):
+Non-duplication (no identical ranges), disjointness (no overlaps).
 
 **Run tests**: `deno task test` (all), `deno task test:adversarial` (worst-case only)
 
@@ -344,7 +344,7 @@ Consistency (`isEmpty` ⟺ zero ranges), non-duplication, disjointness (no overl
 
 ### API Documentation
 
-- **Google Apps Script Sheets API** - `GoogleAppsScript.Sheets.Schema.GridRange` type definition
+- **GridRange type** - Custom interface matching Google Sheets GridRange (minus sheetId) defined in `src/adapters/gridrange.ts`
 - **Deno Standard Library** - TypeScript runtime and testing framework
 
 ### Implementation References
