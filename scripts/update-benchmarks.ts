@@ -118,7 +118,7 @@ const generateSummary = async (
 		// Convert implementation name to lowercase filename
 		// "RStarTree" -> "rstartree.ts", "LinearScan" -> "linearscan.ts", etc.
 		const filename = impl.toLowerCase().replace(/linearscan/g, 'linearscan') + '.ts';
-		const filePath = `src/implementations/${filename}`;
+		const filePath = `packages/@jim/spandex/src/implementations/${filename}`;
 		try {
 			bundleSizes[impl] = await getBundleSize(filePath);
 		} catch {

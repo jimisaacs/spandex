@@ -41,9 +41,9 @@
 
 Two distinct algorithms, each with multiple implementation strategies:
 
-### Algorithm 1: Linear Scan with Rectangle Decomposition (O(n))
+### Algorithm 1: Linear Scan with Rectangle Decomposition
 
-**Implementations**: Various optimization strategies (spatial locality, compact storage, TypedArrays, educational reference). See `src/implementations/` for current active implementations.
+**Implementations**: Various optimization strategies (spatial locality, compact storage, TypedArrays, educational reference). See `packages/@jim/spandex/src/implementations/` for current active implementations.
 
 ```
 INSERT(R, v):
@@ -53,8 +53,13 @@ INSERT(R, v):
   4. Insert R and valid fragments into flat array
 ```
 
-**Complexity**: O(n) per insert, therefore O(n²) for n sequential inserts (worst case)
-**Space**: O(n) rectangles stored, O(4n) worst case due to fragmentation
+**Complexity**:
+
+- **Insert**: O(n) per operation (scan existing entries + splice fragments into sorted array)
+- **n sequential inserts**: O(n²) total work (index grows from 0 to ≈4n entries empirically)
+
+**Space**: O(n) entries stored (empirically ≈4n worst case, see test/adversarial.test.ts)
+
 **Best for**: Sparse data (n < 100), where constant-factor overhead dominates
 
 **Optimization Strategies**:
@@ -64,7 +69,7 @@ INSERT(R, v):
 - **TypedArrays**: Memory-efficient coordinate storage
 - **Educational**: Explicit helper functions for clarity
 
-See `src/implementations/` for current variants.
+See `packages/@jim/spandex/src/implementations/` for current variants.
 
 ### Algorithm 2: Hierarchical R*-tree (O(log n))
 

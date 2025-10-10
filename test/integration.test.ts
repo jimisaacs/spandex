@@ -6,9 +6,9 @@
  * 2. All implementations produce identical results to each other
  */
 
-import { testCrossImplementationConsistency } from '../src/conformance/mod.ts';
-import MortonLinearScanImpl from '../src/implementations/mortonlinearscan.ts';
-import RStarTreeImpl from '../src/implementations/rstartree.ts';
+import { testCrossImplementationConsistency } from '@local/spandex-testing';
+import { MortonLinearScanImpl } from '@jim/spandex';
+import { RStarTreeImpl } from '@jim/spandex';
 
 // Test all active implementations for consistency
 testCrossImplementationConsistency([

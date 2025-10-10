@@ -6,12 +6,12 @@
 
 ## Quick Start
 
-| Audience         | Start Here                                                            | Then Read                                                  |
-| ---------------- | --------------------------------------------------------------------- | ---------------------------------------------------------- |
-| **Learning**     | [RECTANGLE-DECOMPOSITION-PRIMER](./RECTANGLE-DECOMPOSITION-PRIMER.md) | [diagrams/](./diagrams/) (3-part series)                   |
-| **Users**        | [Main README](../README.md)                                           | [BENCHMARKS](../BENCHMARKS.md)                             |
-| **Researchers**  | [RESEARCH-SUMMARY](./core/RESEARCH-SUMMARY.md)                        | [theoretical-foundation](./core/theoretical-foundation.md) |
-| **Contributors** | [IMPLEMENTATION-LIFECYCLE](./IMPLEMENTATION-LIFECYCLE.md)             | [RESEARCH-SUMMARY](./core/RESEARCH-SUMMARY.md)             |
+| Goal            | Start Here                                                            | Then Read                                                  |
+| --------------- | --------------------------------------------------------------------- | ---------------------------------------------------------- |
+| **Learning**    | [RECTANGLE-DECOMPOSITION-PRIMER](./RECTANGLE-DECOMPOSITION-PRIMER.md) | [diagrams/](./diagrams/) (3-part series)                   |
+| **Using**       | [Main README](../README.md)                                           | [BENCHMARKS](../BENCHMARKS.md)                             |
+| **Research**    | [RESEARCH-SUMMARY](./core/RESEARCH-SUMMARY.md)                        | [theoretical-foundation](./core/theoretical-foundation.md) |
+| **Development** | [IMPLEMENTATION-LIFECYCLE](./IMPLEMENTATION-LIFECYCLE.md)             | [RESEARCH-SUMMARY](./core/RESEARCH-SUMMARY.md)             |
 
 ---
 

@@ -17,7 +17,7 @@ _None currently active_
 ### Starting New Experiment
 
 1. Create `active/experiments/[name]-experiment.md` with hypothesis
-2. Implement in `src/implementations/[name].ts` + tests + benchmarks
+2. Implement in `packages/@jim/spandex/src/implementations/[name].ts` + tests + benchmarks
 3. Run analysis: `./scripts/analyze-benchmarks.ts 5 active/experiments/[name]-analysis-results.md`
 4. Update experiment doc with status (⚙️ → ✅ or ❌)
 

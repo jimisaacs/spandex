@@ -48,13 +48,13 @@ async function main() {
 
 	// Check if implementations changed (including archived)
 	const implsChanged = changed.some((f) =>
-		(f.startsWith('src/implementations/') || f.startsWith('archive/src/implementations/')) &&
+		(f.startsWith('packages/@jim/spandex/src/implementations/') || f.startsWith('archive/src/implementations/')) &&
 		f.endsWith('.ts')
 	);
 
 	// Check if tests changed
 	const testsChanged = changed.some((f) =>
-		(f.startsWith('test/') || f.startsWith('src/conformance/')) && f.endsWith('.ts')
+		(f.startsWith('test/') || f.startsWith('packages/@local/spandex-testing/src/axioms/')) && f.endsWith('.ts')
 	);
 
 	const updates: string[] = [];
@@ -76,7 +76,9 @@ async function main() {
 	if (testsChanged) {
 		console.log('🧪 Tests changed - checking test documentation...');
 
-		const testsuiteContent = await Deno.readTextFile('src/conformance/testsuite.ts');
+		const testsuiteContent = await Deno.readTextFile(
+			'packages/@local/spandex-testing/src/axioms/core.ts',
+		);
 		const axiomCount = (testsuiteContent.match(/Deno\.test\(/g) || []).length;
 
 		console.log(`   Found ${axiomCount} test axioms in conformance suite`);

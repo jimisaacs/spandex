@@ -12,7 +12,7 @@
 deno task bench
 ```
 
-Runs benchmarks for all implementations in `src/implementations/`. The framework automatically discovers them via file system scanning.
+Runs benchmarks for all implementations in `packages/@jim/spandex/src/implementations/`. The framework automatically discovers them via file system scanning.
 
 ---
 
@@ -53,11 +53,11 @@ deno bench benchmarks/performance.ts -- --include-archived --exclude=LinearScan
 
 ### Active Implementations
 
-Automatically discovered from `src/implementations/` directory. All `.ts` files are included.
+Automatically discovered from `packages/@jim/spandex/src/implementations/` directory. All `.ts` files are included.
 
 **To add a new implementation**:
 
-1. Create `src/implementations/newimpl.ts`
+1. Create `packages/@jim/spandex/src/implementations/newimpl.ts`
 2. Run `deno task bench` - automatically included!
 
 ### Archived Implementations
@@ -80,7 +80,7 @@ No manual configuration needed!
 
 ### Principles
 
-1. **Active by default**: Implementations in `src/implementations/` run automatically
+1. **Active by default**: Implementations in `packages/@jim/spandex/src/implementations/` run automatically
 2. **Archived opt-in**: Archived implementations only run when explicitly added + flag set
 3. **Selective exclusion**: Can exclude specific implementations via `--exclude=`
 4. **No modification needed**: Default `deno task bench` always works
@@ -89,7 +89,7 @@ No manual configuration needed!
 
 **Discovery**:
 
-- Active: Scans `src/implementations/` directory for all `.ts` files
+- Active: Scans `packages/@jim/spandex/src/implementations/` directory for all `.ts` files
 - Archived: Scans `archive/src/implementations/` directory when `--include-archived` flag is used
 
 **Filtering**:
@@ -149,7 +149,7 @@ deno bench benchmarks/performance.ts -- --exclude=<ImplName> --exclude=<ImplName
 ### Test New Implementation Against Everything
 
 ```bash
-# Add new implementation to src/implementations/
+# Add new implementation to packages/@jim/spandex/src/implementations/
 # It's automatically discovered!
 # Run full suite including archived
 deno task bench:archived
@@ -225,7 +225,7 @@ Verify current still faster than superseded version.
 
 ### Adding New Active Implementation
 
-1. Create implementation in `src/implementations/`
+1. Create implementation in `packages/@jim/spandex/src/implementations/`
 2. Verify: `deno task bench` (automatically discovered!)
 
 ### Archiving Implementation

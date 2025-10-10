@@ -216,7 +216,7 @@ Estimated time per insert at n=50:
 **From**: `test/hilbertlinearscan.test.ts`
 **To**: `archive/test/hilbertlinearscan.test.ts`
 
-**Added**: `src/implementations/mortonlinearscan.ts` (production)
+**Added**: `packages/@jim/spandex/src/implementations/mortonlinearscan.ts` (production)
 **Added**: `test/mortonlinearscan.test.ts` (17 axioms passing)
 
 ### Documentation Updates
@@ -306,7 +306,7 @@ Current state is optimal for target use case (n<100 spreadsheet properties).
 
 **Benchmarks**: `archive/benchmarks/morton-vs-hilbert.ts` (head-to-head comparison)
 
-**Implementation**: `src/implementations/mortonlinearscan.ts`
+**Implementation**: `packages/@jim/spandex/src/implementations/mortonlinearscan.ts`
 
 **Historical context**: `docs/analyses/hilbert-curve-analysis.md`
 

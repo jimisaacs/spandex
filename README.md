@@ -51,7 +51,7 @@ Spreadsheet APIs track properties (colors, formats, validation rules) across 2D 
 
 ## Implementations
 
-Two algorithm families (see `src/implementations/` for current active implementations):
+Two algorithm families (see `packages/@jim/spandex/src/implementations/` for current active implementations):
 
 ### O(n) Linear Scan
 
@@ -72,7 +72,7 @@ See `archive/` for historical experiments and alternative approaches.
 Track cell properties with automatic overlap resolution:
 
 ```typescript
-import MortonLinearScanImpl from './src/implementations/mortonlinearscan.ts';
+import { MortonLinearScanImpl } from '@jim/spandex';
 
 // Create a spatial index for background colors
 const backgroundColors = new MortonLinearScanImpl<string>();
@@ -99,8 +99,7 @@ console.log(ranges.length); // 3
 **Google Sheets Integration**: Use the adapter for GridRange compatibility:
 
 ```typescript
-import MortonLinearScanImpl from './src/implementations/mortonlinearscan.ts';
-import { createGridRangeAdapter } from './src/adapters/gridrange.ts';
+import { createGridRangeAdapter, MortonLinearScanImpl } from '@jim/spandex';
 
 const index = createGridRangeAdapter(new MortonLinearScanImpl<string>());
 
@@ -209,7 +208,7 @@ Comprehensive test suite validates:
 - **Adversarial patterns**: Worst-case fragmentation validation (concentric, diagonal, checkerboard patterns empirically validate O(n) bound, not exponential)
 - **Integration tests**: Cross-implementation consistency verification
 
-- [Conformance test suite](./src/conformance/testsuite.ts)
+- [Conformance test suite](./packages/@local/spandex-testing/src/axioms/core.ts)
 - [Test coverage improvements](./docs/analyses/test-coverage-improvements.md) - 4 new axioms added (Oct 2025)
 - [Adversarial pattern analysis](./docs/analyses/adversarial-patterns.md) - Validates geometric bounds under worst-case insertion patterns
 
@@ -231,6 +230,6 @@ See [PRODUCTION-GUIDE.md](./PRODUCTION-GUIDE.md) for implementation details and 
 
 ## Research Process
 
-This project maintains production implementations in `src/implementations/` and archives historical experiments in `archive/` for reproducibility.
+This project maintains production implementations in `packages/@jim/spandex/src/implementations/` and archives historical experiments in `archive/` for reproducibility.
 
 See `archive/` for completed experiments and `BENCHMARKS.md` for current implementation performance.

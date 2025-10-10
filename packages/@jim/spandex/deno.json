@@ -1,0 +1,6 @@
+{
+	"name": "@jim/spandex",
+	"version": "1.0.0",
+	"exports": "./src/mod.ts",
+	"license": "MIT"
+}

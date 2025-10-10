@@ -1,0 +1,12 @@
+{
+	"name": "@local/spandex-testing",
+	"exports": {
+		".": "./src/mod.ts",
+		"./ascii": "./src/ascii/mod.ts",
+		"./axioms": "./src/axioms/mod.ts",
+		"./utils": "./src/utils.ts"
+	},
+	"imports": {
+		"@std/assert": "jsr:@std/assert@1"
+	}
+}

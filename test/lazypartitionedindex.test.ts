@@ -11,9 +11,9 @@
  */
 
 import { assertEquals, assertExists } from '@std/assert';
-import MortonLinearScanImpl from '../src/implementations/mortonlinearscan.ts';
-import { LazyPartitionedSpatialIndexImpl } from '../src/lazypartitionedindex.ts';
-import { rect } from '../src/rect.ts';
+import { MortonLinearScanImpl } from '@jim/spandex';
+import { LazyPartitionedSpatialIndexImpl } from '@jim/spandex';
+import { rect } from '@jim/spandex';
 
 // Test type definition
 type CellProperties = {

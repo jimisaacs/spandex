@@ -4,7 +4,7 @@
 Subsequent refactoring removed redundant tests while adding critical missing tests (query consistency,
 Last-Writer-Wins ordering validation), resulting in the current production test suite of **117 tests**
 (80 conformance + 17 partitioned + 8 telemetry + 6 adversarial + 2 integration + 4 adapters).
-See `src/conformance/testsuite.ts` and `test/` directory for current state.
+See `packages/@local/spandex-testing/src/axioms/core.ts` and `test/` directory for current state.
 
 **Note**: This document references `getAllRanges()` which was part of the API at the time but has since
 been unified into `query()` (with no arguments for all ranges).
@@ -17,7 +17,7 @@ Added 4 new conformance test axioms to the test suite, increasing coverage from 
 
 ## Motivation
 
-The conformance test suite (src/conformance/testsuite.ts) had good coverage of core LWW semantics, overlap resolution, and fragmentation, but lacked explicit tests for:
+The conformance test suite (packages/@local/spandex-testing/src/axioms/core.ts) had good coverage of core LWW semantics, overlap resolution, and fragmentation, but lacked explicit tests for:
 
 - Boundary conditions (single-cell, single-row/column, coordinate zero)
 - Query-specific edge cases (empty index, infinite query, exact match)
@@ -117,7 +117,7 @@ The conformance test suite (src/conformance/testsuite.ts) had good coverage of c
 
 ## Code Changes
 
-**File**: `src/conformance/testsuite.ts`
+**File**: `packages/@local/spandex-testing/src/axioms/core.ts`
 **Lines Added**: ~65 lines
 **Lines Modified**: 0 (purely additive)
 **Breaking Changes**: None
@@ -155,7 +155,7 @@ The conformance test suite (src/conformance/testsuite.ts) had good coverage of c
 
 ## References
 
-- Conformance test suite: `src/conformance/testsuite.ts`
+- Conformance test suite: `packages/@local/spandex-testing/src/axioms/core.ts`
 - Adversarial tests: `test/adversarial.test.ts`
 - Integration tests: `test/integration.test.ts`
 

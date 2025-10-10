@@ -6,11 +6,9 @@
  * Tests pathological insertion patterns designed to maximize fragmentation
  */
 
+import { MortonLinearScanImpl, rect, RStarTreeImpl } from '@jim/spandex';
+import { seededRandom } from '@local/spandex-testing';
 import { assertLess } from '@std/assert';
-import { seededRandom } from '../src/conformance/utils.ts';
-import MortonLinearScanImpl from '../src/implementations/mortonlinearscan.ts';
-import RStarTreeImpl from '../src/implementations/rstartree.ts';
-import { rect } from '../src/rect.ts';
 
 Deno.test('Adversarial - Concentric rectangles (maximize overlaps)', () => {
 	const index = new MortonLinearScanImpl<string>();

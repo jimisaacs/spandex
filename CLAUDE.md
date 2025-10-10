@@ -98,7 +98,7 @@ deno task bench:analyze 3 docs/analyses/quick-check.md
 
 **Benchmark Philosophy**: "Active by default, archived by choice"
 
-- Auto-discovers from `src/implementations/` (no manual registration)
+- Auto-discovers from `packages/@jim/spandex/src/implementations/` (no manual registration)
 - Archived implementations require `--include-archived` flag
 - Use `--exclude=` for selective filtering during development
 
@@ -121,7 +121,7 @@ deno task unarchive:impl <name>             # Restore from archive
 
 ### Core Interfaces
 
-**`SpatialIndex<T>`** (src/types.ts) - All implementations must implement this interface:
+**`SpatialIndex<T>`** (packages/@jim/spandex/src/types.ts) - All implementations must implement this interface:
 
 - `insert(bounds: Rectangle, value: T): void` - Last-writer-wins semantics
 - `query(bounds?: Rectangle): IterableIterator<[Rectangle, T]>` - Find intersecting ranges, or all ranges if no argument
@@ -140,12 +140,12 @@ type Rectangle = readonly [xmin: number, ymin: number, xmax: number, ymax: numbe
 
 **External API**: `GridRange` (Google Sheets) uses half-open intervals `[start, end)` where end is excluded
 
-- Conversion happens at boundaries via `createGridRangeAdapter()` in `src/adapters/gridrange.ts`
+- Conversion happens at boundaries via `createGridRangeAdapter()` in `packages/@jim/spandex/src/adapters/gridrange.ts`
 - Adapter handles transformation: half-open `[start, end)` ⟷ closed `[start, end-1]`
 
 ### Implementation Families
 
-**Current active implementations** (see `src/implementations/` directory):
+**Current active implementations** (see `packages/@jim/spandex/src/implementations/` directory):
 
 - **Morton spatial locality linear scan** - Production choice for sparse data (n < 100), uses Morton curve (Z-order) for spatial locality
 - __R-Tree with R_ split_* - Production choice for large data (n ≥ 100), O(log n) hierarchical indexing
@@ -161,7 +161,7 @@ All implementations are auto-discovered by benchmarks from their filesystem loca
 
 ### Testing Framework
 
-**Conformance tests** (src/conformance/testsuite.ts):
+**Conformance tests** (packages/@local/spandex-testing/src/axioms/core.ts):
 
 - Core axioms validate mathematical correctness (empty state, LWW semantics, overlap resolution, disjointness, fragment counts)
 - ASCII snapshot tests validate visual rendering and round-trip parsing
@@ -173,7 +173,7 @@ All implementations are auto-discovered by benchmarks from their filesystem loca
 - Concentric, diagonal, checkerboard, random patterns
 - Validates geometric bounds under worst-case inputs
 
-**Fragment Count Verification** (src/conformance/testsuite.ts:450-537):
+**Fragment Count Verification** (packages/@local/spandex-testing/src/axioms/core.ts:450-537):
 
 - **Canonical correctness check**: Large-overlapping scenario MUST produce exactly 1375 fragments
 - **Cross-implementation consistency**: All implementations must produce identical fragment counts
@@ -194,7 +194,7 @@ Validated by `assertInvariants()` in conformance tests.
 
 ### Adding a New Implementation
 
-1. Create `src/implementations/newimpl.ts` implementing `SpatialIndex<T>`
+1. Create `packages/@jim/spandex/src/implementations/newimpl.ts` implementing `SpatialIndex<T>`
 2. Create `test/newimpl.test.ts` with conformance tests
 3. During development:
    ```bash
@@ -205,7 +205,7 @@ Validated by `assertInvariants()` in conformance tests.
    ```bash
    deno task bench:analyze 5 docs/analyses/benchmark-statistics.md  # Final stats (~30 min)
    ```
-5. Benchmarks auto-discover from `src/implementations/`
+5. Benchmarks auto-discover from `packages/@jim/spandex/src/implementations/`
 
 See docs/IMPLEMENTATION-LIFECYCLE.md for details.
 
@@ -223,7 +223,7 @@ deno task bench:analyze 5 docs/analyses/benchmark-statistics.md  # (~30 min)
 
 This moves files, fixes imports, and verifies type-checking. Manual archiving:
 
-1. Move `src/implementations/X.ts` → `archive/src/implementations/<category>/X.ts`
+1. Move `packages/@jim/spandex/src/implementations/X.ts` → `archive/src/implementations/<category>/X.ts`
 2. Move `test/X.test.ts` → `archive/test/X.test.ts`
 3. Add header comment explaining why archived
 4. Run `deno task bench:update` to regenerate BENCHMARKS.md
@@ -259,7 +259,7 @@ Benchmarks automatically exclude archived implementations (based on filesystem l
 **Full workflow**:
 
 1. **Start experiment**: Create `docs/active/experiments/[name]-experiment.md` with hypothesis
-2. **Implement**: Create `src/implementations/[name].ts` + `test/[name].test.ts` + add to benchmarks
+2. **Implement**: Create `packages/@jim/spandex/src/implementations/[name].ts` + `test/[name].test.ts` + add to benchmarks
 3. **Iterate with quick benchmarks**:
    ```bash
    deno task bench:update  # Quick feedback during development (~2 min)
@@ -347,7 +347,7 @@ deno task bench:analyze 5 docs/analyses/benchmark-statistics.md  # Updates stats
 **Document process, not state**:
 
 - ❌ **BAD**: List all current implementations by name in structural docs
-- ✅ **GOOD**: Describe algorithm families and optimization strategies, point to `src/implementations/`
+- ✅ **GOOD**: Describe algorithm families and optimization strategies, point to `packages/@jim/spandex/src/implementations/`
 - ❌ **BAD**: "MortonLinearScanImpl is the production implementation"
 - ✅ **GOOD**: "Spatial locality optimization is the production approach"
 
@@ -361,9 +361,9 @@ deno task bench:analyze 5 docs/analyses/benchmark-statistics.md  # Updates stats
 - ❌ **Structural docs** (README, summaries) - Use generic terms in prescriptive sections
 - ❌ **Decision tables** - Use algorithm approaches, not class names
 
-**Why this matters**: When implementations are added/removed/renamed, only `src/implementations/` and generated files need updating. Documentation stays valid without edits.
+**Why this matters**: When implementations are added/removed/renamed, only `packages/@jim/spandex/src/implementations/` and generated files need updating. Documentation stays valid without edits.
 
-**Source of truth**: `src/implementations/` directory = current active implementations
+**Source of truth**: `packages/@jim/spandex/src/implementations/` directory = current active implementations
 
 **After archiving implementations**: Run `deno task bench:update` to regenerate BENCHMARKS.md
 
@@ -486,7 +486,7 @@ See docs/analyses/benchmark-statistics.md for full methodology.
 **Imports**:
 
 ```typescript
-✅ import MortonLinearScanImpl from '../src/implementations/mortonlinearscan.ts';
+✅ import { MortonLinearScanImpl } from '@jim/spandex';
 ✅ import HybridRTree from '../archive/src/implementations/failed-experiments/hybridrtree.ts';
 ```
 
@@ -531,7 +531,7 @@ See archive/README.md for full archive philosophy and management.
 
 | Task                        | Commands                                                                                                                                                                                       |
 | --------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Add new implementation**  | 1. Create `src/implementations/name.ts` + `test/name.test.ts`<br>2. `deno task test && deno task bench:update && deno task check`                                                              |
+| **Add new implementation**  | 1. Create `packages/@jim/spandex/src/implementations/name.ts` + `test/name.test.ts`<br>2. `deno task test && deno task bench:update && deno task check`                                        |
 | **Run experiment**          | 1. Create `docs/active/experiments/name-experiment.md`<br>2. Implement + test<br>3. `deno task bench:analyze 5 docs/active/experiments/name-results.md`<br>4. Resolve and clean `docs/active/` |
 | **Archive implementation**  | `deno task archive:impl <name> <superseded\|failed-experiments>`                                                                                                                               |
 | **Compare vs archived**     | `deno task bench:archived`                                                                                                                                                                     |
@@ -542,8 +542,8 @@ See archive/README.md for full archive philosophy and management.
 ### Directory Structure
 
 ```
-src/implementations/     # Active implementations (auto-discovered by benchmarks)
-test/                    # Active tests (all passing)
+packages/@jim/spandex/src/implementations/  # Active implementations (auto-discovered by benchmarks)
+test/                                        # Active tests (all passing)
 docs/
 ├── active/experiments/  # In-progress work (MUST be empty when done)
 ├── analyses/            # Validated findings
@@ -589,8 +589,8 @@ benchmarks/              # Benchmark suites (performance.ts)
 **Trigger patterns**:
 
 - Archived/unarchived implementation → `deno task sync-docs`
-- Modified `src/implementations/*.ts` → `deno task sync-docs`
-- Added/removed test axioms in `src/conformance/testsuite.ts` → `deno task sync-docs`
+- Modified `packages/@jim/spandex/src/implementations/*.ts` → `deno task sync-docs`
+- Added/removed test axioms in `packages/@local/spandex-testing/src/axioms/core.ts` → `deno task sync-docs`
 - Changed active implementation count → `deno task sync-docs`
 
 **What it does**:
@@ -638,13 +638,14 @@ Before committing:
 
 ## Key Documentation
 
-### For Users
+### Quick Reference
 
 - **README.md** - Project overview and quick start
 - **PRODUCTION-GUIDE.md** - Decision tree for choosing implementations
 - **BENCHMARKS.md** - Performance data (auto-generated)
+- **CLAUDE.md** (this file) - AI assistant context and project conventions
 
-### For Researchers
+### Research Documentation
 
 - **docs/core/RESEARCH-SUMMARY.md** - Executive summary of all findings
 - **docs/core/theoretical-foundation.md** - Mathematical model, proofs, complexity analysis
@@ -655,18 +656,9 @@ Before committing:
   - `r-star-analysis.md` - Split algorithm comparison
   - `sparse-data-analysis.md` - Why linear scan wins for n<100
 
-### For Contributors
+### Development Workflows
 
 - **docs/IMPLEMENTATION-LIFECYCLE.md** - Adding/archiving implementations
 - **docs/BENCHMARK-FRAMEWORK.md** - Benchmark auto-discovery and philosophy
 - **docs/active/README.md** - Experiment workflow
 - **archive/README.md** - Archive philosophy and management
-- **CLAUDE.md** (this file) - AI assistant context and project conventions
-
-### Reading Paths
-
-| Goal                    | Start                                                            | Then                  |
-| ----------------------- | ---------------------------------------------------------------- | --------------------- |
-| **Use this library**    | README.md → PRODUCTION-GUIDE.md                                  | BENCHMARKS.md         |
-| **Understand research** | docs/core/theoretical-foundation.md                              | docs/analyses/        |
-| **Contribute**          | docs/core/RESEARCH-SUMMARY.md → docs/IMPLEMENTATION-LIFECYCLE.md | docs/active/README.md |

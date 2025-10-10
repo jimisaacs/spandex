@@ -31,7 +31,7 @@ if (!['superseded', 'failed-experiments'].includes(category)) {
 const filename = implName.toLowerCase().replace(/impl$/, '') + '.ts';
 const testFilename = filename.replace('.ts', '.test.ts');
 
-const srcPath = `src/implementations/${filename}`;
+const srcPath = `packages/@jim/spandex/src/implementations/${filename}`;
 const testPath = `test/${testFilename}`;
 const archiveSrcPath = `archive/src/implementations/${category}/${filename}`;
 const archiveTestPath = `archive/test/${category}/${testFilename}`;
@@ -100,16 +100,11 @@ console.log(`✅ Added archive header to ${archiveSrcPath}`);
 console.log(`\n🔧 Fixing import paths in archived implementation...`);
 let fixedContent = await Deno.readTextFile(archiveSrcPath);
 
-// Fix conformance imports: '../conformance/' → '../../../../src/conformance/'
+// Fix relative imports to workspace imports
+// From: '../types.ts' or '../rect.ts' → '@jim/spandex'
 fixedContent = fixedContent.replace(
-	/from ['"]\.\.\/conformance\//g,
-	"from '../../../../src/conformance/",
-);
-
-// Fix other src imports: '../' → '../../../../src/' (for implementations in failed-experiments/superseded/)
-fixedContent = fixedContent.replace(
-	/from ['"]\.\.\/(?!\.\.)/g,
-	"from '../../../../src/",
+	/from ['"]\.\.\/[^'"]+['"]/g,
+	"from '@jim/spandex'",
 );
 
 await Deno.writeTextFile(archiveSrcPath, fixedContent);
@@ -121,20 +116,20 @@ try {
 	console.log(`\n🔧 Fixing import paths in archived test...`);
 	let testContent = await Deno.readTextFile(archiveTestPath);
 
-	// Fix conformance imports: '../src/conformance/' → '../../src/conformance/'
+	// Fix conformance imports: '../src/conformance/...' → '@local/spandex-testing'
 	testContent = testContent.replace(
-		/from ['"]\.\.\/src\/conformance\//g,
-		"from '../../src/conformance/",
+		/from ['"]\.\.\/src\/conformance\/[^'"]+['"]/g,
+		"from '@local/spandex-testing'",
 	);
 
-	// Fix direct imports: '../src/implementations/' → '../../src/implementations/'
+	// Fix direct imports: '../src/implementations/...' → '@jim/spandex'
 	testContent = testContent.replace(
-		/from ['"]\.\.\/src\/implementations\//g,
-		"from '../../src/implementations/",
+		/from ['"]\.\.\/src\/implementations\/[^'"]+['"]/g,
+		"from '@jim/spandex'",
 	);
 
 	// Add import for archived implementation
-	const implImport = `import ${implName} from '../src/implementations/${category}/${filename}';\n`;
+	const implImport = `import ${implName} from '@jim/spandex';\n`;
 
 	// Remove the archived impl from the main mod.ts import if present
 	testContent = testContent.replace(
@@ -148,7 +143,7 @@ try {
 
 	// Add the archived implementation import after other imports
 	const importSectionEnd = testContent.indexOf('\n\n');
-	if (importSectionEnd > 0 && !testContent.includes(`from '../src/implementations/${category}/${filename}'`)) {
+	if (importSectionEnd > 0 && !testContent.includes(`from '@jim/spandex'`)) {
 		testContent = testContent.slice(0, importSectionEnd) + '\n' + implImport + testContent.slice(importSectionEnd);
 	}
 

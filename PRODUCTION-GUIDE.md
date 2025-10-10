@@ -25,7 +25,7 @@ _See sections below for specific implementation names and import statements._
 n < 100 (typical spreadsheet use). Faster via spatial locality optimization.
 
 ```typescript
-import MortonLinearScanImpl from './src/implementations/mortonlinearscan.ts';
+import { MortonLinearScanImpl } from '@jim/spandex';
 
 const backgroundColors = new MortonLinearScanImpl<string>();
 const fontWeights = new MortonLinearScanImpl<string>();
@@ -39,7 +39,7 @@ const dataValidation = new MortonLinearScanImpl<ValidationRule>();
 n ≥ 100. O(log n) hierarchical indexing with R* split algorithm.
 
 ```typescript
-import RStarTreeImpl from './src/implementations/rstartree.ts';
+import { RStarTreeImpl } from '@jim/spandex';
 
 // Large dataset scenario
 const largeBackgroundIndex = new RStarTreeImpl<string>();
@@ -96,7 +96,7 @@ See [BENCHMARKS.md](./BENCHMARKS.md) for current performance data.
 ### Single Property Index (Typical)
 
 ```typescript
-import MortonLinearScanImpl from './src/implementations/mortonlinearscan.ts';
+import { MortonLinearScanImpl } from '@jim/spandex';
 
 class SpreadsheetProperties {
 	private backgrounds = new MortonLinearScanImpl<string>();
@@ -116,7 +116,7 @@ class SpreadsheetProperties {
 ### Large Dataset (Batch Operations)
 
 ```typescript
-import RStarTreeImpl from './src/implementations/rstartree.ts';
+import { RStarTreeImpl } from '@jim/spandex';
 
 class BulkImporter {
 	private index = new RStarTreeImpl<CellData>();
@@ -234,20 +234,6 @@ class SpreadsheetProperties {
 ```
 
 **Performance gain**: Significant speedup at larger data sizes (see BENCHMARKS.md).
-
----
-
-#### From OptimizedLinearScan to MortonLinearScan (Historical Migration)
-
-**Historical context**: If you were using archived `OptimizedLinearScanImpl`, migrate to `MortonLinearScanImpl` for 25% speedup.
-
-```diff
-- import OptimizedLinearScanImpl from './archive/src/implementations/.../optimizedlinearscan.ts';
-+ import MortonLinearScanImpl from './src/implementations/mortonlinearscan.ts';
-
-- const index = new OptimizedLinearScanImpl<string>();
-+ const index = new MortonLinearScanImpl<string>();
-```
 
 API is identical, just swap the class name.
 

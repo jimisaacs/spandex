@@ -412,7 +412,7 @@ See [fastrtree-analysis-results.md](./fastrtree-analysis-results.md)
 ### Full Experimental Cycle
 
 1. **Hypothesis** → Create `active/experiments/[name]-experiment.md`
-2. **Implementation** → Code in `src/implementations/`, tests, benchmarks
+2. **Implementation** → Code in `packages/@jim/spandex/src/implementations/`, tests, benchmarks
 3. **Testing** → `deno task test` (axiom-based conformance)
 4. **Benchmarking** → `./scripts/analyze-benchmarks.ts 5 active/experiments/[name]-analysis-results.md`
 5. **Analysis** → Review generated results in `active/experiments/`
@@ -443,10 +443,10 @@ Before archiving a rejected experiment:
 - [ ] No compelling reason to revisit (except for inspiration)
 - [ ] Full experiment doc exists in `active/experiments/` with analysis
 - [ ] **Move** `active/experiments/[name]-*.md` → `../../archive/docs/experiments/`
-- [ ] Remove implementation from `src/implementations/[name].ts`
+- [ ] Remove implementation from `packages/@jim/spandex/src/implementations/[name].ts`
 - [ ] Remove test file `test/[name].test.ts`
 - [ ] Remove benchmark entry from `benchmarks/performance.ts`
-- [ ] Remove export from `src/mod.ts`
+- [ ] Remove export from `packages/@jim/spandex/src/mod.ts`
 - [ ] Remove test task from `deno.json`
 - [ ] Regenerate `BENCHMARKS.md` via `deno task bench:update`
 - [ ] Update `docs/README.md` navigation (remove from active, add to archive)

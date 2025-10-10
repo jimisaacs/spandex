@@ -1,19 +1,21 @@
 {
-	"name": "@spatial-indexing/research",
-	"exports": {
-		"./conformance": "./src/conformance/mod.ts"
-	},
+	"workspace": [
+		"./packages/@jim/spandex",
+		"./packages/@local/spandex-testing",
+		"./packages/@local/spandex-telemetry"
+	],
 	"imports": {
 		"@std/assert": "jsr:@std/assert@1"
 	},
+	"exclude": [".temp/"],
 	"tasks": {
 		"test": "deno test -A test/",
 		"test:watch": "deno test -A --watch test/",
-		"test:morton": "deno test -A test/mortonlinearscan.test.ts",
-		"test:rstartree": "deno test -A test/rstartree.test.ts",
+		"test:morton": "deno test -A test/implementations/mortonlinearscan.test.ts",
+		"test:rstartree": "deno test -A test/implementations/rstartree.test.ts",
 		"test:integration": "deno test -A test/integration.test.ts",
 		"test:adversarial": "deno test -A test/adversarial.test.ts",
-		"test:adapters": "deno test -A test/adapters.test.ts",
+		"test:adapters": "deno test -A test/adapters/",
 		"test:partitioned": "deno test -A test/lazypartitionedindex.test.ts",
 		"test:telemetry": "deno test -A test/telemetry.test.ts",
 		"bench": "deno bench -A benchmarks/performance.ts",

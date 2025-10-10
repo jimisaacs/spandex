@@ -1,7 +1,7 @@
 import { assertEquals, assertExists } from '@std/assert';
-import MortonLinearScanImpl from '../src/implementations/mortonlinearscan.ts';
-import { rect } from '../src/rect.ts';
-import { TelemetryCollector, TelemetrySnapshot } from '../src/telemetry/index.ts';
+import { MortonLinearScanImpl } from '@jim/spandex';
+import { rect } from '@jim/spandex';
+import { TelemetryCollector, TelemetrySnapshot } from '@local/spandex-telemetry';
 
 Deno.test('Telemetry - Disabled telemetry has no overhead', () => {
 	const telemetry = new TelemetryCollector({ enabled: false });

@@ -93,7 +93,7 @@ We hypothesize the speedup comes from improved spatial locality:
 
 ## Implementation
 
-**Full Algorithm** (see `src/implementations/hilbertlinearscan.ts` for complete code):
+**Full Algorithm** (see `archive/src/implementations/superseded/hilbertlinearscan.ts` for complete code):
 
 ```typescript
 class HilbertLinearScanImpl {

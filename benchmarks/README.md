@@ -50,7 +50,7 @@ Comprehensive benchmark including archived implementations (HybridRTree).
 Example:
 
 ```typescript
-import RStarTreeImpl from '../src/implementations/rstartree.ts';
+import { RStarTreeImpl } from '@jim/spandex';
 
 Deno.bench('RStarTree - custom scenario', () => {
 	const index = new RStarTreeImpl();

@@ -1,5 +1,5 @@
-import { seededRandom } from '../src/conformance/utils.ts';
-import type { Rectangle } from '../src/types.ts';
+import type { Rectangle } from '@jim/spandex';
+import { seededRandom } from '@local/spandex-testing';
 
 // Parse command-line arguments
 const args = Deno.args;
@@ -51,7 +51,7 @@ async function discoverImplementations(baseDir: string, label?: string) {
 				}
 			}
 		} else {
-			// Flat structure: src/implementations/*.ts
+			// Flat structure: packages/@jim/spandex/src/implementations/*.ts
 			for (const file of entries) {
 				if (!file.name.endsWith('.ts')) continue;
 
@@ -79,7 +79,7 @@ async function discoverImplementations(baseDir: string, label?: string) {
 }
 
 // Discover implementations from file system (both use same mechanism)
-const activeImplementations = await discoverImplementations('src/implementations');
+const activeImplementations = await discoverImplementations('packages/@jim/spandex/src/implementations');
 const archivedImplementations = includeArchived ? await discoverImplementations('archive/src/implementations') : [];
 
 // Filter and combine

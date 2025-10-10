@@ -238,7 +238,7 @@ Flat array storage with various optimization strategies:
 - **TypedArrays**: Memory-efficient coordinate storage
 - **Educational**: Clear reference implementation
 
-See `src/implementations/` for current implementations.
+See `packages/@jim/spandex/src/implementations/` for current implementations.
 
 **Practical**: n² fragmentation rare; typical O(n) performance.
 
@@ -250,7 +250,7 @@ Hierarchical index with various split strategies:
 - **Midpoint split**: Faster construction, acceptable quality
 - **Quadratic split** (Guttman 1984): Research baseline
 
-See `src/implementations/` for current implementations, `archive/` for failed experiments.
+See `packages/@jim/spandex/src/implementations/` for current implementations, `archive/` for failed experiments.
 
 ---
 

@@ -29,9 +29,8 @@ export default class NewImpl<T> implements SpatialIndex<T> {
 Create `test/newimpl.test.ts`:
 
 ```typescript
-import { testImplementationEquivalence, testSpatialIndexAxioms } from '../src/conformance/mod.ts';
-import LinearScanImpl from '../src/implementations/linearscan.ts';
-import NewImpl from '../src/implementations/newimpl.ts';
+import { testImplementationEquivalence, testSpatialIndexAxioms } from '@local/spandex-testing';
+import { LinearScanImpl, NewImpl } from '@jim/spandex';
 
 testSpatialIndexAxioms({
 	reference: LinearScanImpl,
@@ -42,7 +41,7 @@ testSpatialIndexAxioms({
 
 ### 3. Verify
 
-All tests pass, benchmarks regenerated, type-checking passes. Benchmarks auto-discover from `src/implementations/`.
+All tests pass, benchmarks regenerated, type-checking passes. Benchmarks auto-discover from `packages/@jim/spandex/src/implementations/`.
 
 See `deno.json` for available tasks.
 
@@ -66,7 +65,7 @@ The script moves files, fixes imports, adds docs header.
 
 ```bash
 # Move implementation
-mv src/implementations/X.ts archive/src/implementations/[category]/X.ts
+mv packages/@jim/spandex/src/implementations/X.ts archive/src/implementations/[category]/X.ts
 
 # Move tests
 mv test/X.test.ts archive/test/[category]/X.test.ts
@@ -112,8 +111,7 @@ You can create one-off benchmarks that compare active vs archived implementation
 
 ```typescript
 // Import active implementations directly
-import MortonLinearScanImpl from '../../src/implementations/mortonlinearscan.ts';
-import RStarTreeImpl from '../../src/implementations/rstartree.ts';
+import { MortonLinearScanImpl, RStarTreeImpl } from '@jim/spandex';
 
 // Import archived implementation directly
 import ArchivedImpl from '../src/implementations/superseded/archivedimpl.ts';
@@ -137,14 +135,14 @@ deno bench archive/benchmarks/my-comparison.ts
 
 ## Quick Reference
 
-| Task                          | Command                                             |
-| ----------------------------- | --------------------------------------------------- |
-| Add implementation            | Create file in `src/implementations/`, create tests |
-| Archive implementation        | `deno task archive:impl <Name> <category>`          |
-| Restore implementation        | `deno task unarchive:impl <Name> <category>`        |
-| Run archived benchmark        | `deno bench archive/benchmarks/name.ts`             |
-| List active implementations   | `ls src/implementations/`                           |
-| List archived implementations | `ls archive/src/implementations/*/`                 |
+| Task                          | Command                                                                   |
+| ----------------------------- | ------------------------------------------------------------------------- |
+| Add implementation            | Create file in `packages/@jim/spandex/src/implementations/`, create tests |
+| Archive implementation        | `deno task archive:impl <Name> <category>`                                |
+| Restore implementation        | `deno task unarchive:impl <Name> <category>`                              |
+| Run archived benchmark        | `deno bench archive/benchmarks/name.ts`                                   |
+| List active implementations   | `ls packages/@jim/spandex/src/implementations/`                           |
+| List archived implementations | `ls archive/src/implementations/*/`                                       |
 
 ---
 

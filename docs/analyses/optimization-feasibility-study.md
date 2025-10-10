@@ -242,9 +242,9 @@ insert(); // Single-pass with inline operations
 ## References
 
 - Test coverage analysis: `docs/analyses/test-coverage-improvements.md`
-- Conformance tests: `src/conformance/testsuite.ts`
+- Conformance tests: `packages/@local/spandex-testing/src/axioms/core.ts`
 - Benchmark data: `BENCHMARKS.md`
 - Implementation files:
-  - `src/implementations/hilbertlinearscan.ts` (now archived, superseded by Morton)
-  - `src/implementations/rstartree.ts` (active)
-  - `src/implementations/compactlinearscan.ts` (archived)
+  - `archive/src/implementations/superseded/hilbertlinearscan.ts` (now archived, superseded by Morton)
+  - `packages/@jim/spandex/src/implementations/rstartree.ts` (active)
+  - `archive/src/implementations/superseded/compactlinearscan.ts` (archived)
