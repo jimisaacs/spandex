@@ -1,6 +1,6 @@
 /** Google Sheets GridRange adapter: half-open [start, end) ⟷ closed [min, max] */
 
-import * as Rect from '../rect.ts';
+import * as rect from '../rect.ts';
 import type {
 	PartitionedQueryResult,
 	PartitionedSpatialIndex,
@@ -32,7 +32,7 @@ export type GridRangeSpatialJoinResult<T extends Record<string, unknown>> = read
 export function gridRangeToRectangle(
 	{ startColumnIndex: x1, startRowIndex: y1, endColumnIndex: x2, endRowIndex: y2 }: GridRange,
 ): Rectangle {
-	return Rect.rect(
+	return rect.make(
 		x1 != null && x1 >= 0 ? x1 : -Infinity,
 		y1 != null && y1 >= 0 ? y1 : -Infinity,
 		x2 != null && x2 < Infinity ? x2 - 1 : Infinity,

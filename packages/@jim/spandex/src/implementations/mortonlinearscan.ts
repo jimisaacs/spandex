@@ -31,7 +31,7 @@
  * - Performance analysis: docs/analyses/morton-vs-hilbert-analysis.md
  */
 
-import * as Rect from '../rect.ts';
+import * as rect from '../rect.ts';
 import type { QueryResult, Rectangle, SpatialIndex } from '../types.ts';
 
 /** Max coordinate value (16-bit): 65535. Larger values wrap but remain correct. */
@@ -59,7 +59,6 @@ const MAX_COORD = 0xFFFF;
  * but algorithm remains correct (same behavior as archived Hilbert implementation).
  */
 function mortonCode(x: number, y: number): number {
-	// Mask to 16 bits
 	x = x & MAX_COORD;
 	y = y & MAX_COORD;
 
@@ -81,12 +80,10 @@ function mortonCode(x: number, y: number): number {
 	return x | (y << 1);
 }
 
-/** Check if two rectangles intersect */
 function intersects(a: Rectangle, b: Rectangle): boolean {
 	return !(a[2] < b[0] || a[0] > b[2] || a[3] < b[1] || a[1] > b[3]);
 }
 
-/** Subtract rectangle b from a, returning 0-4 non-overlapping fragments */
 function subtract(a: Rectangle, b: Rectangle): Rectangle[] {
 	const [ax1, ay1, ax2, ay2] = a;
 	const [bx1, by1, bx2, by2] = b;
@@ -96,21 +93,20 @@ function subtract(a: Rectangle, b: Rectangle): Rectangle[] {
 	const fragments: Rectangle[] = [];
 
 	// Top strip (before B starts in y direction)
-	if (ay1 < by1) fragments.push(Rect.canonicalized([ax1, ay1, ax2, by1 - 1]));
+	if (ay1 < by1) fragments.push(rect.canonicalized([ax1, ay1, ax2, by1 - 1]));
 	// Bottom strip (after B ends in y direction)
-	if (ay2 > by2) fragments.push(Rect.canonicalized([ax1, by2 + 1, ax2, ay2]));
+	if (ay2 > by2) fragments.push(rect.canonicalized([ax1, by2 + 1, ax2, ay2]));
 	// Side strips (only if overlapping Y range exists)
 	const yMin = Math.max(ay1, by1);
 	const yMax = Math.min(ay2, by2);
 	if (yMin <= yMax) {
-		if (ax1 < bx1) fragments.push(Rect.canonicalized([ax1, yMin, bx1 - 1, yMax]));
-		if (ax2 > bx2) fragments.push(Rect.canonicalized([bx2 + 1, yMin, ax2, yMax]));
+		if (ax1 < bx1) fragments.push(rect.canonicalized([ax1, yMin, bx1 - 1, yMax]));
+		if (ax2 > bx2) fragments.push(rect.canonicalized([bx2 + 1, yMin, ax2, yMax]));
 	}
 
 	return fragments;
 }
 
-/** Binary search for Morton code insertion position */
 function binarySearch(entries: Array<Entry<unknown>>, morton: number): number {
 	let left = 0;
 	let right = entries.length;
@@ -138,11 +134,10 @@ export default class MortonLinearScanImpl<T> implements SpatialIndex<T> {
 	private entries: Array<Entry<T>> = [];
 
 	insert(bounds: Rectangle, value: T): void {
-		// Validate and canonicalize user input
-		bounds = Rect.validated(bounds);
+		bounds = rect.validated(bounds);
 
 		// Global range (infinite bounds) - fast path
-		if (Rect.isAll(bounds)) {
+		if (rect.isAll(bounds)) {
 			this.entries = [{ bounds, value, morton: 0 }];
 			return;
 		}
@@ -168,13 +163,11 @@ export default class MortonLinearScanImpl<T> implements SpatialIndex<T> {
 		}
 		entries.length = writeIdx;
 
-		// Insert new range
 		const centerX = (bounds[0] + bounds[2]) >> 1;
 		const centerY = (bounds[1] + bounds[3]) >> 1;
 		const morton = mortonCode(centerX, centerY);
 		fragments.push({ bounds, value, morton });
 
-		// Insert fragments in Morton order
 		// Complexity: O(k·n) where k = fragments.length, n = entries.length
 		// Each splice is O(n) due to array element shifting
 		// Trade-off: Maintains sorted order for cache locality (worth it for small k)
@@ -185,9 +178,8 @@ export default class MortonLinearScanImpl<T> implements SpatialIndex<T> {
 		}
 	}
 
-	*query(bounds: Rectangle = Rect.ALL): IterableIterator<QueryResult<T>> {
-		// Validate and canonicalize user input
-		bounds = Rect.validated(bounds);
+	*query(bounds: Rectangle = rect.ALL): IterableIterator<QueryResult<T>> {
+		bounds = rect.validated(bounds);
 
 		// Linear scan (Morton ordering may help with cache locality)
 		const entries = this.entries;

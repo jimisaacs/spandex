@@ -89,8 +89,8 @@ Why?
 **If you just want to use this library**:
 
 - Read the [main README](../README.md) and [PRODUCTION-GUIDE](../PRODUCTION-GUIDE.md)
-- The library currently implements **LWW** (Strategy #1)
-- Spatial Join (Strategy #3) is the recommended next feature for multi-property use cases
+- LWW (Strategy #1) is implemented for single-property indexes
+- Spatial Join (Strategy #3) is recommended for multi-property use cases
 
 ---
 

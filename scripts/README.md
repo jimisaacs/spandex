@@ -84,7 +84,7 @@ Archives an implementation (moves to `archive/`, updates imports).
 **What it does**:
 
 1. Moves `packages/@jim/spandex/src/implementations/X.ts` → `archive/src/implementations/<category>/X.ts`
-2. Moves `test/X.test.ts` → `archive/test/<category>/X.test.ts`
+2. Moves `packages/@jim/spandex/test/implementations/X/` → `archive/test/<category>/X/`
 3. Updates imports
 4. Adds archive header
 5. Verifies type-checking

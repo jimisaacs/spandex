@@ -1,14 +1,16 @@
 # FastRTree Benchmark Analysis
 
+**Status**: ❌ REJECTED (Competitive but not adopted - full R\* chosen for production)
+
 **Date**: 2025-10-04T22:42:25.726Z
 **Runs**: 5
 **Method**: Statistical analysis with mean ± stddev, CV%
 
 ## Hypothesis
 
-Can R* axis selection + midpoint split achieve better performance than:
+Can R\* axis selection + midpoint split achieve better performance than:
 
-1. Full R* (slower construction, best tree quality)
+1. Full R\* (slower construction, best tree quality)
 2. Simple midpoint (fastest construction, worst tree quality)
 
 ## Results
@@ -85,4 +87,4 @@ FastRTree vs ArrayBufferRTree:
 - Faster: 1/20 scenarios
 - Average: 1.29x
 
-**Verdict**: ✅ FastRTree is competitive with R*
+**Verdict**: ✅ FastRTree is competitive with R\*

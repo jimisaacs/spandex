@@ -2,6 +2,8 @@
 
 **Purpose**: Maintain consistent, rigorous, scannable research documentation
 
+**📋 Project-Wide Conventions**: See [../CLAUDE.md](../CLAUDE.md) for code conventions, workflow commands, testing, and development practices.
+
 ---
 
 ## Directory Structure

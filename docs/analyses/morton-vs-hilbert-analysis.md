@@ -210,14 +210,10 @@ Estimated time per insert at n=50:
 
 ### Files Moved
 
-**From**: `src/implementations/hilbertlinearscan.ts`
-**To**: `archive/src/implementations/superseded/hilbertlinearscan.ts`
-
-**From**: `test/hilbertlinearscan.test.ts`
-**To**: `archive/test/hilbertlinearscan.test.ts`
+**Archived**: `hilbertlinearscan.ts` (removed from repo, preserved in git history - see `archive/IMPLEMENTATION-HISTORY.md` for SHA)
 
 **Added**: `packages/@jim/spandex/src/implementations/mortonlinearscan.ts` (production)
-**Added**: `test/mortonlinearscan.test.ts` (17 axioms passing)
+**Added**: `packages/@jim/spandex/test/implementations/mortonlinearscan/` (property, geometry, visual tests)
 
 ### Documentation Updates
 

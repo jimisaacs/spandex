@@ -212,7 +212,7 @@ Other libraries would need adapter layer to translate to/from their coordinate s
 - **RBush**: Agafonkin, V. (2015). "RBush - JavaScript R-tree-based 2D spatial index for points and rectangles." https://github.com/mourner/rbush
 - **FlatBush**: Agafonkin, V. (2018). "FlatBush - Fast static spatial index for 2D points and rectangles." https://github.com/mourner/flatbush
 - **S2 Geometry**: Google (2017). "S2 Geometry Library." https://s2geometry.io/
-- __R_ Tree_ _: Beckmann, N. et al. (1990). "The R_-tree: An Efficient and Robust Access Method." SIGMOD. DOI: [10.1145/93597.98741](https://doi.org/10.1145/93597.98741)
+- R* Tree: Beckmann, N. et al. (1990). "The R*-tree: An Efficient and Robust Access Method." SIGMOD. DOI: [10.1145/93597.98741](https://doi.org/10.1145/93597.98741)
 - **Quadtrees**: Samet, H. (1990). "The Design and Analysis of Spatial Data Structures." Addison-Wesley.
 
 ---

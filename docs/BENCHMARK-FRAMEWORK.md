@@ -28,9 +28,7 @@ deno bench benchmarks/performance.ts -- --include-archived
 deno bench benchmarks/performance.ts -- --archived
 ```
 
-Includes implementations from `archive/src/implementations/` for comparison.
-
-**Note**: You must manually add archived implementations to the `archivedImplementations` array in `benchmarks/performance.ts` (see below).
+Automatically discovers and includes implementations from `archive/src/implementations/` for comparison.
 
 ### Exclude Specific Active Implementations
 
@@ -62,17 +60,13 @@ Automatically discovered from `packages/@jim/spandex/src/implementations/` direc
 
 ### Archived Implementations
 
-Automatically discovered from `archive/src/implementations/` when `--include-archived` flag is used.
+**Note**: Archived implementations have been removed from the repository. The `--include-archived` flag is preserved for potential future use, but currently no archived implementations exist to benchmark.
 
-**Convention**: All `.ts` files in `archive/src/implementations/*/` are discovered and labeled with their category.
+To compare against historical implementations:
 
-**To compare against archived**:
-
-```bash
-deno task bench:archived
-```
-
-No manual configuration needed!
+1. Check `archive/IMPLEMENTATION-HISTORY.md` for the git SHA
+2. Extract the implementation: `git show <SHA>:path/to/file.ts > /tmp/impl.ts`
+3. Manually create a temporary benchmark (adjust imports as needed)
 
 ---
 
@@ -81,21 +75,18 @@ No manual configuration needed!
 ### Principles
 
 1. **Active by default**: Implementations in `packages/@jim/spandex/src/implementations/` run automatically
-2. **Archived opt-in**: Archived implementations only run when explicitly added + flag set
-3. **Selective exclusion**: Can exclude specific implementations via `--exclude=`
-4. **No modification needed**: Default `deno task bench` always works
+2. **Selective exclusion**: Can exclude specific implementations via `--exclude=`
+3. **No configuration needed**: Auto-discovery means adding/removing just works
 
 ### How It Works
 
 **Discovery**:
 
-- Active: Scans `packages/@jim/spandex/src/implementations/` directory for all `.ts` files
-- Archived: Scans `archive/src/implementations/` directory when `--include-archived` flag is used
+- Scans `packages/@jim/spandex/src/implementations/` directory for all `.ts` files
 
 **Filtering**:
 
 - Remove any implementations matching `--exclude=<name>` flags
-- Only include archived if `--include-archived` flag present
 
 **Execution**:
 
@@ -104,82 +95,60 @@ No manual configuration needed!
 
 ### Selective Filtering
 
-**Include specific category**:
+**Focus on specific implementations**:
 
 ```bash
-deno bench benchmarks/performance.ts -- --include-archived=failed-experiments
-```
+# Exclude implementations you don't want to benchmark
+deno bench benchmarks/performance.ts -- --exclude=RStarTree
 
-**Include specific implementation**:
-
-```bash
-deno bench benchmarks/performance.ts -- --include-archived=hybridrtree
-```
-
-**Combine with exclusions**:
-
-```bash
-# Compare only MortonLinearScan vs archived implementations
-deno bench benchmarks/performance.ts -- --include-archived \
-  --exclude=RStarTree --exclude=CompactRTree --exclude=ArrayBufferRTree \
-  --exclude=LinearScan --exclude=CompactLinearScan \
-  --exclude=OptimizedLinearScan --exclude=ArrayBufferLinearScan
+# Exclude multiple
+deno bench benchmarks/performance.ts -- --exclude=RStarTree --exclude=MortonLinearScan
 ```
 
 ---
 
 ## Use Cases
 
-### Compare New Implementation Against Archived Baseline
-
-```bash
-# 1. Add archived baseline to benchmarks/performance.ts
-# 2. Run comparison
-deno task bench:archived
-```
-
 ### Focus on Specific Implementations
 
 ```bash
-# Example: Only test R-tree variants (exclude all linear scan implementations)
-# Use --exclude for each implementation you want to skip
-deno bench benchmarks/performance.ts -- --exclude=<ImplName> --exclude=<ImplName>
+# Example: Only test R-tree (exclude linear scan)
+deno bench benchmarks/performance.ts -- --exclude=MortonLinearScan
+
+# Example: Only test linear scan (exclude R-tree)
+deno bench benchmarks/performance.ts -- --exclude=RStarTree
 ```
 
-### Test New Implementation Against Everything
+### Test New Implementation Against Current
 
 ```bash
 # Add new implementation to packages/@jim/spandex/src/implementations/
 # It's automatically discovered!
-# Run full suite including archived
-deno task bench:archived
+deno task bench
 ```
 
 ---
 
 ## Examples
 
-### Compare Against Failed Experiment
+### Test Only Linear Scan Implementation
 
 ```bash
-deno task bench:archived
+deno bench benchmarks/performance.ts -- --exclude=RStarTree
 ```
 
-Review if archived implementation is still slower.
-
-### Test Only Linear Scan Variants
+### Test Only R-Tree Implementation
 
 ```bash
-deno bench benchmarks/performance.ts -- --exclude=RStarTree --exclude=CompactRTree
+deno bench benchmarks/performance.ts -- --exclude=MortonLinearScan
 ```
 
-### Compare New vs Superseded
+### Faster Iteration During Development
 
 ```bash
-deno task bench:archived
+# If you're working on MortonLinearScan, exclude RStarTree to speed up benchmarks
+deno bench benchmarks/performance.ts -- --exclude=RStarTree
 ```
-
-Verify current still faster than superseded version.
 
 ---
 
@@ -187,37 +156,28 @@ Verify current still faster than superseded version.
 
 ### Command-Line Flags
 
-| Flag                 | Effect                                 | Example                        |
-| -------------------- | -------------------------------------- | ------------------------------ |
-| `--include-archived` | Include archived implementations       | `deno task bench:archived`     |
-| `--archived`         | Alias for `--include-archived`         | `deno bench ... -- --archived` |
-| `--exclude=<name>`   | Exclude specific active implementation | `--exclude=CompactRTree`       |
-| (multiple)           | Can use multiple `--exclude` flags     | `--exclude=A --exclude=B`      |
+| Flag               | Effect                             | Example                   |
+| ------------------ | ---------------------------------- | ------------------------- |
+| `--exclude=<name>` | Exclude specific implementation    | `--exclude=RStarTree`     |
+| (multiple)         | Can use multiple `--exclude` flags | `--exclude=A --exclude=B` |
 
 ### Tasks
 
-| Task             | Command                                                      | Purpose                          |
-| ---------------- | ------------------------------------------------------------ | -------------------------------- |
-| `bench`          | `deno bench benchmarks/performance.ts`                       | Run active implementations only  |
-| `bench:archived` | `deno bench benchmarks/performance.ts -- --include-archived` | Include archived implementations |
-| `bench:update`   | Run benchmarks + update BENCHMARKS.md                        | Regenerate documentation         |
-| `bench:analyze`  | Run 5 iterations + statistical analysis                      | Detailed performance analysis    |
+| Task            | Command                                                                             | Purpose                        |
+| --------------- | ----------------------------------------------------------------------------------- | ------------------------------ |
+| `bench`         | `deno bench benchmarks/performance.ts`                                              | Run all active implementations |
+| `bench:update`  | `deno run -A scripts/update-benchmarks.ts`                                          | Regenerate BENCHMARKS.md       |
+| `bench:analyze` | `deno run -A scripts/analyze-benchmarks.ts 5 docs/analyses/benchmark-statistics.md` | Statistical analysis (~30 min) |
 
 ---
 
 ## Best Practices
 
-### Use `--include-archived` For
-
-- Comparing against archived baseline
-- Verifying failed experiments still fail
-- Demonstrating improvement over superseded
-
 ### Use `--exclude` For
 
-- Focusing on specific algorithm family
-- Debugging single implementation
-- Faster iteration
+- Focusing on specific implementation during development
+- Faster iteration (benchmark only what you're working on)
+- Comparing specific algorithm approaches
 
 ---
 
@@ -230,30 +190,32 @@ Verify current still faster than superseded version.
 
 ### Archiving Implementation
 
-Use `deno task archive:impl <name> <category>` - automatically removes from active benchmarks.
+Use `deno task archive:impl <name> <category>` - automatically:
 
-To compare later: manually add to `archivedImplementations` array + use `--include-archived`
+- Removes files from active codebase
+- Documents in `archive/IMPLEMENTATION-HISTORY.md`
+- Preserves code in git history
+
+Next benchmark run will automatically exclude the archived implementation.
 
 ### Unarchiving Implementation
 
-Use `deno task unarchive:impl <name> <category>` - automatically adds back to active benchmarks.
+Use `deno task unarchive:impl <name> <category>` - restores from git history and automatically adds back to active benchmarks.
 
 ---
 
 ## Troubleshooting
 
-**Implementation not found**: Check import path for correct category (`failed-experiments/` or `superseded/`)
+**Implementation not benchmarking**: Ensure file exists in `packages/@jim/spandex/src/implementations/` and exports a default class.
 
-**Not running**: Use `--include-archived` flag
-
-**Type errors**: Expected for some failed experiments - kept for historical comparison
+**Type errors**: Run `deno task check` to verify implementation type-checks correctly.
 
 ---
 
 ## Philosophy
 
-**Active implementations** are the current state of the art - they represent what we believe works best right now. They're always tested because they're candidates for production use.
+**Active implementations** (in `packages/@jim/spandex/src/implementations/`) represent the current state of the art - they're production candidates that should always be benchmarked.
 
-**Archived implementations** are historical artifacts - they represent what we tried, why it didn't work, and what we learned. They're opt-in because they're not production candidates, but they're valuable for research, comparison, and avoiding repeated mistakes.
+**Archived implementations** are preserved in git history and documentation - they represent what we tried, why it didn't work, and what we learned. Code is removed to avoid maintenance burden, but findings are preserved for reproducibility.
 
-This framework embodies the principle: **"Active by default, archived by choice."**
+This framework embodies the principle: **"Benchmark what matters, document what doesn't."**

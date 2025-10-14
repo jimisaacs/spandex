@@ -77,9 +77,9 @@ async function main() {
 		console.log('🧪 Tests changed - checking test documentation...');
 
 		const testsuiteContent = await Deno.readTextFile(
-			'packages/@local/spandex-testing/src/axioms/core.ts',
+			'packages/@local/spandex-testing/src/axiom/properties.ts',
 		);
-		const axiomCount = (testsuiteContent.match(/Deno\.test\(/g) || []).length;
+		const axiomCount = (testsuiteContent.match(/export async function test/g) || []).length;
 
 		console.log(`   Found ${axiomCount} test axioms in conformance suite`);
 		updates.push(`Test suite (${axiomCount} axioms)`);

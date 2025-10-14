@@ -16,7 +16,7 @@ Collect real-world usage metrics to validate optimization decisions.
 ## Quick Start
 
 ```typescript
-import { TelemetryCollector } from './src/telemetry/index.ts';
+import { TelemetryCollector } from '@local/spandex-telemetry';
 import { MortonLinearScanImpl } from '@jim/spandex';
 
 // 1. Create telemetry collector
@@ -34,9 +34,9 @@ const telemetry = new TelemetryCollector({
 const backgroundColors = new MortonLinearScanImpl<string>();
 const wrapped = telemetry.wrap(backgroundColors, 'backgroundColor');
 
-// 3. Use it normally
-wrapped.insert({ startRow: 0, endRow: 5, startCol: 0, endCol: 5 }, 'red');
-wrapped.query({ startRow: 0, endRow: 10, startCol: 0, endCol: 10 });
+// 3. Use it normally (using Rectangle format [xmin, ymin, xmax, ymax])
+wrapped.insert([0, 0, 4, 4], 'red'); // columns 0-4, rows 0-4
+wrapped.query([0, 0, 9, 9]); // columns 0-9, rows 0-9
 
 // Metrics are automatically collected and reported
 ```
@@ -115,7 +115,7 @@ interface TelemetryConfig {
 ### Cloud Logging
 
 ```typescript
-import { TelemetryCollector } from './src/telemetry/index.ts';
+import { TelemetryCollector } from '@local/spandex-telemetry';
 
 const telemetry = new TelemetryCollector({
 	enabled: true,
@@ -314,5 +314,3 @@ const font = telemetry.wrap(new MortonLinearScanImpl(), 'font');
 3. **Analyze results** using guide above
 4. **Update recommendations** in PRODUCTION-GUIDE.md based on real data
 5. **Consider adaptive implementation** if n varies widely
-
-See [STRATEGIC-ACTION-PLAN.md](../.temp/STRATEGIC-ACTION-PLAN.md) for full context.

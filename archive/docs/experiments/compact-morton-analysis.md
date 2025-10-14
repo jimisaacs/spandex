@@ -1,5 +1,7 @@
 # Compact Morton Analysis: Simplified Encoding Beats Complex Morton
 
+**Status**: ✅ VALIDATED (Superseded CompactLinearScan, validated 2025-10-07)
+
 **Finding**: CompactMorton's 3-line spatial hint outperforms full Morton's 22-line bit-interleaving by 20% while maintaining 2.4x speedup over CompactLinearScan with only 32% bundle size increase.
 
 **Impact**: Superseded CompactLinearScan as production compact solution. Validated that algorithm structure (single-pass insertion) matters more than encoding complexity (Z-order curves).

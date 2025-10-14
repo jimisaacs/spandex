@@ -1,6 +1,6 @@
 # Hilbert Curve Visualization
 
-**Note**: This document explains the Hilbert curve educational concept. Our production implementation uses **Morton curves** (25% faster due to simpler encoding). Hilbert implementation is archived at `archive/src/implementations/superseded/hilbertlinearscan.ts`.
+**Note**: This document explains the Hilbert curve educational concept. Our production implementation uses **Morton curves** (25% faster due to simpler encoding). Hilbert implementation has been archived (code available in git history - see `archive/IMPLEMENTATION-HISTORY.md`).
 
 ## What is a Hilbert Curve?
 
@@ -156,7 +156,7 @@ x = (x | (x << 1)) & 0x55555555;
 See:
 
 - **Production**: `packages/@jim/spandex/src/implementations/mortonlinearscan.ts`
-- **Archived**: `archive/src/implementations/superseded/hilbertlinearscan.ts`
+- **Archived**: Code in git history (see `archive/IMPLEMENTATION-HISTORY.md` for SHA)
 - **Analysis**: `docs/analyses/morton-vs-hilbert-analysis.md`
 
 ---

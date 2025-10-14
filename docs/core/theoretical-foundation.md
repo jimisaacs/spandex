@@ -58,7 +58,7 @@ INSERT(R, v):
 - **Insert**: O(n) per operation (scan existing entries + splice fragments into sorted array)
 - **n sequential inserts**: O(n²) total work (index grows from 0 to ≈4n entries empirically)
 
-**Space**: O(n) entries stored (empirically ≈4n worst case, see test/adversarial.test.ts)
+**Space**: O(n) entries stored (empirically ≈4n worst case, see adversarial tests via `deno task test:adversarial`)
 
 **Best for**: Sparse data (n < 100), where constant-factor overhead dominates
 
@@ -82,7 +82,7 @@ INSERT(R, v):
   3. Insert R and fragments into tree with R* node splitting
 ```
 
-**R\* Split Algorithm** (Beckmann et al., 1990):
+R* Split Algorithm (Beckmann et al., 1990):
 
 - Choose split axis by minimizing perimeter sum (margin metric)
 - Within axis, choose split point to minimize overlap
@@ -150,7 +150,7 @@ Adversarial tests (designed to maximize overlaps) show k grows sublinearly:
 - 100 inserts with pathological concentric pattern → 232 final ranges
 - Average k ≈ 2.3 overlaps per insert (not Θ(n))
 - Even under worst-case patterns, k remains small
-- See `test/adversarial.test.ts` for full methodology
+- See adversarial tests (run via `deno task test:adversarial`) for full methodology
 
 **Practical Complexity**: For typical spreadsheet data with sparse overlaps, k is small and constant, making the practical complexity **O(log n) per insert**, matching standard R-tree performance. The theoretical O(n log n) worst case occurs only when nearly all entries overlap with every insertion, which is geometrically constrained by finite grid area.
 
@@ -325,7 +325,7 @@ Repeat n times
 3. **Empirical validation**: Adversarial tests with pathological patterns:
    - Theoretical worst: 4^100 rectangles (impossible)
    - Actual result: ~50-75 rectangles (linear growth)
-   - See `test/adversarial.test.ts` for concentric, diagonal, checkerboard patterns
+   - See adversarial tests (run via `deno task test:adversarial`) for concentric, diagonal, checkerboard patterns
 
 **Practical bound**: O(n) to O(4n) rectangles after n inserts, not O(4^n).
 
@@ -376,7 +376,7 @@ The above empirical observation can be proven mathematically using geometric con
 - 100 pathological inserts → 232 final ranges (2.3x fragmentation)
 - 1000 inserts would yield ≈ 2300 ranges (linear, not 4^1000)
 - Fragmentation ratio decreases as n grows (3.70x → 2.32x from n=10 to n=100)
-- See `test/adversarial.test.ts` for full results
+- See adversarial tests (run via `deno task test:adversarial`) for full results
 
 **Conclusion**: The practical complexity is **O(n) rectangles after n inserts**, bounded by geometric constraints. The theoretical O(4^n) represents an impossible scenario that violates finite area limits. When combined with typical spatial locality (k ≈ 2-3 overlaps per insert), actual fragmentation grows linearly with a small constant factor.
 

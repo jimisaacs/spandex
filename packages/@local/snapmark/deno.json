@@ -1,0 +1,17 @@
+{
+	"name": "@local/snapmark",
+	"version": "0.1.0",
+	"description": "Snapshot testing framework with markdown storage and composable codecs",
+	"license": "MIT",
+	"exports": "./src/mod.ts",
+	"tasks": {
+		"test": "deno test -A",
+		"test:watch": "deno test -A --watch",
+		"test:update": "UPDATE_FIXTURES=1 deno test -A",
+		"fmt": "deno fmt",
+		"fmt:check": "deno fmt --check",
+		"lint": "deno lint",
+		"check": "deno check src/mod.ts"
+	},
+	"exclude": ["test/fixtures/"]
+}

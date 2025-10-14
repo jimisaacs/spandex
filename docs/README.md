@@ -1,17 +1,16 @@
 # Documentation Index
 
-**Spatial Indexing Research** - 2D range decomposition for spreadsheet systems
+2D rectangle decomposition with last-writer-wins conflict resolution.
 
----
+## Navigation
 
-## Quick Start
+**Problem understanding**: [RECTANGLE-DECOMPOSITION-PRIMER](./RECTANGLE-DECOMPOSITION-PRIMER.md) → [diagrams/](./diagrams/)
 
-| Goal            | Start Here                                                            | Then Read                                                  |
-| --------------- | --------------------------------------------------------------------- | ---------------------------------------------------------- |
-| **Learning**    | [RECTANGLE-DECOMPOSITION-PRIMER](./RECTANGLE-DECOMPOSITION-PRIMER.md) | [diagrams/](./diagrams/) (3-part series)                   |
-| **Using**       | [Main README](../README.md)                                           | [BENCHMARKS](../BENCHMARKS.md)                             |
-| **Research**    | [RESEARCH-SUMMARY](./core/RESEARCH-SUMMARY.md)                        | [theoretical-foundation](./core/theoretical-foundation.md) |
-| **Development** | [IMPLEMENTATION-LIFECYCLE](./IMPLEMENTATION-LIFECYCLE.md)             | [RESEARCH-SUMMARY](./core/RESEARCH-SUMMARY.md)             |
+**Implementation**: [Main README](../README.md) → [BENCHMARKS](../BENCHMARKS.md) → [PRODUCTION-GUIDE](../PRODUCTION-GUIDE.md)
+
+**Research**: [RESEARCH-SUMMARY](./core/RESEARCH-SUMMARY.md) → [analyses/](./analyses/) → [theoretical-foundation](./core/theoretical-foundation.md)
+
+**Development**: [IMPLEMENTATION-LIFECYCLE](./IMPLEMENTATION-LIFECYCLE.md) → [BENCHMARK-FRAMEWORK](./BENCHMARK-FRAMEWORK.md)
 
 ---
 
@@ -19,61 +18,59 @@
 
 ```
 docs/
-├── core/               # Research summary + theoretical foundation
-├── analyses/           # Validated findings (Hilbert, R*, sparse data, etc.)
-├── diagrams/           # Visual explanations
-└── active/             # Current experiments (empty when idle)
+├── core/                            # Theory + validated findings
+├── analyses/                        # Individual experiment results
+├── diagrams/                        # Visual explanations (ASCII)
+├── active/experiments/              # In-progress work (empty when idle)
+│
+├── RECTANGLE-DECOMPOSITION-PRIMER.md  # Educational introduction
+├── IMPLEMENTATION-LIFECYCLE.md        # Add/archive/restore workflows
+├── BENCHMARK-FRAMEWORK.md             # Performance testing guide
+├── TELEMETRY-GUIDE.md                 # Production instrumentation
+└── CLAUDE.md                          # Documentation standards
 
-archive/docs/           # Rejected experiments
+archive/docs/experiments/            # Rejected experiments (preserved)
 ```
 
 ---
 
-## Educational Content
+## Problem Formulation
 
-### Rectangle Decomposition (Core Concept)
+**[RECTANGLE-DECOMPOSITION-PRIMER](./RECTANGLE-DECOMPOSITION-PRIMER.md)** - Core problem: maintain disjoint partition under overlapping insertions. Three conflict resolution strategies (LWW, shallow merge, spatial join).
 
-**[RECTANGLE-DECOMPOSITION-PRIMER](./RECTANGLE-DECOMPOSITION-PRIMER.md)** - Introduction to the fundamental problem and three solution strategies
+**Detailed explanations** (`diagrams/`):
 
-**Three-part deep dive** (in `diagrams/`):
+- [Last-Writer-Wins](./diagrams/rectangle-decomposition-lww.md) - This library's approach
+- [Shallow Merge](./diagrams/rectangle-decomposition-merge.md) - Property combination alternative
+- [Spatial Join](./diagrams/rectangle-decomposition-spatial-join.md) - Multi-index approach
 
-1. **[Last-Writer-Wins](./diagrams/rectangle-decomposition-lww.md)** - The simplest approach (current implementation)
-2. **[Shallow Merge](./diagrams/rectangle-decomposition-merge.md)** - Combining properties
-3. **[Spatial Join](./diagrams/rectangle-decomposition-spatial-join.md)** - Multiple indexes (recommended for multi-property)
+## Development Guides
 
----
+**[IMPLEMENTATION-LIFECYCLE.md](./IMPLEMENTATION-LIFECYCLE.md)** - Add/archive/restore implementations
 
-## Research Documents
+**[BENCHMARK-FRAMEWORK.md](./BENCHMARK-FRAMEWORK.md)** - Performance testing and auto-discovery
 
-- **[RESEARCH-SUMMARY.md](./core/RESEARCH-SUMMARY.md)** - Executive summary of all findings
-- **[theoretical-foundation.md](./core/theoretical-foundation.md)** - Algorithms, proofs, complexity analysis
+**[TELEMETRY-GUIDE.md](./TELEMETRY-GUIDE.md)** - Production metrics collection
 
----
-
-## Analyses
-
-| File                     | Finding                                             |
-| ------------------------ | --------------------------------------------------- |
-| compact-morton-analysis  | Simplified encoding beats complex Morton by 20%     |
-| hilbert-curve-analysis   | Spatial locality → 2x speedup                       |
-| sparse-data-analysis     | Linear scan wins for n<100                          |
-| transition-zone-analysis | Crossover points vary by workload                   |
-| r-star-analysis          | R* fastest construction, workload-dependent queries |
-| alternatives-analysis    | Why rectangle decomposition over alternatives       |
-| benchmark-statistics     | Statistical analysis (5-run validation)             |
+**[CLAUDE.md](./CLAUDE.md)** - Documentation standards
 
 ---
 
-## Archived Experiments
+## Research Findings
 
-See `archive/docs/` for rejected experiments. All failed hypotheses are preserved for reproducibility.
+**[RESEARCH-SUMMARY.md](./core/RESEARCH-SUMMARY.md)** - All validated findings
 
----
+**[theoretical-foundation.md](./core/theoretical-foundation.md)** - Proofs, complexity analysis, formal model
 
-## Reading Paths
+### Validated Results (`analyses/`)
 
-| Goal       | Path                                                        |
-| ---------- | ----------------------------------------------------------- |
-| Use this   | README → PRODUCTION-GUIDE → BENCHMARKS                      |
-| Understand | theoretical-foundation → analyses/                          |
-| Contribute | RESEARCH-SUMMARY → IMPLEMENTATION-LIFECYCLE → active/README |
+| Analysis                      | Result                                                  |
+| ----------------------------- | ------------------------------------------------------- |
+| morton-vs-hilbert-analysis.md | Morton 25% faster (simpler encoding, same locality)     |
+| sparse-data-analysis.md       | O(n) dominates for n<100 (tree overhead > scan cost)    |
+| transition-zone-analysis.md   | Empirical crossover at n≈100 (workload-validated)       |
+| r-star-analysis.md            | R* split: fastest construction, query pattern-dependent |
+| adversarial-patterns.md       | O(n) fragmentation bound empirically validated          |
+| benchmark-statistics.md       | Methodology: 5 runs, CV%<5%, effect size >20%           |
+
+**Rejected experiments**: `archive/docs/experiments/` (preserved for reproducibility)

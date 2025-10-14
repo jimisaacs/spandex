@@ -37,7 +37,7 @@
  * ```
  */
 
-import { contains } from './rect.ts';
+import * as rect from './rect.ts';
 import type {
 	IndexFactory,
 	PartitionedQueryResult,
@@ -63,6 +63,7 @@ import type {
  */
 function* spatialJoin<T extends Record<string, unknown>>(
 	partitionResults: Map<keyof T, Array<{ bounds: Rectangle; value: unknown }>>,
+	queryBounds: Rectangle,
 ): IterableIterator<PartitionedQueryResult<T>> {
 	// Phase 1: Collect all unique row and column boundaries
 	const rowBoundaries = new Set<number>();
@@ -84,6 +85,8 @@ function* spatialJoin<T extends Record<string, unknown>>(
 
 	// Phase 2: For each cell in the grid defined by boundaries,
 	// find which partitions cover it and merge their attributes
+	const [qXmin, qYmin, qXmax, qYmax] = queryBounds;
+
 	for (let i = 0; i < sortedRows.length - 1; i++) {
 		for (let j = 0; j < sortedCols.length - 1; j++) {
 			const bounds: Rectangle = [
@@ -93,19 +96,24 @@ function* spatialJoin<T extends Record<string, unknown>>(
 				sortedRows[i + 1] - 1,
 			];
 
+			// Skip cells outside query bounds
+			const [xmin, ymin, xmax, ymax] = bounds;
+			if (xmin > qXmax || ymin > qYmax || xmax < qXmin || ymax < qYmin) {
+				continue;
+			}
+
 			const attributes: Partial<T> = {};
 
 			// Check which partitions cover this cell
 			for (const [key, results] of partitionResults.entries()) {
 				for (const result of results) {
-					if (contains(result.bounds, bounds)) {
+					if (rect.contains(result.bounds, bounds)) {
 						attributes[key] = result.value as T[keyof T];
-						break; // Found value for this partition
+						break;
 					}
 				}
 			}
 
-			// Only include cells that have at least one attribute
 			if (Object.keys(attributes).length) {
 				yield [bounds, attributes];
 			}
@@ -135,7 +143,8 @@ function* spatialJoin<T extends Record<string, unknown>>(
  *   - m = query results per partition
  *   - R, C = unique row/column boundaries (spatial join cost)
  */
-export class LazyPartitionedSpatialIndexImpl<T extends Record<string, unknown>> implements PartitionedSpatialIndex<T> {
+export default class LazyPartitionedSpatialIndexImpl<T extends Record<string, unknown>>
+	implements PartitionedSpatialIndex<T> {
 	/** Attribute → spatial index. Created lazily on first write. */
 	private readonly partitions = new Map<keyof T, SpatialIndex<unknown>>();
 
@@ -251,8 +260,7 @@ export class LazyPartitionedSpatialIndexImpl<T extends Record<string, unknown>> 
 	 * // ]
 	 * ```
 	 */
-	*query(bounds: Rectangle): IterableIterator<PartitionedQueryResult<T>> {
-		// Query all active partitions
+	*query(bounds = rect.ALL): IterableIterator<PartitionedQueryResult<T>> {
 		const partitionResults = new Map<keyof T, Array<{ bounds: Rectangle; value: unknown }>>();
 
 		for (const [key, partition] of this.partitions.entries()) {
@@ -261,12 +269,10 @@ export class LazyPartitionedSpatialIndexImpl<T extends Record<string, unknown>> 
 				partitionResults.set(key, results);
 			}
 		}
-		// If no partitions have results, return empty
 		if (!partitionResults.size) {
 			return;
 		}
-		// Perform spatial join across all partition results
-		yield* spatialJoin(partitionResults);
+		yield* spatialJoin(partitionResults, bounds);
 	}
 
 	/**

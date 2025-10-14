@@ -26,35 +26,26 @@ const { stdout, stderr, code } = await command.output();
 let output = new TextDecoder().decode(stdout);
 const errors = new TextDecoder().decode(stderr);
 
-// Deno bench exits with code 1 even on success if any benchmark exists
-// Check if we have valid output before treating as failure
 if (code !== 0 && !output.includes('| benchmark |')) {
 	console.error('Benchmark failed:', errors);
 	console.error('stdout:', output);
 	Deno.exit(1);
 }
 
-// Strip ANSI color codes
 // deno-lint-ignore no-control-regex
 output = output.replace(/\x1b\[[0-9;]*m/g, '');
 
-// Parse benchmark results - dynamically discover all scenarios
 const lines = output.split('\n');
 const results: Record<string, Record<string, number>> = {};
 const implementationNames = new Set<string>();
 const scenarioNames = new Set<string>();
 
-// Parse all benchmark lines dynamically from table format
 for (const line of lines) {
-	// Match pattern: "| Implementation - scenario description | time unit | ..."
-	// Example: "| Reference - write: sparse-sequential (n=50) | 14.4 µs | ..."
-	// Updated to handle hyphens and spaces in implementation names
 	const pattern = /^\|\s*([\w-]+)\s+-\s+(.+?)\s+\|\s*([\d.]+)\s*(µs|ns|ms)\s*\|/;
 	const match = line.match(pattern);
 	if (match) {
 		const [, impl, scenario, time, unit] = match;
 
-		// Skip correctness verification
 		if (scenario === 'Correctness verification') continue;
 
 		implementationNames.add(impl);

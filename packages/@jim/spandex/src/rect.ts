@@ -27,12 +27,10 @@ export function isEqual(a: Rectangle, b: Rectangle): boolean {
 	return a === b || (a[0] === b[0] && a[1] === b[1] && a[2] === b[2] && a[3] === b[3]);
 }
 
-/** a === ZERO (structurally) */
 export function isZero(a: Rectangle): boolean {
 	return isEqual(a, ZERO);
 }
 
-/** a === ALL (structurally) */
 export function isAll(a: Rectangle): boolean {
 	return isEqual(a, ALL);
 }
@@ -91,11 +89,10 @@ export function validated(a: Rectangle): Rectangle {
  *
  * @returns Validated and canonical rectangle (sentinel reference if equivalent to ZERO/ALL)
  */
-export function rect(xmin = -Infinity, ymin = -Infinity, xmax = Infinity, ymax = Infinity): Rectangle {
+export function make(xmin = -Infinity, ymin = -Infinity, xmax = Infinity, ymax = Infinity): Rectangle {
 	return validated([xmin, ymin, xmax, ymax]);
 }
 
-/** A ⊇ B (superset) */
 export function contains(a: Rectangle, b: Rectangle): boolean {
 	const [ax, ay, ax2, ay2] = a;
 	const [bx, by, bx2, by2] = b;

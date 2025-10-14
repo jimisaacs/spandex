@@ -146,7 +146,7 @@
 
 **Variants**:
 
-- __R_-tree_*: Optimized split algorithm (minimizes overlap + area + perimeter)
+- R*-tree: Optimized split algorithm (minimizes overlap + area + perimeter)
 - **Hilbert R-tree**: Uses space-filling curves for better spatial locality
 - **STR-tree**: Sort-Tile-Recursive bulk loading for static datasets
 

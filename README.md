@@ -8,108 +8,59 @@
 
 ## Problem
 
-Spreadsheet APIs track properties (colors, formats, validation rules) across 2D ranges. Ranges overlap. The challenge: maintain a **spatial partition** (non-overlapping regions) with **last-writer-wins** conflict resolution.
+Maintain a spatial partition of 2D rectangles with last-writer-wins (LWW) conflict resolution. Given a sequence of insertions `(R_i, v_i)`, maintain a set of disjoint rectangles where each point maps to the value from its most recent covering rectangle.
 
-**Example** (0-indexed, half-open `[start, end)` coordinates):
+**Formal definition**: After inserting `(R, v)`, decompose existing rectangles `R_i ∩ R` into `R_i \ R` (at most 4 fragments per overlap), then store `(R, v)`.
 
-1. Insert rows `[0, 5)`, cols `[0, 5)` → **Red** (25 cells: rows 0-4, cols 0-4)
-2. Insert rows `[2, 7)`, cols `[2, 7)` → **Blue** (25 cells: rows 2-6, cols 2-6, overlaps!)
-3. **Result**: 3 non-overlapping ranges:
-   - Red top strip: `[0, 2) × [0, 5)` → 10 cells
-   - Red left strip: `[2, 5) × [0, 2)` → 6 cells
-   - Blue center: `[2, 7) × [2, 7)` → 25 cells (overwrites 9-cell overlap)
+**Constraint**: All stored rectangles must be pairwise disjoint (`∀ i≠j: R_i ∩ R_j = ∅`).
 
-**Constraint**: Each point maps to its most recent value.
+## Coordinate Semantics
 
-## Coordinate System
+**Core library**: Closed intervals `[min, max]` where both endpoints are included.
 
-**Internal vs External Semantics**:
+- Rectangle: `[x_min, y_min, x_max, y_max]` represents `{(x,y) : x_min ≤ x ≤ x_max, y_min ≤ y ≤ y_max}`
+- Simplifies geometric operations (intersection, subtraction require no ±1 adjustments)
 
-- **Core library** (`Rectangle`): Uses **closed intervals** `[min, max]` where both endpoints are included
-  - Example: `[0, 0, 4, 4]` = x:[0,4], y:[0,4] (all coordinates 0-4 inclusive)
-  - Why? Simplifies geometric operations (no ±1 adjustments)
+**Adapter layer**: Half-open intervals `[start, end)` where end is excluded.
 
-- **GridRange adapter**: Uses **half-open intervals** `[start, end)` where end is excluded
-  - Example: `{startRowIndex: 0, endRowIndex: 5}` = rows 0-4 (NOT 5!)
-  - Why? Matches Google Sheets API and standard programming practice
+- Matches Google Sheets API and standard library conventions
+- Conversion at boundaries: `[start, end)` ⟷ `[start, end-1]`
 
-**Common mistake**: Assuming `endRowIndex: 5` includes row 5. It doesn't!
+See [coordinate-system.md](./docs/diagrams/coordinate-system.md) for detailed semantics.
 
-**Visual** (GridRange format):
+## Algorithms
 
-```
-[0, 5) = [0, 1, 2, 3, 4]    ✅ Correct
-       ≠ [0, 1, 2, 3, 4, 5]  ❌ Wrong!
-```
+Two complexity classes (implementations in `packages/@jim/spandex/src/implementations/`):
 
-**Why half-open for GridRange?** Matches Google Sheets API:
+**O(n) Linear Scan**: Flat array storage with spatial locality optimization via space-filling curves (Morton Z-order). Constant-time encoding, cache-friendly iteration. Dominates for n < 100.
 
-- Empty range: `[5, 5)` is empty (not invalid)
-- Adjacent ranges: `[0, 5)` + `[5, 10)` = no gap, no overlap
+**O(log n) R-tree**: Hierarchical bounding volume hierarchy with R* split algorithm (Beckmann et al. 1990). Query pruning via spatial indexing. Dominates for n ≥ 100.
 
-**Visual guide**: See [coordinate-system.md](./docs/diagrams/coordinate-system.md) for more examples and common mistakes.
+**Crossover analysis**: See `docs/analyses/transition-zone-analysis.md` for empirical validation of n=100 threshold.
 
-## Implementations
-
-Two algorithm families (see `packages/@jim/spandex/src/implementations/` for current active implementations):
-
-### O(n) Linear Scan
-
-Iterate through all ranges. Fast for small datasets (n < 100) due to low overhead and spatial locality.
-
-**Production approach**: Morton curve (Z-order) spatial locality optimization (faster than naive scan)
-
-### O(log n) R-Tree
-
-Hierarchical spatial index with pruning. Fast for large datasets (n ≥ 100).
-
-**Production approach**: R* split algorithm (optimal tree quality)
-
-See `archive/` for historical experiments and alternative approaches.
-
-## Quick Start
-
-Track cell properties with automatic overlap resolution:
+## Usage
 
 ```typescript
 import { MortonLinearScanImpl } from '@jim/spandex';
 
-// Create a spatial index for background colors
-const backgroundColors = new MortonLinearScanImpl<string>();
+const index = new MortonLinearScanImpl<string>();
+index.insert([0, 0, 4, 4], 'A'); // Rectangle [x_min, y_min, x_max, y_max]
+index.insert([2, 2, 6, 6], 'B'); // Overlapping insert
 
-// Insert a red background: columns 0-4, rows 0-4 (25 cells)
-// Rectangle format: [xmin, ymin, xmax, ymax] with CLOSED intervals
-backgroundColors.insert([0, 0, 4, 4], 'red');
-
-// Insert a blue background: columns 2-6, rows 2-6 (25 cells, overlaps!)
-backgroundColors.insert([2, 2, 6, 6], 'blue');
-
-// Result: 3 non-overlapping ranges (last-writer-wins)
-const ranges = Array.from(backgroundColors.query());
-console.log(ranges.length); // 3
-
-// What happened?
-// ├─ Red top strip: cols [0,4] × rows [0,1] → still red
-// ├─ Red left strip: cols [0,1] × rows [2,4] → still red
-// └─ Blue center: cols [2,6] × rows [2,6] → blue (overwrote overlap)
+// Query returns disjoint fragments
+for (const [rect, value] of index.query()) {
+	console.log(rect, value);
+}
+// Output: [0,0,4,1],'A'  [0,2,1,4],'A'  [2,2,6,6],'B'
 ```
 
-**Output**: The index automatically decomposed the overlapping ranges into 3 disjoint rectangles.
-
-**Google Sheets Integration**: Use the adapter for GridRange compatibility:
+**Adapter for external formats**:
 
 ```typescript
-import { createGridRangeAdapter, MortonLinearScanImpl } from '@jim/spandex';
+import { createGridRangeAdapter } from '@jim/spandex';
 
-const index = createGridRangeAdapter(new MortonLinearScanImpl<string>());
-
-// Now uses Google Sheets GridRange format (half-open intervals)
-index.insert({
-	startRowIndex: 0,
-	endRowIndex: 5, // Half-open: means rows 0,1,2,3,4 (NOT 5)
-	startColumnIndex: 0,
-	endColumnIndex: 5,
-}, 'red');
+const adapted = createGridRangeAdapter(index);
+adapted.insert({ startRowIndex: 0, endRowIndex: 5, ... }, value);
 ```
 
 ## Installation
@@ -136,11 +87,10 @@ import { MortonLinearScanImpl } from 'https://raw.githubusercontent.com/...';
 
 ```bash
 deno task test               # All tests
-deno task bench              # Run benchmarks
-deno task bench:update       # Regenerate BENCHMARKS.md
-deno task bench:analyze      # Statistical analysis (5 runs, ~4-5 min)
-deno task test:morton        # Test specific implementation
-deno task test:rstartree     # ...
+deno task test:adversarial   # Adversarial worst-case tests
+deno task bench              # Run benchmarks (~2 min)
+deno task bench:update       # Regenerate BENCHMARKS.md (~2 min)
+deno task bench:analyze 5 docs/analyses/benchmark-statistics.md  # Statistical analysis (~30 min)
 deno task fmt                # Format
 deno task lint               # Lint
 deno task check              # Type check
@@ -167,66 +117,46 @@ deno task check              # Type check
 ## Architecture
 
 ```
-src/
-├── types.ts                          # Core types (Rectangle, SpatialIndex, QueryResult)
-├── rect.ts                           # Rectangle utilities (canonicalization, sentinels)
-├── implementations/                  # Active implementations
-│   ├── mortonlinearscan.ts           # ✅ Production: O(n), n<100
-│   └── rstartree.ts                  # ✅ Production: O(log n), n≥100
-├── conformance/                      # Axiom-based testing
-│   ├── testsuite.ts                  # 25 core axioms
-│   ├── ascii-snapshot-axioms.ts      # 15 ASCII snapshot tests
-│   ├── ascii-snapshot.ts             # ASCII rendering/parsing utilities
-│   ├── cross-implementation.ts       # Cross-validation tests
-│   └── mod.ts                        # Exports
-├── adapters/                         # External API adapters
-│   ├── gridrange.ts                  # GridRange ⟷ Rectangle conversion
-│   └── a1.ts                         # A1 notation → Rectangle conversion
-├── telemetry/                        # Production telemetry (opt-in)
-│   └── index.ts                      # Metrics collection wrapper
-└── lazypartitionedindex.ts           # Per-attribute spatial partitioning (lazy vertical partitioning)
+packages/@jim/spandex/               # Core spatial indexing library
+├── src/
+│   ├── implementations/             # Active production algorithms
+│   ├── adapters/                    # External API adapters (GridRange, A1)
+│   └── types, utilities
+└── test/                            # Implementation tests
 
-test/                                 # Test entry points
-├── mortonlinearscan.test.ts          # Conformance tests
-├── rstartree.test.ts                 # Conformance tests
-├── lazypartitionedindex.test.ts      # Partitioned index tests
-├── telemetry.test.ts                 # Telemetry tests
-├── adversarial.test.ts               # Worst-case pattern tests
-└── integration.test.ts               # Cross-implementation tests
+packages/@local/spandex-testing/     # Testing framework
+├── src/
+│   ├── axiom/                       # Conformance test axioms
+│   └── ascii/                       # Visual debugging utilities
+└── test/
 
-archive/                              # Historical implementations (docs + git history)
-├── IMPLEMENTATION-HISTORY.md         # One-line index with git SHAs
-└── docs/experiments/                 # Full analysis of archived work
+packages/@local/spandex-telemetry/   # Production metrics (opt-in)
+
+archive/                             # Historical research
+├── src/implementations/             # Archived algorithms
+└── docs/experiments/                # Experiment analyses
 ```
 
 ## Testing
 
-Comprehensive test suite validates:
+**Axiom-based conformance**: Mathematical invariants (disjointness, LWW semantics, O(n) fragmentation bound) verified via property-based testing. See `packages/@local/spandex-testing/src/axiom/`.
 
-- **Conformance axioms**: Core correctness properties (LWW semantics, overlap resolution, disjointness invariants)
-- **ASCII snapshot tests**: Visual regression testing with human-readable grid representations
-- **Adversarial patterns**: Worst-case fragmentation validation (concentric, diagonal, checkerboard patterns empirically validate O(n) bound, not exponential)
-- **Integration tests**: Cross-implementation consistency verification
+**Adversarial validation**: Pathological insertion patterns (concentric, diagonal, checkerboard) empirically validate linear fragmentation bound. See `docs/analyses/adversarial-patterns.md`.
 
-- [Conformance test suite](./packages/@local/spandex-testing/src/axioms/core.ts)
-- [Test coverage improvements](./docs/analyses/test-coverage-improvements.md) - 4 new axioms added (Oct 2025)
-- [Adversarial pattern analysis](./docs/analyses/adversarial-patterns.md) - Validates geometric bounds under worst-case insertion patterns
+**Cross-implementation consistency**: Reference implementation oracle validates algorithmic correctness across O(n) and O(log n) variants.
 
-## Choosing an Implementation
+## Performance
 
-| Ranges | Algorithm Approach      | Performance                    |
-| ------ | ----------------------- | ------------------------------ |
-| < 100  | Morton spatial locality | ~10µs @ n=50                   |
-| ≥ 100  | R-tree (R* split)       | ~50µs @ n=100, ~800µs @ n=1000 |
+| n     | Algorithm   | Complexity | Empirical     |
+| ----- | ----------- | ---------- | ------------- |
+| < 100 | Linear scan | O(n)       | ~7µs @ n=50   |
+| ≥ 100 | R-tree      | O(log n)   | ~50µs @ n=100 |
 
-See [PRODUCTION-GUIDE.md](./PRODUCTION-GUIDE.md) for implementation details and import statements. See [BENCHMARKS.md](./BENCHMARKS.md) for current data.
+Crossover at n≈100 validated across multiple workloads. See [BENCHMARKS.md](./BENCHMARKS.md) for detailed measurements.
 
 ## Applications
 
-- **Spreadsheets**: Range formatting, data validation, conditional formatting
-- **GIS**: Spatial data management, overlay analysis
-- **Games**: Collision detection, spatial partitioning
-- **Databases**: Spatial indexing, range queries
+Spreadsheet property tracking (formatting, validation), GIS overlay analysis, game collision detection, database spatial indexing. Any domain requiring LWW conflict resolution over 2D regions.
 
 ## Research Process
 

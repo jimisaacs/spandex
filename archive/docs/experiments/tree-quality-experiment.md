@@ -1,8 +1,8 @@
 # Tree Quality vs Query Performance Experiment
 
-**Status**: 🔬 IN PROGRESS
+**Status**: ❌ ARCHIVED (Experiment not pursued - deferred for future work)
 
-**Hypothesis**: R* split's overlap minimization produces measurably better query performance that justifies its 6% construction cost overhead
+**Original Hypothesis**: R* split's overlap minimization produces measurably better query performance that justifies its 6% construction cost overhead
 
 **Research Question**: Does theoretical tree quality (low overlap, balanced depth) translate to empirical query performance gains?
 

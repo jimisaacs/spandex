@@ -23,11 +23,11 @@ R* algorithm has two phases:
 
 For m=10 entries (MAX_ENTRIES):
 
-| Algorithm     | Axis Selection | Split Point | Total Ops | Notes                                                  |
-| ------------- | -------------- | ----------- | --------- | ------------------------------------------------------ |
-| **Midpoint**  | None           | O(1)        | ~10       | Sort once, split at median                             |
-| **FastRTree** | O(m log m)     | O(1)        | ~30       | Sort twice (X, Y), compute perimeters, split at median |
-| **R***        | O(m log m)     | O(m²)       | ~300      | Sort twice, compute overlaps for all k splits          |
+| Algorithm | Axis Selection | Split Point | Total Ops | Notes                                                  |
+| --------- | -------------- | ----------- | --------- | ------------------------------------------------------ |
+| Midpoint  | None           | O(1)        | ~10       | Sort once, split at median                             |
+| FastRTree | O(m log m)     | O(1)        | ~30       | Sort twice (X, Y), compute perimeters, split at median |
+| R*        | O(m log m)     | O(m²)       | ~300      | Sort twice, compute overlaps for all k splits          |
 
 **Cost ratio**: FastRTree adds 20 ops vs midpoint (2x slower on split), R* adds 270 ops (27x slower on split).
 
@@ -61,7 +61,7 @@ If FastRTree produces significantly better tree quality (less overlap), query pe
 
 1. **TypedArrays**: Use Int32Array for coordinates (cache-friendly, from ArrayBufferRTree)
 2. **Regular arrays for children**: Variable-length children lists (simpler than arena)
-3. __R_ axis heuristic_*: Minimize perimeter sum to choose split axis
+3. R* axis heuristic: Minimize perimeter sum to choose split axis
 4. **Midpoint split**: After choosing axis, split at median (no overlap computation)
 
 **Code comparison**:

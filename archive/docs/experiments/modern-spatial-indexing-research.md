@@ -331,10 +331,9 @@ Modern techniques (learned indexes, GPU acceleration) target massive datasets (m
 
 ---
 
-**Next Steps**:
+**Next Steps (Not Pursued)**:
 
 1. ✅ Document findings (this file)
-2. Update todo list - mark research complete
-3. Begin Phase 1 Priority 2: `insertBatch()` API implementation
+2. Begin Phase 1 Priority 2: `insertBatch()` API implementation
 
-**Status**: Research complete, recommendations documented
+**Status**: Research complete, archived without implementation (bulk operations deferred)

@@ -6,7 +6,7 @@
 
 | Split Algorithm          | Construction Time   | Tree Quality           | Status               |
 | ------------------------ | ------------------- | ---------------------- | -------------------- |
-| **R*** (Beckmann 1990)   | 1.92ms (baseline)   | Best (minimal overlap) | ✅ Production choice |
+| R* (Beckmann 1990)       | 1.92ms (baseline)   | Best (minimal overlap) | ✅ Production choice |
 | Midpoint                 | 2.20ms (15% slower) | Worst (high overlap)   | Alternative          |
 | Quadratic (Guttman 1984) | 43.5ms (22x slower) | Good                   | ❌ Too slow          |
 
@@ -107,8 +107,8 @@ Total: O(m log m) per split
 
 ### Interpretation
 
-1. __R_ is actually FASTER than midpoint split_ _: Contrary to theoretical expectations, the current implementation of R_ outperforms midpoint by 6-16% while also providing better tree quality
-2. __R_ is 37% faster than quadratic on overlapping data_*: O(m log m) vs O(m²) matters when splits are frequent
+1. R* is actually FASTER than midpoint split: Contrary to theoretical expectations, the current implementation of R* outperforms midpoint by 6-16% while also providing better tree quality
+2. R* is 37% faster than quadratic on overlapping data: O(m log m) vs O(m²) matters when splits are frequent
 3. **Variance is low**: Both implementations are highly optimized and repeatable (CV < 1.5%)
 
 ## Theoretical Analysis
@@ -162,7 +162,7 @@ Total: O(m log m) per split
 - **Average case** (k constant): O(log n)
 - **Worst case** (k=Θ(n)): O(n log n)
 
-**Empirical**: Adversarial tests show average k ≈ 2.3 even under pathological patterns (see test/adversarial.test.ts), validating that practical complexity is O(log n).
+**Empirical**: Adversarial tests show average k ≈ 2.3 even under pathological patterns (run via `deno task test:adversarial`), validating that practical complexity is O(log n).
 
 For full proof, see [theoretical-foundation.md](../core/theoretical-foundation.md#r-tree-insert-complexity-detailed-analysis).
 

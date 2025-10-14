@@ -1,7 +1,6 @@
 import type { Rectangle } from '@jim/spandex';
-import { seededRandom } from '@local/spandex-testing';
+import { seededRandom } from '@local/spandex-testing/utils';
 
-// Parse command-line arguments
 const args = Deno.args;
 const includeArchived = args.includes('--include-archived') || args.includes('--archived');
 const excludeActive = args.filter((arg) => arg.startsWith('--exclude=')).map((arg) => arg.replace('--exclude=', ''));
@@ -15,7 +14,6 @@ async function discoverImplementations(baseDir: string, label?: string) {
 	const implementations = [];
 
 	try {
-		// Check if directory exists and is accessible
 		const entries = [];
 		for await (const entry of Deno.readDir(baseDir)) {
 			entries.push(entry);
@@ -78,11 +76,9 @@ async function discoverImplementations(baseDir: string, label?: string) {
 	return implementations;
 }
 
-// Discover implementations from file system (both use same mechanism)
 const activeImplementations = await discoverImplementations('packages/@jim/spandex/src/implementations');
 const archivedImplementations = includeArchived ? await discoverImplementations('archive/src/implementations') : [];
 
-// Filter and combine
 const implementations = [
 	...activeImplementations.filter((impl) => !excludeActive.includes(impl.name)),
 	...archivedImplementations,
@@ -167,9 +163,7 @@ const largeScenarios = {
 
 const allScenarios = { ...sparseScenarios, ...largeScenarios };
 
-// ============================================================================
-// WRITE-HEAVY BENCHMARKS (Pure Inserts)
-// ============================================================================
+//#region Write-Heavy Benchmarks (Pure Inserts)
 
 for (const [scenarioName, operations] of Object.entries(allScenarios)) {
 	for (const { name, Class } of implementations) {
@@ -179,10 +173,9 @@ for (const [scenarioName, operations] of Object.entries(allScenarios)) {
 		});
 	}
 }
+//#endregion Write-Heavy Benchmarks (Pure Inserts)
 
-// ============================================================================
-// READ-HEAVY BENCHMARKS (Many queries after setup)
-// ============================================================================
+//#region Read-Heavy Benchmarks (Many queries after setup)
 
 for (const { name, Class } of implementations) {
 	// Sparse scenarios with frequent queries
@@ -215,10 +208,9 @@ for (const { name, Class } of implementations) {
 		});
 	}
 }
+//#endregion Read-Heavy Benchmarks (Many queries after setup)
 
-// ============================================================================
-// MIXED BENCHMARKS (80% write, 20% read)
-// ============================================================================
+//#region Mixed Benchmarks (80% write, 20% read)
 
 for (const { name, Class } of implementations) {
 	// Sparse mixed workloads
@@ -269,10 +261,9 @@ for (const { name, Class } of implementations) {
 		}
 	});
 }
+//#endregion Mixed Benchmarks (80% write, 20% read)
 
-// ============================================================================
-// QUERY-ONLY BENCHMARKS (Construction not measured)
-// ============================================================================
+//#region Query-Only Benchmarks (Construction not measured)
 
 /**
  * Query-only benchmarks: Measure pure query performance by building the index
@@ -282,7 +273,6 @@ for (const { name, Class } of implementations) {
  * and search efficiency under different data patterns.
  */
 
-// Helper for random query ranges
 function generateQueryRange(max: number, random: () => number): Rectangle {
 	const row = Math.floor(random() * max);
 	const col = Math.floor(random() * max);
@@ -365,10 +355,9 @@ for (const { name, Class } of implementations) {
 		},
 	});
 }
+//#endregion Query-Only Benchmarks (Construction not measured)
 
-// ============================================================================
-// CORRECTNESS VERIFICATION
-// ============================================================================
+//#region Correctness Verification
 
 Deno.bench('Correctness verification', () => {
 	const results = implementations.map(({ Class }) => {
@@ -381,3 +370,4 @@ Deno.bench('Correctness verification', () => {
 		throw new Error(`Implementations produce different results: ${results.join(', ')}`);
 	}
 });
+//#endregion Correctness Verification

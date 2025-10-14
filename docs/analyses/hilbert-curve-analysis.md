@@ -20,7 +20,7 @@ __vs R_-tree_ _: Hilbert is 2x faster than R_-tree for n<100 (write-heavy worklo
 **Compared to RStarTreeImpl**:
 
 - n=50 (sparse): Hilbert 6.9µs vs R*-tree 20.0µs → **Hilbert 2.9x faster** (write-heavy workload)
-- n=2500 (large): Hilbert 9.5ms vs R*-tree 1.9ms → __R_-tree 4.9x faster_* (hierarchical pruning wins)
+- n=2500 (large): Hilbert 9.5ms vs R*-tree 1.9ms → R*-tree 4.9x faster (hierarchical pruning wins)
 
 **Crossover**: Linear scan (including Hilbert) optimal for n < 100, R-tree optimal for n ≥ 100
 
@@ -93,7 +93,7 @@ We hypothesize the speedup comes from improved spatial locality:
 
 ## Implementation
 
-**Full Algorithm** (see `archive/src/implementations/superseded/hilbertlinearscan.ts` for complete code):
+**Full Algorithm** (archived code available via git history - see `archive/IMPLEMENTATION-HISTORY.md` for SHA):
 
 ```typescript
 class HilbertLinearScanImpl {
@@ -169,7 +169,7 @@ class HilbertLinearScanImpl {
 - For n < 100 (typical use case), impact is negligible
 - For very large grids with n > 100, consider R*-tree instead (no coord limitations)
 
-**Validation**: See `test/hilbertlinearscan.test.ts` for edge case tests:
+**Validation**: Historical edge case tests (implementation archived):
 
 - Boundary coordinates (65535, 65536)
 - Very large coordinates (100000+)

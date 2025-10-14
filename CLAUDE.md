@@ -19,13 +19,38 @@ Spatial indexing research for 2D range decomposition in spreadsheet systems. Mai
 ### Testing
 
 ```bash
-deno task test                    # Run all active tests (113 tests)
+deno task test                    # Run all active tests
 deno task test:watch              # Watch mode
-deno task test:morton             # Test specific implementation
-deno task test:rstartree          # Test specific implementation
+deno task test:morton             # Test specific implementation (Morton)
+deno task test:rstartree          # Test specific implementation (R-tree)
 deno task test:adversarial        # Worst-case fragmentation tests
-deno test test/specific.test.ts   # Run single test file
+deno test packages/@jim/spandex/test/lazypartitionedindex.test.ts       # Run single test file
+
+# Update fixtures when tests change
+UPDATE_FIXTURES=1 deno test -A   # Regenerate all fixture files
 ```
+
+**Fixture Update Workflow**: Tests use snapshot fixtures stored as markdown files. When test behavior changes intentionally:
+
+1. Run with `UPDATE_FIXTURES=1` to regenerate fixtures
+2. Review diffs carefully (ensure changes are intentional)
+3. Commit updated fixture files with code changes
+
+**Example**:
+
+```bash
+# After changing test behavior
+UPDATE_FIXTURES=1 deno test -A packages/@jim/spandex/test/adapters/
+
+# Or update specific implementation tests
+UPDATE_FIXTURES=1 deno task test:morton
+UPDATE_FIXTURES=1 deno task test:rstartree
+
+# Review changes
+git diff packages/@jim/spandex/test/**/fixtures/*.md
+```
+
+**Note**: `UPDATE_FIXTURES=1` requires `-A` flag (all permissions) to access environment variables.
 
 ### Benchmarking
 
@@ -145,12 +170,14 @@ type Rectangle = readonly [xmin: number, ymin: number, xmax: number, ymax: numbe
 
 ### Implementation Families
 
-**Current active implementations** (see `packages/@jim/spandex/src/implementations/` directory):
+**Active implementations**: See `packages/@jim/spandex/src/implementations/` directory for current production algorithms.
 
-- **Morton spatial locality linear scan** - Production choice for sparse data (n < 100), uses Morton curve (Z-order) for spatial locality
-- __R-Tree with R_ split_* - Production choice for large data (n ≥ 100), O(log n) hierarchical indexing
+**Two algorithm families**:
 
-**Archived implementations** (see `archive/src/implementations/` for historical research):
+- **O(n) Linear scan** - Best for sparse data (n < 100), uses spatial locality optimizations
+- **O(log n) Hierarchical indexing** - Best for large data (n ≥ 100), uses tree structures with smart split algorithms
+
+**Archived implementations**: See `archive/src/implementations/` for historical research and superseded algorithms.
 
 - Reference implementations (test oracles)
 - Superseded optimizations
@@ -161,19 +188,20 @@ All implementations are auto-discovered by benchmarks from their filesystem loca
 
 ### Testing Framework
 
-**Conformance tests** (packages/@local/spandex-testing/src/axioms/core.ts):
+**Conformance tests** (packages/@local/spandex-testing/src/axiom/):
 
 - Core axioms validate mathematical correctness (empty state, LWW semantics, overlap resolution, disjointness, fragment counts)
+- Modular axiom files: `properties.ts`, `geometry.ts`, `visual.ts`, `canonical-values.ts`, `cross-implementation.ts`
 - ASCII snapshot tests validate visual rendering and round-trip parsing
 - Every implementation must pass all conformance tests
 
-**Adversarial tests** (test/adversarial.test.ts):
+**Adversarial tests** (run via `deno task test:adversarial`):
 
 - Pathological patterns to validate O(n) fragmentation bound
 - Concentric, diagonal, checkerboard, random patterns
 - Validates geometric bounds under worst-case inputs
 
-**Fragment Count Verification** (packages/@local/spandex-testing/src/axioms/core.ts:450-537):
+**Fragment Count Verification** (packages/@local/spandex-testing/src/axiom/canonical-values.ts):
 
 - **Canonical correctness check**: Large-overlapping scenario MUST produce exactly 1375 fragments
 - **Cross-implementation consistency**: All implementations must produce identical fragment counts
@@ -195,17 +223,52 @@ Validated by `assertInvariants()` in conformance tests.
 ### Adding a New Implementation
 
 1. Create `packages/@jim/spandex/src/implementations/newimpl.ts` implementing `SpatialIndex<T>`
-2. Create `test/newimpl.test.ts` with conformance tests
-3. During development:
+2. Create test files in `packages/@jim/spandex/test/implementations/newimpl/`:
+   ```typescript
+   // property.test.ts
+   import { NewImpl } from '@jim/spandex';
+   import { testPropertyAxioms } from '@local/spandex-testing/axiom';
+
+   Deno.test('NewImpl - Property Axioms', async (t) => {
+   	await testPropertyAxioms(t, () => new NewImpl<string>());
+   });
+
+   // geometry.test.ts
+   import { NewImpl } from '@jim/spandex';
+   import { createFixtureGroup } from '@local/snapmark';
+   import { asciiStringCodec } from '@local/spandex-testing/ascii';
+   import { testGeometryAxioms } from '@local/spandex-testing/axiom';
+
+   Deno.test('NewImpl - Geometry Axioms', async (t) => {
+   	const { assertMatch, flush } = createFixtureGroup(asciiStringCodec(), {
+   		context: t,
+   		filePath: new URL('../fixtures/geometry-test.md', import.meta.url),
+   	});
+
+   	await testGeometryAxioms(t, () => new NewImpl<string>(), assertMatch);
+
+   	await flush();
+   });
+
+   // visual.test.ts - similar pattern
+   ```
+3. Generate fixtures on first run:
+   ```bash
+   UPDATE_FIXTURES=1 deno test -A packages/@jim/spandex/test/implementations/newimpl/
+   # Or for existing implementations:
+   UPDATE_FIXTURES=1 deno task test:morton
+   UPDATE_FIXTURES=1 deno task test:rstartree
+   ```
+4. During development:
    ```bash
    deno task test && deno task check
    deno task bench:update  # Quick feedback (~2 min)
    ```
-4. Before completing/committing:
+5. Before completing/committing:
    ```bash
    deno task bench:analyze 5 docs/analyses/benchmark-statistics.md  # Final stats (~30 min)
    ```
-5. Benchmarks auto-discover from `packages/@jim/spandex/src/implementations/`
+6. Benchmarks auto-discover from `packages/@jim/spandex/src/implementations/`
 
 See docs/IMPLEMENTATION-LIFECYCLE.md for details.
 
@@ -224,7 +287,7 @@ deno task bench:analyze 5 docs/analyses/benchmark-statistics.md  # (~30 min)
 This moves files, fixes imports, and verifies type-checking. Manual archiving:
 
 1. Move `packages/@jim/spandex/src/implementations/X.ts` → `archive/src/implementations/<category>/X.ts`
-2. Move `test/X.test.ts` → `archive/test/X.test.ts`
+2. Move `packages/@jim/spandex/test/implementations/X/` → `archive/test/X/`
 3. Add header comment explaining why archived
 4. Run `deno task bench:update` to regenerate BENCHMARKS.md
 5. Update archive README if needed
@@ -259,7 +322,7 @@ Benchmarks automatically exclude archived implementations (based on filesystem l
 **Full workflow**:
 
 1. **Start experiment**: Create `docs/active/experiments/[name]-experiment.md` with hypothesis
-2. **Implement**: Create `packages/@jim/spandex/src/implementations/[name].ts` + `test/[name].test.ts` + add to benchmarks
+2. **Implement**: Create `packages/@jim/spandex/src/implementations/[name].ts` + test files in `packages/@jim/spandex/test/implementations/[name]/` + add to benchmarks
 3. **Iterate with quick benchmarks**:
    ```bash
    deno task bench:update  # Quick feedback during development (~2 min)
@@ -490,6 +553,256 @@ See docs/analyses/benchmark-statistics.md for full methodology.
 ✅ import HybridRTree from '../archive/src/implementations/failed-experiments/hybridrtree.ts';
 ```
 
+---
+
+## Documentation Writing Style
+
+**Philosophy**: Technical precision without unnecessary complexity. Write for the informed reader who values their time.
+
+**📖 Detailed Framework**: See [docs/CLAUDE.md](./docs/CLAUDE.md) for comprehensive documentation standards (directory structure, document types, tone by context, checklists).
+
+### Tone & Voice
+
+**Technical Documentation** (README, PRODUCTION-GUIDE):
+
+- Direct, imperative voice ("Use X", "Run Y")
+- Assume reader knows basic CS concepts
+- Provide examples, not lengthy explanations
+- Front-load key information (what/why before how)
+
+**Research Documentation** (docs/analyses/):
+
+- Present tense for active research ("Morton provides...", not "Morton provided...")
+- Past tense only for completed/archived experiments
+- Empirical: "Measured X" vs Theoretical: "Expected Y"
+- Always distinguish observation from inference
+
+**Architecture Documentation** (CLAUDE.md, docs/core/):
+
+- Descriptive of patterns, not instances
+- "Use linear scan for sparse data" not "MortonLinearScanImpl is best"
+- Process-oriented: HOW to decide, not WHAT to choose
+
+### Structure Patterns
+
+**Decision Documentation**:
+
+```markdown
+✅ Good:
+
+## When to Use X
+
+- Condition 1 → Use X
+- Condition 2 → Use Y
+
+❌ Bad:
+
+## Our Choice
+
+We chose X because...
+```
+
+**Algorithm Documentation**:
+
+```markdown
+✅ Good:
+**Complexity**: O(n)
+**Best for**: n < 100
+**Trade-off**: Simple but quadratic worst-case
+
+❌ Bad:
+The algorithm runs in O(n) time complexity, which means...
+```
+
+**Example Code**:
+
+```markdown
+✅ Good:
+// Concrete, runnable
+const index = new MortonLinearScanImpl<string>();
+
+❌ Bad:
+// Abstract, theoretical
+const index = new SomeImplementation<T>();
+```
+
+### Information Density
+
+**High density** (lists, tables, code):
+
+- Use bullet points for parallel facts
+- Use tables for comparisons
+- Use code blocks for concrete examples
+
+**Low density** (explanations):
+
+- One idea per paragraph
+- Lead with conclusion ("X is faster. Here's why...")
+- Use bold for scanning (**Key insight**: ...)
+
+### Academic Rigor
+
+**Always include**:
+
+- Complexity claims: O(n), O(log n)
+- Empirical data: "2x faster" with conditions
+- Citations: (Beckmann 1990), (Guttman 1984)
+
+**Always distinguish**:
+
+- Measured: "Morton is 2x faster at n=50"
+- Theoretical: "Morton should provide better locality"
+- Hypothesis: "We expect X to outperform Y"
+
+### Common Patterns
+
+**Introducing concepts**:
+
+```
+Problem → Solution → Trade-offs → When to use
+```
+
+**Reporting findings**:
+
+```
+Hypothesis → Method → Data → Conclusion → Impact
+```
+
+**Comparing options**:
+
+```
+Use table with: Feature | Option A | Option B | Winner
+```
+
+---
+
+## Markdown Technical Standards
+
+**Syntax**: [Google Markdown Style Guide](https://google.github.io/styleguide/docguide/style.html) + [CommonMark](https://commonmark.org/)
+
+### Critical Syntax Rules for This Repo
+
+**1. Algorithm names with special characters:**
+
+```markdown
+✅ R* split (SAFE - asterisk followed by space)
+✅ R*-tree (SAFE - asterisk followed by hyphen)
+✅ `R*` tree (inline code - always safe)
+❌ **R*** (BROKEN - deno fmt converts to __R_ _, renders as italic)
+❌ __R_ split_* (BROKEN - deno fmt converts to __R_ split__, renders as italic)
+✅ **R\* split** (WORKS - but prefer plain R* instead)
+✅ R* split (BEST - plain text, no bold needed)
+```
+
+**Rule**: Plain `R*` followed by space/punctuation/end is ALWAYS safe and preferred. NEVER bold `R*` because `deno fmt` converts `**R*` to `__R_` which renders incorrectly.
+
+**Why `**R***` breaks**: Ambiguous parse - different markdown renderers interpret the triple asterisk differently.
+
+**2. Use ATX-style headers** (# syntax):
+
+```markdown
+## ✅ ## Heading❌ Heading
+```
+
+**3. Use fenced code blocks** with language tags:
+
+`````markdown
+✅ ```typescript
+const x = 1;
+
+````
+❌ ```
+const x = 1;
+````
+`````
+
+**4. Escape underscores in math/algorithms:**
+
+```markdown
+❌ R_new (may render as italic if followed by another underscore)
+✅ R\_new (escaped)
+✅ `R_new` (code formatting for technical terms)
+```
+
+**5. Tables: Use consistent alignment:**
+
+```markdown
+| Left    | Center  |   Right |
+| ------- | :-----: | ------: |
+| Content | Content | Content |
+```
+
+**6. Lists: Use `-` for unordered, `1.` for ordered:**
+
+```markdown
+✅ - Item one
+
+- Item two
+
+✅ 1. First
+2. Second
+
+❌ * Item (use dash for lists to match repo style)
+```
+
+**7. Emphasis:**
+
+```markdown
+✅ _italic_ or _italic_
+✅ **bold**
+✅ _**bold italic**_
+❌ Don't mix * and _ in same doc without reason
+```
+
+**8. Links: Prefer reference style for repeated URLs:**
+
+```markdown
+✅ [text][ref]
+[ref]: https://example.com
+
+✅ [text](https://example.com) (inline for one-offs)
+```
+
+**9. Line length: Aim for 120 characters** (matches code)
+
+- Exception: Long URLs, code blocks, tables
+
+**10. Horizontal rules: Use three dashes:**
+
+```markdown
+✅ ---
+❌ ***
+❌ ___
+```
+
+### Why These Rules
+
+1. **Escaped characters** (`\*`, `\_`): Prevents auto-formatting from breaking algorithm names
+2. **Inline code for technical terms**: When in doubt, use backticks for algorithm names, variables, types
+3. **Consistency**: Same emphasis style throughout (prefer `**bold**` over `__bold__`)
+4. **Readability**: Source must be readable (we edit markdown more than we render it)
+
+### Quick Reference
+
+| Element         | Style           | Example                      |
+| --------------- | --------------- | ---------------------------- |
+| Algorithm names | Plain or code   | `R*`, `O(log n)`, `` `R*` `` |
+| Headings        | ATX             | `## Heading`                 |
+| Bold            | Double asterisk | `**bold**`                   |
+| Italic          | Single asterisk | `*italic*`                   |
+| Code            | Backticks       | `` `code` ``                 |
+| Lists           | Dash            | `- item`                     |
+| Horizontal rule | Triple dash     | `---`                        |
+
+### Validation
+
+Run through markdown linter mentally:
+
+- Do algorithm names render correctly? (R*, O(n))
+- Are tables aligned?
+- Are code blocks tagged with language?
+- Is source readable without rendering?
+
 ## Research Integrity & Archive Management
 
 **Philosophy**: Archive is a **research asset**, not trash. Failed experiments teach as much as successful ones.
@@ -521,7 +834,7 @@ deno test archive/test/specific.test.ts    # Specific test
 deno test archive/test/                    # All archived tests
 ```
 
-**Note**: Archived tests may fail (e.g., failed experiments) - this is expected and documented. Use `deno task test` or `deno test test/` for active tests only.
+**Note**: Archived tests may fail (e.g., failed experiments) - this is expected and documented. Use `deno task test` or `deno test packages/` for active tests only.
 
 See archive/README.md for full archive philosophy and management.
 
@@ -529,32 +842,37 @@ See archive/README.md for full archive philosophy and management.
 
 ### Common Scenarios
 
-| Task                        | Commands                                                                                                                                                                                       |
-| --------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Add new implementation**  | 1. Create `packages/@jim/spandex/src/implementations/name.ts` + `test/name.test.ts`<br>2. `deno task test && deno task bench:update && deno task check`                                        |
-| **Run experiment**          | 1. Create `docs/active/experiments/name-experiment.md`<br>2. Implement + test<br>3. `deno task bench:analyze 5 docs/active/experiments/name-results.md`<br>4. Resolve and clean `docs/active/` |
-| **Archive implementation**  | `deno task archive:impl <name> <superseded\|failed-experiments>`                                                                                                                               |
-| **Compare vs archived**     | `deno task bench:archived`                                                                                                                                                                     |
-| **Focus on specific impls** | `deno task bench -- --exclude=X --exclude=Y`                                                                                                                                                   |
-| **Validate adversarial**    | `deno task test:adversarial`                                                                                                                                                                   |
-| **Statistical analysis**    | `deno task bench:analyze 5 output.md`                                                                                                                                                          |
+| Task                        | Commands                                                                                                                                                                                        |
+| --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Add new implementation**  | 1. Create `packages/@jim/spandex/src/implementations/name.ts` + test dir `packages/@jim/spandex/test/implementations/name/`<br>2. `deno task test && deno task bench:update && deno task check` |
+| **Run experiment**          | 1. Create `docs/active/experiments/name-experiment.md`<br>2. Implement + test<br>3. `deno task bench:analyze 5 docs/active/experiments/name-results.md`<br>4. Resolve and clean `docs/active/`  |
+| **Archive implementation**  | `deno task archive:impl <name> <superseded\|failed-experiments>`                                                                                                                                |
+| **Compare vs archived**     | `deno task bench:archived`                                                                                                                                                                      |
+| **Focus on specific impls** | `deno task bench -- --exclude=X --exclude=Y`                                                                                                                                                    |
+| **Validate adversarial**    | `deno task test:adversarial`                                                                                                                                                                    |
+| **Statistical analysis**    | `deno task bench:analyze 5 output.md`                                                                                                                                                           |
 
 ### Directory Structure
 
 ```
-packages/@jim/spandex/src/implementations/  # Active implementations (auto-discovered by benchmarks)
-test/                                        # Active tests (all passing)
+packages/@jim/spandex/
+├── src/implementations/  # Active implementations (auto-discovered by benchmarks)
+└── test/                 # Active tests (all passing)
+packages/@local/
+├── snapmark/             # Snapshot testing framework
+├── spandex-testing/      # Testing utilities and axioms
+└── spandex-telemetry/    # Telemetry collection (opt-in)
 docs/
-├── active/experiments/  # In-progress work (MUST be empty when done)
-├── analyses/            # Validated findings
-└── core/                # Research summary + theory
+├── active/experiments/   # In-progress work (MUST be empty when done)
+├── analyses/             # Validated findings
+└── core/                 # Research summary + theory
 archive/
-├── src/implementations/ # Archived impls (opt-in via --include-archived)
-├── test/                # Archived tests (may include failures)
-├── benchmarks/          # One-off experiment benchmarks
-└── docs/experiments/    # Rejected experiment documentation
-scripts/                 # Automation (update-benchmarks.ts, analyze-benchmarks.ts)
-benchmarks/              # Benchmark suites (performance.ts)
+├── src/implementations/  # Archived impls (opt-in via --include-archived)
+├── test/                 # Archived tests (may include failures)
+├── benchmarks/           # One-off experiment benchmarks
+└── docs/experiments/     # Rejected experiment documentation
+scripts/                  # Automation (update-benchmarks.ts, analyze-benchmarks.ts)
+benchmarks/               # Benchmark suites (performance.ts)
 ```
 
 ### Scripts vs Benchmarks
@@ -590,7 +908,7 @@ benchmarks/              # Benchmark suites (performance.ts)
 
 - Archived/unarchived implementation → `deno task sync-docs`
 - Modified `packages/@jim/spandex/src/implementations/*.ts` → `deno task sync-docs`
-- Added/removed test axioms in `packages/@local/spandex-testing/src/axioms/core.ts` → `deno task sync-docs`
+- Added/removed test axioms in `packages/@local/spandex-testing/src/axiom/` → `deno task sync-docs`
 - Changed active implementation count → `deno task sync-docs`
 
 **What it does**:

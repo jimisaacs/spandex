@@ -54,7 +54,7 @@ Nodes pruned: 4 (right subtree skipped!)
 This is O(log n) vs O(n) for linear scan!
 ```
 
-## R\* Split Algorithm (Production Implementation)
+## R* Split Algorithm (Production Implementation)
 
 When a node overflows (> M entries), it must split:
 

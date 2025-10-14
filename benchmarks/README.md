@@ -20,15 +20,7 @@ Main benchmark suite comparing all active implementations.
 
 **Used by**: `scripts/update-benchmarks.ts` and `scripts/analyze-benchmarks.ts`
 
-### `archived-analysis.ts`
-
-Comprehensive benchmark including archived implementations (HybridRTree).
-
-**Run**: `deno bench benchmarks/archived-analysis.ts`
-
-**Purpose**: Compare archived implementations against active ones to validate why experiments were rejected.
-
-**Note**: Archived implementations may fail tests - this is expected (see `archive/test/README.md`)
+**Include archived implementations**: Use `deno task bench:archived` or `deno task bench -- --include-archived`
 
 ---
 

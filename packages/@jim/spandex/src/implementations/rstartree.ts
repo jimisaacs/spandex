@@ -26,7 +26,7 @@
  * - See docs/analyses/r-star-analysis.md for performance validation
  */
 
-import * as Rect from '../rect.ts';
+import * as rect from '../rect.ts';
 import type { QueryResult, Rectangle, SpatialIndex } from '../types.ts';
 
 const MIN_ENTRIES = 4; // Minimum entries per node (40% fill factor)
@@ -44,7 +44,6 @@ interface Entry<T> {
 	active: boolean;
 }
 
-// Performance-critical: Inline AABB intersection test
 function hits(
 	ax1: number,
 	ay1: number,
@@ -58,7 +57,6 @@ function hits(
 	return !(ax2 < bx1 || bx2 < ax1 || ay2 < by1 || by2 < ay1);
 }
 
-// Geometric subtraction: A \ B → ≤4 disjoint fragments
 function subtract(
 	ax1: number,
 	ay1: number,
@@ -70,29 +68,22 @@ function subtract(
 	by2: number,
 ): Array<Rectangle> {
 	const fragments: Array<Rectangle> = [];
-	// Top strip
-	if (ay1 < by1) fragments.push(Rect.canonicalized([ax1, ay1, ax2, by1 - 1]));
-	// Bottom strip
-	if (ay2 > by2) fragments.push(Rect.canonicalized([ax1, by2 + 1, ax2, ay2]));
-	// Overlapping Y range for side strips
+	if (ay1 < by1) fragments.push(rect.canonicalized([ax1, ay1, ax2, by1 - 1]));
+	if (ay2 > by2) fragments.push(rect.canonicalized([ax1, by2 + 1, ax2, ay2]));
 	const yMin = ay1 > by1 ? ay1 : by1;
 	const yMax = ay2 < by2 ? ay2 : by2;
 	if (yMin <= yMax) {
-		// Left strip
-		if (ax1 < bx1) fragments.push(Rect.canonicalized([ax1, yMin, bx1 - 1, yMax]));
-		// Right strip
-		if (ax2 > bx2) fragments.push(Rect.canonicalized([bx2 + 1, yMin, ax2, yMax]));
+		if (ax1 < bx1) fragments.push(rect.canonicalized([ax1, yMin, bx1 - 1, yMax]));
+		if (ax2 > bx2) fragments.push(rect.canonicalized([bx2 + 1, yMin, ax2, yMax]));
 	}
 	return fragments;
 }
 
-// Area of bounding box (for split heuristics)
 function area(x1: number, y1: number, x2: number, y2: number): number {
 	if (x1 === -Infinity || x2 === Infinity || y1 === -Infinity || y2 === Infinity) return Infinity;
 	return (x2 - x1 + 1) * (y2 - y1 + 1);
 }
 
-// Expansion needed to include rect in bbox
 function expansion(
 	bx1: number,
 	by1: number,
@@ -135,12 +126,11 @@ export default class RStarTreeImpl<T> implements SpatialIndex<T> {
 	 */
 
 	insert(bounds: Rectangle, value: T): void {
-		// Validate and canonicalize user input
-		bounds = Rect.validated(bounds);
+		bounds = rect.validated(bounds);
 
 		// Global range (infinite bounds) - fast path
-		if (Rect.isAll(bounds)) {
-			this.entries = [{ bounds: Rect.ALL, value, active: true }];
+		if (rect.isAll(bounds)) {
+			this.entries = [{ bounds: rect.ALL, value, active: true }];
 			this.nodes = [];
 			this.isAll = true;
 			this.rootIdx = -1;
@@ -150,25 +140,21 @@ export default class RStarTreeImpl<T> implements SpatialIndex<T> {
 
 		const [nx1, ny1, nx2, ny2] = bounds;
 
-		// Transitioning from global to normal - clear orphaned global entry
 		if (this.isAll) {
 			this.entries = [];
 			this._size = 0;
 		}
 		this.isAll = false;
 
-		// Initialize tree if empty
 		if (this.rootIdx === -1) {
-			this.rootIdx = this.createNode(true); // Leaf
+			this.rootIdx = this.createNode(true);
 		}
 
 		let root = this.rootIdx;
 
-		// Find and remove overlapping entries
 		const overlapping = this.searchEntries(root, nx1, ny1, nx2, ny2);
 
-		// Generate fragments (new entry + decomposed overlaps)
-		// Must do this BEFORE marking inactive, so we can access entry.value
+		// Must generate fragments BEFORE marking inactive (need entry.value)
 		const fragments: Array<[Rectangle, T]> = [[bounds, value]];
 
 		for (const idx of overlapping) {
@@ -180,34 +166,30 @@ export default class RStarTreeImpl<T> implements SpatialIndex<T> {
 			}
 		}
 
-		// Now mark overlapping entries as inactive
 		for (const entryIdx of overlapping) {
 			this.entries[entryIdx].active = false;
 			this._size--;
 		}
 
-		// Insert all fragments into tree
 		for (const [rect, v] of fragments) {
 			const entryIdx = this.addEntry(rect, v);
 			const splitNodeIdx = this.insertIntoNode(root, entryIdx);
 
 			if (splitNodeIdx !== -1) {
-				// Root split - create new root
-				const newRootIdx = this.createNode(false); // Internal
+				const newRootIdx = this.createNode(false);
 				this.nodes[newRootIdx].children = [root, splitNodeIdx];
 				this.updateBounds(newRootIdx);
 				this.rootIdx = newRootIdx;
-				root = newRootIdx; // Update cached root
+				root = newRootIdx;
 			}
 		}
 	}
 
-	*query(bounds: Rectangle = Rect.ALL): IterableIterator<QueryResult<T>> {
-		// Validate and canonicalize user input
-		bounds = Rect.validated(bounds);
+	*query(bounds: Rectangle = rect.ALL): IterableIterator<QueryResult<T>> {
+		bounds = rect.validated(bounds);
 
 		if (this.isAll) {
-			yield [Rect.ALL, this.entries[0].value];
+			yield [rect.ALL, this.entries[0].value];
 			return;
 		}
 
@@ -223,19 +205,10 @@ export default class RStarTreeImpl<T> implements SpatialIndex<T> {
 		}
 	}
 
-	/** Number of active (non-deleted) ranges in index */
 	get size(): number {
 		return this._size;
 	}
 
-	/**
-	 * Tree Quality Metrics (Research/Diagnostic)
-	 *
-	 * Measures R-tree structural quality:
-	 * - depth: Tree height (shallow = faster queries)
-	 * - overlapArea: Total overlap between sibling nodes (low = better query selectivity)
-	 * - deadSpace: Wasted bounding box area not covering actual entries
-	 */
 	getTreeQualityMetrics(): { depth: number; overlapArea: number; deadSpace: number; nodeCount: number } {
 		if (this.rootIdx === -1) {
 			return { depth: 0, overlapArea: 0, deadSpace: 0, nodeCount: 0 };
@@ -311,7 +284,7 @@ export default class RStarTreeImpl<T> implements SpatialIndex<T> {
 		};
 	}
 
-	// ===== NODE OPERATIONS =====
+	//#region Node Operations
 
 	private createNode(isLeaf: boolean): number {
 		const idx = this.nodes.length;
@@ -365,8 +338,9 @@ export default class RStarTreeImpl<T> implements SpatialIndex<T> {
 
 		node.bounds = [xmin, ymin, xmax, ymax];
 	}
+	//#endregion Node Operations
 
-	// ===== ENTRY OPERATIONS =====
+	//#region Entry Operations
 
 	private addEntry(bounds: Rectangle, value: T): number {
 		const idx = this.entries.length;
@@ -374,8 +348,9 @@ export default class RStarTreeImpl<T> implements SpatialIndex<T> {
 		this._size++;
 		return idx;
 	}
+	//#endregion Entry Operations
 
-	// ===== TREE TRAVERSAL =====
+	//#region Tree Traversal
 
 	private insertIntoNode(nodeIdx: number, entryIdx: number): number {
 		const node = this.nodes[nodeIdx];
@@ -612,4 +587,5 @@ export default class RStarTreeImpl<T> implements SpatialIndex<T> {
 		}
 		return results;
 	}
+	//#endregion Tree Traversal
 }

@@ -142,8 +142,7 @@ Single-run data (clear trends, low variance). Discrete sampling every 100. Imple
 
 - Previous analysis: [sparse-data-analysis.md](./sparse-data-analysis.md) (n < 100)
 - R-tree algorithm: [r-star-analysis.md](./r-star-analysis.md)
-- Benchmark data: [transition-zone-results.md](../active/experiments/transition-zone-results.md)
-- Implementation: [benchmarks/transition-zone.ts](../../benchmarks/transition-zone.ts)
+- Source experiment: [corrected-transition-analysis.md](../../archive/docs/experiments/corrected-transition-analysis.md)
 
 ---
 

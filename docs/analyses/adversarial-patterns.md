@@ -10,7 +10,7 @@
 
 ## Test Methodology
 
-**Implementation**: `test/adversarial.test.ts`
+**Implementation**: Run via `deno task test:adversarial` (source: `packages/@jim/spandex/test/adversarial.test.ts`)
 
 **Framework**: Deno test suite with quantitative fragmentation tracking
 
@@ -255,9 +255,9 @@ Then: **R ≤ A / A_min**
 ## Related Documentation
 
 - **Formal Proof**: [theoretical-foundation.md](../core/theoretical-foundation.md#geometric-bound-on-fragmentation-formal-proof)
-- **Test Implementation**: [test/adversarial.test.ts](../../test/adversarial.test.ts)
+- **Test Implementation**: [packages/@jim/spandex/test/adversarial.test.ts](../../packages/@jim/spandex/test/adversarial.test.ts)
 - **R-Tree Complexity**: [r-star-analysis.md](./r-star-analysis.md)
-- **Conformance Tests**: [packages/@local/spandex-testing/src/axioms/core.ts](../../packages/@local/spandex-testing/src/axioms/core.ts)
+- **Conformance Tests**: [packages/@local/spandex-testing/src/axiom/](../../packages/@local/spandex-testing/src/axiom/) (geometry.ts, properties.ts, visual.ts)
 
 ---
 
@@ -265,13 +265,13 @@ Then: **R ≤ A / A_min**
 
 ```bash
 # Run all adversarial tests
-deno test test/adversarial.test.ts
+deno task test:adversarial
 
 # Run specific pattern
-deno test test/adversarial.test.ts --filter "Concentric"
+deno task test:adversarial -- --filter "Concentric"
 
 # See detailed output (fragmentation tables)
-deno test test/adversarial.test.ts --allow-all
+deno task test:adversarial
 ```
 
 **Expected Output**: All assertions pass, console logs show fragmentation metrics matching this analysis.

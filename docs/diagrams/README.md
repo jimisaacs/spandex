@@ -10,11 +10,25 @@ ASCII diagrams explaining core concepts visually.
 
 **Shows**:
 
+- Visual proof of ≤4 fragments
 - Step-by-step decomposition
-- Last-writer-wins semantics
-- Why decomposition vs alternatives
+- Concrete coordinate examples
 
-**Use**: Understanding the core algorithm
+**Use**: Understanding the core geometric algorithm
+
+---
+
+### Rectangle Decomposition Series (3 parts)
+
+**Concept**: Three different strategies for handling overlapping ranges
+
+**Parts**:
+
+1. [Last-Writer-Wins](./rectangle-decomposition-lww.md) - New values replace old (simplest)
+2. [Shallow Merge](./rectangle-decomposition-merge.md) - Combine properties with spread operator
+3. [Spatial Join](./rectangle-decomposition-spatial-join.md) - Multiple indexes, join at query time
+
+**See also**: [RECTANGLE-DECOMPOSITION-PRIMER](../RECTANGLE-DECOMPOSITION-PRIMER.md) for comparison table
 
 ---
 
@@ -56,7 +70,7 @@ ASCII diagrams explaining core concepts visually.
 
 - Tree organization (internal nodes + leaves)
 - Query with spatial pruning
-- R\* split algorithm
+- R* split algorithm
 - Linear scan vs R-tree comparison
 
 **Use**: Understanding when O(log n) beats O(n)

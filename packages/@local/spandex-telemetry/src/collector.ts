@@ -25,7 +25,6 @@ export class TelemetryCollector {
 	private config: Required<TelemetryConfig>;
 	private sessionId: string;
 
-	// Metrics buffers
 	private insertMetrics: InsertMetric[] = [];
 	private queryMetrics: QueryMetric[] = [];
 	private unboundedQueriesCount = 0;
@@ -46,7 +45,7 @@ export class TelemetryCollector {
 	 */
 	wrap<T>(index: SpatialIndex<T>, propertyName: string): SpatialIndex<T> {
 		if (!this.config.enabled) {
-			return index; // No-op wrapper if disabled
+			return index;
 		}
 
 		const implementationName = index.constructor.name;
@@ -59,7 +58,6 @@ export class TelemetryCollector {
 					return original;
 				}
 
-				// Intercept insert()
 				if (prop === 'insert') {
 					return (bounds: Rectangle, value: T) => {
 						const start = performance.now();
@@ -72,7 +70,6 @@ export class TelemetryCollector {
 						const hadOverlap = existingRanges.length > 0;
 						const overlapArea = hadOverlap ? this.calculateOverlapArea(bounds, existingRanges) : 0;
 
-						// Execute original insert
 						const result = (original as SpatialIndex<T>['insert']).call(target, bounds, value);
 
 						const duration = performance.now() - start;
@@ -90,7 +87,6 @@ export class TelemetryCollector {
 					};
 				}
 
-				// Intercept query()
 				if (prop === 'query') {
 					return (bounds?: Rectangle) => {
 						const start = performance.now();
@@ -101,7 +97,6 @@ export class TelemetryCollector {
 
 						const duration = performance.now() - start;
 
-						// Only record query metrics if bounds provided (not unbounded query)
 						if (bounds !== undefined) {
 							this.recordQuery({
 								timestamp: Date.now(),
@@ -110,7 +105,6 @@ export class TelemetryCollector {
 								queryArea: queryArea!,
 							});
 						} else {
-							// Count as unbounded query operation (returns all ranges)
 							this.unboundedQueriesCount++;
 							this.operationCount++;
 							this.checkReporting(implementationName, propertyName);
@@ -235,7 +229,6 @@ export class TelemetryCollector {
 		newRange: Rectangle,
 		existingRanges: Array<{ bounds: Rectangle; value: T }>,
 	): number {
-		// Calculate total area of overlap between newRange and existingRanges
 		let totalOverlap = 0;
 		for (const existing of existingRanges) {
 			totalOverlap += this.calculateIntersectionArea(newRange, existing.bounds);

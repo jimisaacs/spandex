@@ -42,7 +42,7 @@
 
 **Mechanism**: Morton curve (bit interleaving) keeps spatially adjacent rectangles close in memory with constant-time encoding, improving cache utilization.
 
-**Historical note**: Initially implemented Hilbert curve, later replaced with Morton which proved 25% faster due to simpler encoding.
+**Historical note**: Morton superseded Hilbert curve implementation (25% faster due to simpler encoding). See [morton-vs-hilbert-analysis.md](../analyses/morton-vs-hilbert-analysis.md) for experimental comparison.
 
 ### 3. Sparse Data Dominates (n < 100)
 
@@ -223,7 +223,7 @@
 
 **Conclusion**: Implementations are production-ready and well-optimized. Future performance gains require new algorithms (Morton curve, hybrid approaches) rather than micro-optimizations.
 
-**Documentation**: [optimization-feasibility-study.md](../analyses/optimization-feasibility-study.md), [test-coverage-improvements.md](../analyses/test-coverage-improvements.md)
+**Documentation**: [optimization-feasibility-study.md](../../archive/docs/experiments/optimization-feasibility-study-2025-10-07.md), [test-coverage-improvements.md](../../archive/docs/experiments/test-coverage-improvements-2025-10-07.md)
 
 ---
 
@@ -242,11 +242,11 @@ See `packages/@jim/spandex/src/implementations/` for current implementations.
 
 **Practical**: n² fragmentation rare; typical O(n) performance.
 
-### R-Tree (O(log n))
+### R-tree (O(log n))
 
 Hierarchical index with various split strategies:
 
-- __R_ split_* (Beckmann 1990): Production quality, optimal tree
+- R* split (Beckmann 1990): Production quality, optimal tree
 - **Midpoint split**: Faster construction, acceptable quality
 - **Quadratic split** (Guttman 1984): Research baseline
 
@@ -292,7 +292,7 @@ Pathological patterns designed to maximize fragmentation empirically validate O(
 
 **Key Findings**: Fragmentation ratio **decreases** with scale (opposite of exponential), average k ≈ 2.3 overlaps per insert, geometric bound (A/A_min) proven impossible to exceed.
 
-See [adversarial-patterns.md](../analyses/adversarial-patterns.md) for full analysis and [test/adversarial.test.ts](../../test/adversarial.test.ts) for implementation.
+See [adversarial-patterns.md](../analyses/adversarial-patterns.md) for full analysis. Run tests via `deno task test:adversarial`.
 
 **Invariants** (2 global properties):
 Non-duplication (no identical ranges), disjointness (no overlaps).

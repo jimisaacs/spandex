@@ -1,6 +1,11 @@
 {
 	"name": "@jim/spandex",
 	"version": "1.0.0",
-	"exports": "./src/mod.ts",
+	"exports": {
+		".": "./src/mod.ts",
+		"./rect": "./src/rect.ts",
+		"./adapters/a1": "./src/adapters/a1.ts",
+		"./adapters/gridrange": "./src/adapters/gridrange.ts"
+	},
 	"license": "MIT"
 }

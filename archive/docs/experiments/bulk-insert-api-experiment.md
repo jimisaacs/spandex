@@ -466,18 +466,17 @@ fontWeights.insertBatch(formattedRanges.fontWeight);
 
 ---
 
-## Next Steps
+## Proposed Next Steps (Not Pursued)
 
 1. ✅ Complete research (this document)
-2. Update todo list - mark research complete, add implementation tasks
-3. Start implementation: Add `insertBatch()` to interface
-4. Implement naive version (sequential) for all implementations
-5. Write conformance tests for batch operations
-6. Optimize HilbertLinearScanImpl with single-scan algorithm
-7. Benchmark batch vs sequential
-8. Document results
+2. Start implementation: Add `insertBatch()` to interface
+3. Implement naive version (sequential) for all implementations
+4. Write conformance tests for batch operations
+5. Optimize linear scan with single-scan algorithm
+6. Benchmark batch vs sequential
+7. Document results
 
-**Status**: Research complete, ready to implement
+**Status**: Research complete, implementation deferred (bulk operations not prioritized)
 
 ---
 
