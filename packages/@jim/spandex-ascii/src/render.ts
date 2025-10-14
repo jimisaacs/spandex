@@ -21,11 +21,19 @@ import type { CoordinateSystem, RenderOptions } from './types.ts';
 
 //#region Types
 
+/**
+ * Extent - the min/max coordinate range along a single axis.
+ *
+ * Used as an accumulator during query analysis to track the bounding box
+ * of all rectangles. For example, if processing rectangles with X coordinates
+ * [0,10], [5,15], [-3,8], the X extent would be { min: -3, max: 15 }.
+ */
 interface Extent {
 	min: number;
 	max: number;
 }
 
+/** Which edges of the viewport extend to infinity */
 interface InfinityEdges {
 	left: boolean;
 	top: boolean;
@@ -33,6 +41,7 @@ interface InfinityEdges {
 	bottom: boolean;
 }
 
+/** Viewport metadata for rendering - world coordinate bounds and grid dimensions */
 interface Viewport {
 	worldBounds: Rectangle;
 	width: number;
@@ -40,53 +49,115 @@ interface Viewport {
 	infinityEdges: InfinityEdges;
 }
 
+/**
+ * Spatial summary of query results - aggregate properties computed from rectangles.
+ *
+ * Tracks two separate bounding boxes:
+ * - fullyFinite: rectangles with no infinity edges (used for compact viewport)
+ * - partialInfinity: rectangles with at least one infinity edge (fallback if no finite data)
+ */
+interface SpatialSummary {
+	fullyFinite: { x: Extent; y: Extent };
+	partialInfinity: { x: Extent; y: Extent };
+	hasFullyFinite: boolean;
+	infinityEdges: InfinityEdges;
+}
+
+/** Processed query result - rectangle mapped to legend symbol */
+type Fragment = readonly [rect: Rectangle, symbol: string];
+
+/** Sparse 2D grid: Y coordinate → X coordinate → symbol */
 type SparseGrid = Map<number, Map<number, string>>;
 
 //#endregion
 
 //#region Pass 1: Query + Analyze
 
+/**
+ * Update extent accumulator with a new coordinate value.
+ * Expands the min/max range to include the coordinate (ignores infinities).
+ */
 function updateExtent(coord: number, extent: Extent): void {
-	if (isFinite(coord)) {
-		extent.min = Math.min(extent.min, coord);
-		extent.max = Math.max(extent.max, coord);
-	}
+	if (!isFinite(coord)) return;
+	extent.min = Math.min(extent.min, coord);
+	extent.max = Math.max(extent.max, coord);
 }
 
 function validateStrictMode(legend: Record<string, unknown>, usedSymbols: Set<string> | null): void {
 	if (!usedSymbols) return;
 
 	const unusedSymbols = new Set(Object.keys(legend)).difference(usedSymbols);
-	if (unusedSymbols.size > 0) {
+	if (unusedSymbols.size) {
 		throw new Error(
-			`Render error (strict mode): Legend contains unused symbols: ${Array.from(unusedSymbols).join(', ')}`,
+			`Render error (strict mode): Legend contains unused symbols: ${[...unusedSymbols].join(', ')}`,
 		);
 	}
+}
+
+function computeAxisBounds(extent: Extent, includeOrigin: boolean): [min: number, max: number] {
+	const hasFiniteData = isFinite(extent.min) && isFinite(extent.max);
+	if (!hasFiniteData) return [0, -1]; // Sentinel: signals no extent
+
+	return [
+		includeOrigin ? Math.min(0, extent.min) : extent.min,
+		includeOrigin ? Math.max(0, extent.max) : extent.max,
+	];
+}
+
+function computeViewportBounds(xExtent: Extent, yExtent: Extent, isAbsolute: boolean): Rectangle {
+	const [minX, maxX] = computeAxisBounds(xExtent, isAbsolute);
+	const [minY, maxY] = computeAxisBounds(yExtent, isAbsolute);
+	return [minX, minY, maxX, maxY];
+}
+
+function computeViewport(summary: SpatialSummary, isAbsolute: boolean): Viewport {
+	const { fullyFinite, partialInfinity, hasFullyFinite, infinityEdges } = summary;
+
+	// Choose extent: prefer fully-finite, fallback to partial-infinity
+	const { x: xExtent, y: yExtent } = hasFullyFinite ? fullyFinite : partialInfinity;
+
+	// Check if we have any finite data at all
+	const hasAnyFiniteData = (isFinite(xExtent.min) && isFinite(xExtent.max)) ||
+		(isFinite(yExtent.min) && isFinite(yExtent.max));
+
+	// Special case: no finite data and all 4 infinity edges → minimal 1×1 grid
+	const allEdgesInfinite = Object.values(infinityEdges).every(Boolean);
+	if (!hasAnyFiniteData && allEdgesInfinite) {
+		return { worldBounds: [0, 0, 0, 0], width: 1, height: 1, infinityEdges };
+	}
+
+	// Normal case: compute world bounds with finite data
+	const worldBounds = computeViewportBounds(xExtent, yExtent, isAbsolute);
+	const [minX, minY, maxX, maxY] = worldBounds;
+
+	// Compute viewport dimensions: finite region + infinity edge cells
+	const worldWidth = Math.max(0, maxX - minX + 1);
+	const worldHeight = Math.max(0, maxY - minY + 1);
+	const width = worldWidth + +infinityEdges.left + +infinityEdges.right;
+	const height = worldHeight + +infinityEdges.top + +infinityEdges.bottom;
+
+	return { worldBounds, width, height, infinityEdges };
 }
 
 function analyzeQueryResults<T>(
 	query: () => IterableIterator<QueryResult<T>>,
 	legend: Record<string, T | Record<string, unknown>>,
-	isAbsoluteCoordinateSystem: boolean,
+	isAbsolute: boolean,
 	strict: boolean = false,
-): readonly [fragments: [rect: Rectangle, symbol: string][], viewport: Viewport] {
+): readonly [fragments: Fragment[], viewport: Viewport] {
 	// Build symbol lookup
-	const symbolLookup = new Map<string, string>();
-	for (const [symbol, value] of Object.entries(legend)) {
-		symbolLookup.set(serializeValue(value), symbol);
-	}
+	const symbolLookup = new Map(
+		Object.entries(legend).map(([symbol, value]) => [serializeValue(value), symbol]),
+	);
 
-	// Single pass: query + validate + analyze viewport + track usage
-	const fragments: [rect: Rectangle, symbol: string][] = [];
-
-	// Two-tier extent tracking: prioritize fully-finite rectangles over partial-infinity
-	const extent = {
+	// Single pass: query + validate + analyze
+	const fragments: Fragment[] = [];
+	const summary: SpatialSummary = {
 		fullyFinite: { x: { min: Infinity, max: -Infinity }, y: { min: Infinity, max: -Infinity } },
 		partialInfinity: { x: { min: Infinity, max: -Infinity }, y: { min: Infinity, max: -Infinity } },
+		hasFullyFinite: false,
+		infinityEdges: { left: false, top: false, right: false, bottom: false },
 	};
-	let hasFullyFinite = false;
-
-	const infinityEdges: InfinityEdges = { left: false, top: false, right: false, bottom: false };
 	const usedSymbols = strict ? new Set<string>() : null;
 
 	for (const [rect, value] of query()) {
@@ -99,78 +170,38 @@ function analyzeQueryResults<T>(
 		fragments.push([rect, symbol]);
 
 		// Track symbol usage (strict mode only)
-		if (usedSymbols) usedSymbols.add(symbol);
+		usedSymbols?.add(symbol);
 
-		// Analyze viewport
+		// Analyze extents and infinity edges
+		const isFullyFinite = rect.every(isFinite);
+		const target = isFullyFinite ? summary.fullyFinite : summary.partialInfinity;
 		const [x1, y1, x2, y2] = rect;
-
-		// Update appropriate extent based on rectangle type
-		const isFullyFinite = x1 !== -Infinity && x2 !== Infinity && y1 !== -Infinity && y2 !== Infinity;
-		const target = isFullyFinite ? extent.fullyFinite : extent.partialInfinity;
 
 		updateExtent(x1, target.x);
 		updateExtent(x2, target.x);
 		updateExtent(y1, target.y);
 		updateExtent(y2, target.y);
 
-		if (isFullyFinite) hasFullyFinite = true;
+		summary.hasFullyFinite ||= isFullyFinite;
 
-		// Detect infinity edges
-		if (x1 === -Infinity) infinityEdges.left = true;
-		if (x2 === Infinity) infinityEdges.right = true;
-		if (y1 === -Infinity) infinityEdges.top = true;
-		if (y2 === Infinity) infinityEdges.bottom = true;
+		summary.infinityEdges.left ||= x1 === -Infinity;
+		summary.infinityEdges.right ||= x2 === Infinity;
+		summary.infinityEdges.top ||= y1 === -Infinity;
+		summary.infinityEdges.bottom ||= y2 === Infinity;
 	}
 
-	// Special case: empty index (no fragments at all) → render minimal 1×1 grid at origin
-	if (fragments.length === 0) {
-		const viewport: Viewport = {
+	// Special case: empty index → minimal 1×1 grid at origin
+	if (!fragments.length) {
+		return [fragments, {
 			worldBounds: [0, 0, 0, 0],
 			width: 1,
 			height: 1,
 			infinityEdges: { left: false, top: false, right: false, bottom: false },
-		};
-		return [fragments, viewport] as const;
+		}] as const;
 	}
 
-	// Choose extent: prefer fully-finite, fallback to partial-infinity
-	const { x: xExtent, y: yExtent } = hasFullyFinite ? extent.fullyFinite : extent.partialInfinity;
-
-	// Check if we have any finite data at all
-	const hasFiniteX = isFinite(xExtent.min) && isFinite(xExtent.max);
-	const hasFiniteY = isFinite(yExtent.min) && isFinite(yExtent.max);
-	const hasAnyFiniteData = hasFiniteX || hasFiniteY;
-
-	// Special case: no finite data and all 4 infinity edges → render as 1×1 grid
-	if (!hasAnyFiniteData && infinityEdges.left && infinityEdges.right && infinityEdges.top && infinityEdges.bottom) {
-		const viewport: Viewport = {
-			worldBounds: [0, 0, 0, 0],
-			width: 1,
-			height: 1,
-			infinityEdges,
-		};
-
-		validateStrictMode(legend, usedSymbols);
-		return [fragments, viewport] as const;
-	}
-
-	// Normal case: compute world bounds with finite data
-	// For dimensions without finite data, use dummy bounds (min=0, max=-1) to signal worldWidth/Height = 0
-	const minX = hasFiniteX ? (isAbsoluteCoordinateSystem ? Math.min(0, xExtent.min) : xExtent.min) : 0;
-	const maxX = hasFiniteX ? (isAbsoluteCoordinateSystem ? Math.max(0, xExtent.max) : xExtent.max) : -1; // Dummy: signals no finite extent (worldWidth = 0)
-	const minY = hasFiniteY ? (isAbsoluteCoordinateSystem ? Math.min(0, yExtent.min) : yExtent.min) : 0;
-	const maxY = hasFiniteY ? (isAbsoluteCoordinateSystem ? Math.max(0, yExtent.max) : yExtent.max) : -1; // Dummy: signals no finite extent (worldHeight = 0)
-
-	const worldBounds: Rectangle = [minX, minY, maxX, maxY];
-
-	// Compute viewport dimensions: finite region + infinity edge cells
-	// If dimension has no finite data, worldWidth/Height = 0 (only show infinity edges)
-	const worldWidth = hasFiniteX ? (maxX - minX + 1) : 0;
-	const worldHeight = hasFiniteY ? (maxY - minY + 1) : 0;
-	const width = worldWidth + (infinityEdges.left ? 1 : 0) + (infinityEdges.right ? 1 : 0);
-	const height = worldHeight + (infinityEdges.top ? 1 : 0) + (infinityEdges.bottom ? 1 : 0);
-
-	const viewport: Viewport = { worldBounds, width, height, infinityEdges };
+	// Compute viewport from summary
+	const viewport = computeViewport(summary, isAbsolute);
 
 	validateStrictMode(legend, usedSymbols);
 	return [fragments, viewport] as const;
@@ -183,9 +214,7 @@ function analyzeQueryResults<T>(
 function worldToGrid(worldX: number, worldY: number, viewport: Viewport): [gridX: number, gridY: number] {
 	const [minX, minY] = viewport.worldBounds;
 	const { infinityEdges } = viewport;
-	const xOffset = infinityEdges.left ? 1 : 0;
-	const yOffset = infinityEdges.top ? 1 : 0;
-	return [worldX - minX + xOffset, worldY - minY + yOffset];
+	return [worldX - minX + +infinityEdges.left, worldY - minY + +infinityEdges.top];
 }
 
 function clip(coord: number, min: number, max: number): number {
@@ -193,8 +222,9 @@ function clip(coord: number, min: number, max: number): number {
 }
 
 function setCell(grid: SparseGrid, x: number, y: number, symbol: string): void {
-	if (!grid.has(y)) grid.set(y, new Map());
-	grid.get(y)!.set(x, symbol);
+	let row = grid.get(y);
+	if (!row) grid.set(y, row = new Map());
+	row.set(x, symbol);
 }
 
 function fillFiniteRegion(
@@ -235,43 +265,38 @@ function fillInfiniteEdges(
 	const [minX, minY, maxX, maxY] = viewport.worldBounds;
 	const { infinityEdges, width, height } = viewport;
 
-	// Vertical infinity edges (left/right)
-	if (x1 === -Infinity || x2 === Infinity) {
-		const edgeClippedY1 = clip(y1, minY, maxY);
-		const edgeClippedY2 = clip(y2, minY, maxY);
-		const yOffset = infinityEdges.top ? 1 : 0;
-		if (x1 === -Infinity && infinityEdges.left) {
-			for (let worldY = edgeClippedY1; worldY <= edgeClippedY2; worldY++) {
-				const gridY = worldY - minY + yOffset;
-				setCell(grid, 0, gridY, symbol);
+	// Helper: Fill an infinity edge along one axis
+	const fillEdge = (
+		isInfinite: boolean,
+		hasEdge: boolean,
+		gridPos: number,
+		rectMin: number,
+		rectMax: number,
+		worldMin: number,
+		worldMax: number,
+		worldOffset: number,
+		isVertical: boolean,
+	) => {
+		if (!isInfinite || !hasEdge) return;
+		const clippedMin = clip(rectMin, worldMin, worldMax);
+		const clippedMax = clip(rectMax, worldMin, worldMax);
+		for (let coord = clippedMin; coord <= clippedMax; coord++) {
+			const gridCoord = coord - worldMin + worldOffset;
+			if (isVertical) {
+				setCell(grid, gridPos, gridCoord, symbol);
+			} else {
+				setCell(grid, gridCoord, gridPos, symbol);
 			}
 		}
-		if (x2 === Infinity && infinityEdges.right) {
-			for (let worldY = edgeClippedY1; worldY <= edgeClippedY2; worldY++) {
-				const gridY = worldY - minY + yOffset;
-				setCell(grid, width - 1, gridY, symbol);
-			}
-		}
-	}
+	};
 
-	// Horizontal infinity edges (top/bottom)
-	if (y1 === -Infinity || y2 === Infinity) {
-		const edgeClippedX1 = clip(x1, minX, maxX);
-		const edgeClippedX2 = clip(x2, minX, maxX);
-		const xOffset = infinityEdges.left ? 1 : 0;
-		if (y1 === -Infinity && infinityEdges.top) {
-			for (let worldX = edgeClippedX1; worldX <= edgeClippedX2; worldX++) {
-				const gridX = worldX - minX + xOffset;
-				setCell(grid, gridX, 0, symbol);
-			}
-		}
-		if (y2 === Infinity && infinityEdges.bottom) {
-			for (let worldX = edgeClippedX1; worldX <= edgeClippedX2; worldX++) {
-				const gridX = worldX - minX + xOffset;
-				setCell(grid, gridX, height - 1, symbol);
-			}
-		}
-	}
+	// Vertical edges (left/right) - fixed X, varying Y
+	fillEdge(x1 === -Infinity, infinityEdges.left, 0, y1, y2, minY, maxY, +infinityEdges.top, true);
+	fillEdge(x2 === Infinity, infinityEdges.right, width - 1, y1, y2, minY, maxY, +infinityEdges.top, true);
+
+	// Horizontal edges (top/bottom) - fixed Y, varying X
+	fillEdge(y1 === -Infinity, infinityEdges.top, 0, x1, x2, minX, maxX, +infinityEdges.left, false);
+	fillEdge(y2 === Infinity, infinityEdges.bottom, height - 1, x1, x2, minX, maxX, +infinityEdges.left, false);
 }
 
 function fillInfiniteCorners(
@@ -281,67 +306,47 @@ function fillInfiniteCorners(
 	viewport: Viewport,
 ): void {
 	const [x1, y1, x2, y2] = rect;
-	const { infinityEdges, width, height } = viewport;
+	const { infinityEdges: edges, width, height } = viewport;
 
-	if (infinityEdges.left && infinityEdges.top && x1 === -Infinity && y1 === -Infinity) {
-		setCell(grid, 0, 0, symbol);
-	}
-	if (infinityEdges.right && infinityEdges.top && x2 === Infinity && y1 === -Infinity) {
-		setCell(grid, width - 1, 0, symbol);
-	}
-	if (infinityEdges.left && infinityEdges.bottom && x1 === -Infinity && y2 === Infinity) {
-		setCell(grid, 0, height - 1, symbol);
-	}
-	if (infinityEdges.right && infinityEdges.bottom && x2 === Infinity && y2 === Infinity) {
-		setCell(grid, width - 1, height - 1, symbol);
-	}
+	if (edges.left && edges.top && x1 === -Infinity && y1 === -Infinity) setCell(grid, 0, 0, symbol);
+	if (edges.right && edges.top && x2 === Infinity && y1 === -Infinity) setCell(grid, width - 1, 0, symbol);
+	if (edges.left && edges.bottom && x1 === -Infinity && y2 === Infinity) setCell(grid, 0, height - 1, symbol);
+	if (edges.right && edges.bottom && x2 === Infinity && y2 === Infinity) setCell(grid, width - 1, height - 1, symbol);
 }
 
 //#endregion
 
 //#region Pass 3: Format
 
-function buildColumnLabels(viewport: Viewport): string[] {
-	const { worldBounds: [minX], infinityEdges, width } = viewport;
-	const labels: string[] = [];
-
-	// Special case: totally infinite dimension (width=1, both edges)
-	if (width === 1 && infinityEdges.left && infinityEdges.right) {
+function buildLabels(
+	min: number,
+	size: number,
+	leadingInfinite: boolean,
+	trailingInfinite: boolean,
+	formatter: (index: number) => string,
+): string[] {
+	// Special case: totally infinite dimension (size=1, both edges)
+	if (size === 1 && leadingInfinite && trailingInfinite) {
 		return [INFINITY_SYMBOL];
 	}
 
-	if (infinityEdges.left) labels.push(INFINITY_SYMBOL);
+	const numFinite = size - +leadingInfinite - +trailingInfinite;
+	return [
+		...(leadingInfinite ? [INFINITY_SYMBOL] : []),
+		...Array.from({ length: numFinite }, (_, i) => formatter(min + i)),
+		...(trailingInfinite ? [INFINITY_SYMBOL] : []),
+	];
+}
 
-	const numFiniteColumns = width - (infinityEdges.left ? 1 : 0) - (infinityEdges.right ? 1 : 0);
-	for (let i = 0; i < numFiniteColumns; i++) {
-		labels.push(columnToLetter(minX + i));
-	}
-
-	if (infinityEdges.right) labels.push(INFINITY_SYMBOL);
-
-	return labels;
+function buildColumnLabels(viewport: Viewport): string[] {
+	const { worldBounds: [minX], infinityEdges, width } = viewport;
+	return buildLabels(minX, width, infinityEdges.left, infinityEdges.right, columnToLetter);
 }
 
 function buildRowLabels(viewport: Viewport): string[] {
 	const [, minY] = viewport.worldBounds;
 	const { infinityEdges, height } = viewport;
-	const labels: string[] = [];
-
-	// Special case: totally infinite dimension (height=1, both edges)
-	if (height === 1 && infinityEdges.top && infinityEdges.bottom) {
-		return [INFINITY_SYMBOL];
-	}
-
-	if (infinityEdges.top) labels.push(INFINITY_SYMBOL);
-
-	const numFiniteRows = height - (infinityEdges.top ? 1 : 0) - (infinityEdges.bottom ? 1 : 0);
-	for (let i = 0; i < numFiniteRows; i++) {
-		labels.push(String(minY + i));
-	}
-
-	if (infinityEdges.bottom) labels.push(INFINITY_SYMBOL);
-
-	return labels;
+	return buildLabels(minY, height, infinityEdges.top, infinityEdges.bottom, String);
 }
 
 function formatToAscii(
@@ -349,7 +354,7 @@ function formatToAscii(
 	viewport: Viewport,
 	legend: Record<string, unknown>,
 	gridOnly: boolean = false,
-	isAbsoluteCoordinateSystem: boolean,
+	isAbsolute: boolean,
 ): string {
 	const lines: string[] = [];
 	const { width, height, infinityEdges, worldBounds } = viewport;
@@ -357,15 +362,19 @@ function formatToAscii(
 
 	const columnLabels = buildColumnLabels(viewport);
 	const rowLabels = buildRowLabels(viewport);
-	const rowLabelWidth = rowLabels.length > 0 ? Math.max(...rowLabels.map((l) => l.length)) : 0;
+	const rowLabelWidth = rowLabels.length ? Math.max(...rowLabels.map((l) => l.length)) : 0;
 
 	// Calculate where (0,0) cell is in grid coordinates (for absolute mode marker)
-	const originGridX = isAbsoluteCoordinateSystem ? 0 - minX : -1; // -1 means not applicable
-	const originGridY = isAbsoluteCoordinateSystem ? 0 - minY : -1;
+	const originGridX = isAbsolute ? -minX : -1; // -1 means not applicable
+	const originGridY = isAbsolute ? -minY : -1;
+
+	// Helper: prepend row label to content
+	const withRowLabel = (content: string, label: string = ''): string => {
+		const paddedLabel = label.padStart(rowLabelWidth, EMPTY_CELL);
+		return `${paddedLabel}${COLUMN_SEPARATOR}${content}`;
+	};
 
 	// Helper: center text within cell width
-	// Algorithm: leftPad = floor(CELL_WIDTH/2) - floor(text.length/2)
-	// This centers single-char text, and left-aligns multi-char (e.g., "-A" becomes "- A ")
 	const centerInCell = (text: string): string => {
 		const leftPad = Math.floor(CELL_WIDTH / 2) - Math.floor(text.length / 2);
 		const rightPad = CELL_WIDTH - text.length - leftPad;
@@ -374,41 +383,29 @@ function formatToAscii(
 
 	// Helper: render a row with label and cells
 	const renderRow = (label: string, cells: string[], hideBorders = false): string => {
-		const paddedLabel = label.padStart(rowLabelWidth, EMPTY_CELL);
 		const cellSep = hideBorders ? EMPTY_CELL : CELL_SEPARATOR;
 		const leftSeparator = infinityEdges.left ? EMPTY_CELL : cellSep;
 		const rightSeparator = infinityEdges.right ? '' : cellSep;
-		return `${paddedLabel}${COLUMN_SEPARATOR}${leftSeparator}${cells.join(cellSep)}${rightSeparator}`;
+		return withRowLabel(`${leftSeparator}${cells.join(cellSep)}${rightSeparator}`, label);
 	};
 
 	// Column header - render with borders hidden for clean look
-	const headerCells = columnLabels.map(centerInCell);
-	lines.push(renderRow('', headerCells, true));
+	lines.push(renderRow('', columnLabels.map(centerInCell), true));
 
 	// Helper: Build a border line, optionally marking (0,0) cell with *
 	const buildBorder = (forRow: number): string => {
-		let result = '';
-		for (let x = 0; x < width; x++) {
-			const corner = (isAbsoluteCoordinateSystem && forRow === originGridY && x === originGridX)
-				? ABSOLUTE_ORIGIN_MARKER
-				: BORDER_CHAR;
-			result += corner + BORDER_LINE;
-		}
-		// Always add corner marker at right end
-		result += BORDER_CHAR;
-		return EMPTY_CELL.repeat(rowLabelWidth) + COLUMN_SEPARATOR + result;
+		const content = Array.from({ length: width }, (_, x) => {
+			const isAbsoluteOrigin = isAbsolute && forRow === originGridY && x === originGridX;
+			const corner = isAbsoluteOrigin ? ABSOLUTE_ORIGIN_MARKER : BORDER_CHAR;
+			return corner + BORDER_LINE;
+		}).join('') + BORDER_CHAR;
+		return withRowLabel(content);
 	};
 
 	// Helper: Build a line with + markers to cap vertical bars at infinity edges
 	const buildCapLine = (): string => {
-		const parts: string[] = [];
-		for (let x = 0; x <= width; x++) {
-			parts.push(BORDER_CHAR);
-			if (x < width) {
-				parts.push(EMPTY_CELL.repeat(CELL_WIDTH));
-			}
-		}
-		return EMPTY_CELL.repeat(rowLabelWidth) + COLUMN_SEPARATOR + parts.join('');
+		const capPattern = BORDER_CHAR + EMPTY_CELL.repeat(CELL_WIDTH);
+		return withRowLabel(capPattern.repeat(width) + BORDER_CHAR);
 	};
 
 	// Build top border once (reused for blank line length and/or first border)
@@ -429,12 +426,7 @@ function formatToAscii(
 
 		const rowLabel = rowLabels[y];
 		const row = grid.get(y);
-		const cells: string[] = [];
-
-		for (let x = 0; x < width; x++) {
-			const symbol = row?.get(x) ?? EMPTY_CELL;
-			cells.push(centerInCell(symbol));
-		}
+		const cells = Array.from({ length: width }, (_, x) => centerInCell(row?.get(x) ?? EMPTY_CELL));
 
 		lines.push(renderRow(rowLabel, cells));
 
@@ -448,15 +440,13 @@ function formatToAscii(
 	// Footer (legend + infinity annotations) - skip if gridOnly
 	if (!gridOnly) {
 		// Legend
-		lines.push('');
-		formatLegend(legend).forEach((line) => lines.push(line));
+		lines.push('', ...formatLegend(legend));
 
 		// Infinity annotation
-		const edges = (['left', 'top', 'right', 'bottom'] as const)
-			.filter((edge) => infinityEdges[edge]);
+		const edges = (['left', 'top', 'right', 'bottom'] as const).filter((e) => infinityEdges[e]);
 
-		if (edges.length > 0) {
-			const edgeLabel = edges.length === 1 ? `${INFINITY_SYMBOL} edge` : `${INFINITY_SYMBOL} edges`;
+		if (edges.length) {
+			const edgeLabel = `${INFINITY_SYMBOL} edge${edges.length > 1 ? 's' : ''}`;
 			lines.push('', `(${edgeLabel}: ${edges.join(', ')})`);
 		}
 	}
@@ -509,7 +499,7 @@ function columnToLetter(col: number): string {
 }
 
 function getDefaultCoordinateSystem(): CoordinateSystem {
-	return Deno.env.get('COORDINATE_SYSTEM') === 'absolute' ? 'absolute' : 'viewport';
+	return (Deno.env.get('COORDINATE_SYSTEM') as CoordinateSystem) ?? 'viewport';
 }
 
 //#endregion
@@ -528,26 +518,25 @@ function getDefaultCoordinateSystem(): CoordinateSystem {
 export function render<T>(
 	query: () => IterableIterator<QueryResult<T>>,
 	legend: Record<string, T | Record<string, unknown>>,
-	{ strict, coordinateSystem = getDefaultCoordinateSystem(), gridOnly }: RenderOptions = {},
+	{ strict = false, coordinateSystem = getDefaultCoordinateSystem(), gridOnly = false }: RenderOptions = {},
 ): string {
-	const isAbsoluteCoordinateSystem = coordinateSystem === 'absolute';
+	const isAbsolute = coordinateSystem === 'absolute';
 
 	// Pass 1: Query + analyze (single query iteration)
-	const [fragments, viewport] = analyzeQueryResults(query, legend, isAbsoluteCoordinateSystem, strict);
+	const [fragments, viewport] = analyzeQueryResults(query, legend, isAbsolute, strict);
 
 	// Pass 2: Build grid (single fragments iteration)
 	const grid: SparseGrid = new Map();
 	for (const [rect, symbol] of fragments) {
 		// Fill the finite intersection of this rectangle with the viewport (works for all rectangles)
 		fillFiniteRegion(grid, rect, symbol, viewport);
-
 		// Additionally fill infinity edge/corner cells for rectangles that extend to infinity
 		fillInfiniteEdges(grid, rect, symbol, viewport);
 		fillInfiniteCorners(grid, rect, symbol, viewport);
 	}
 
 	// Pass 3: Format (single grid iteration)
-	return formatToAscii(grid, viewport, legend, gridOnly, isAbsoluteCoordinateSystem);
+	return formatToAscii(grid, viewport, legend, gridOnly, isAbsolute);
 }
 
 //#endregion
