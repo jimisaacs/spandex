@@ -67,8 +67,14 @@ function analyzeQueryResults<T>(
 
 	// Single pass: query + validate + analyze viewport + track usage
 	const fragments: [rect: Rectangle, symbol: string][] = [];
-	const xExtent: Extent = { min: Infinity, max: -Infinity };
-	const yExtent: Extent = { min: Infinity, max: -Infinity };
+
+	// Two-tier extent tracking: prioritize fully-finite rectangles over partial-infinity
+	const extent = {
+		fullyFinite: { x: { min: Infinity, max: -Infinity }, y: { min: Infinity, max: -Infinity } },
+		partialInfinity: { x: { min: Infinity, max: -Infinity }, y: { min: Infinity, max: -Infinity } },
+	};
+	let hasFullyFinite = false;
+
 	const infinityEdges: InfinityEdges = { left: false, top: false, right: false, bottom: false };
 	const usedSymbols = strict ? new Set<string>() : null;
 
@@ -87,11 +93,16 @@ function analyzeQueryResults<T>(
 		// Analyze viewport
 		const [x1, y1, x2, y2] = rect;
 
-		// Update extents (always include all finite coordinates)
-		updateExtent(x1, xExtent);
-		updateExtent(x2, xExtent);
-		updateExtent(y1, yExtent);
-		updateExtent(y2, yExtent);
+		// Update appropriate extent based on rectangle type
+		const isFullyFinite = x1 !== -Infinity && x2 !== Infinity && y1 !== -Infinity && y2 !== Infinity;
+		const target = isFullyFinite ? extent.fullyFinite : extent.partialInfinity;
+
+		updateExtent(x1, target.x);
+		updateExtent(x2, target.x);
+		updateExtent(y1, target.y);
+		updateExtent(y2, target.y);
+
+		if (isFullyFinite) hasFullyFinite = true;
 
 		// Detect infinity edges
 		if (x1 === -Infinity) infinityEdges.left = true;
@@ -100,24 +111,49 @@ function analyzeQueryResults<T>(
 		if (y2 === Infinity) infinityEdges.bottom = true;
 	}
 
-	// Default to origin if no finite data
-	if (!isFinite(xExtent.min)) xExtent.min = 0;
-	if (!isFinite(xExtent.max)) xExtent.max = 0;
-	if (!isFinite(yExtent.min)) yExtent.min = 0;
-	if (!isFinite(yExtent.max)) yExtent.max = 0;
+	// Choose extent: prefer fully-finite, fallback to partial-infinity
+	const { x: xExtent, y: yExtent } = hasFullyFinite ? extent.fullyFinite : extent.partialInfinity;
 
-	// Compute world bounds
-	// Absolute mode: expand to include origin (0,0) AND data extent
-	// Viewport mode: use only data extent (relative to data)
-	const minX = isAbsoluteCoordinateSystem ? Math.min(0, xExtent.min) : xExtent.min;
-	const minY = isAbsoluteCoordinateSystem ? Math.min(0, yExtent.min) : yExtent.min;
-	const maxX = isAbsoluteCoordinateSystem ? Math.max(0, xExtent.max) : xExtent.max;
-	const maxY = isAbsoluteCoordinateSystem ? Math.max(0, yExtent.max) : yExtent.max;
+	// Check if we have any finite data at all
+	const hasFiniteX = isFinite(xExtent.min) && isFinite(xExtent.max);
+	const hasFiniteY = isFinite(yExtent.min) && isFinite(yExtent.max);
+	const hasAnyFiniteData = hasFiniteX || hasFiniteY;
+
+	// Special case: no finite data and all 4 infinity edges → render as 1×1 grid
+	if (!hasAnyFiniteData && infinityEdges.left && infinityEdges.right && infinityEdges.top && infinityEdges.bottom) {
+		const viewport: Viewport = {
+			worldBounds: [0, 0, 0, 0],
+			width: 1,
+			height: 1,
+			infinityEdges,
+		};
+
+		// Strict mode validation still applies
+		if (usedSymbols) {
+			const difference = new Set(Object.keys(legend)).difference(usedSymbols);
+			if (difference.size > 0) {
+				throw new Error(
+					`Render error (strict mode): Legend contains unused symbols: ${Array.from(difference).join(', ')}`,
+				);
+			}
+		}
+
+		return [fragments, viewport] as const;
+	}
+
+	// Normal case: compute world bounds with finite data
+	// For dimensions without finite data, use dummy bounds (min=0, max=-1) to signal worldWidth/Height = 0
+	const minX = hasFiniteX ? (isAbsoluteCoordinateSystem ? Math.min(0, xExtent.min) : xExtent.min) : 0;
+	const maxX = hasFiniteX ? (isAbsoluteCoordinateSystem ? Math.max(0, xExtent.max) : xExtent.max) : -1; // Dummy: signals no finite extent (worldWidth = 0)
+	const minY = hasFiniteY ? (isAbsoluteCoordinateSystem ? Math.min(0, yExtent.min) : yExtent.min) : 0;
+	const maxY = hasFiniteY ? (isAbsoluteCoordinateSystem ? Math.max(0, yExtent.max) : yExtent.max) : -1; // Dummy: signals no finite extent (worldHeight = 0)
+
 	const worldBounds: Rectangle = [minX, minY, maxX, maxY];
 
-	// Compute viewport dimensions
-	const worldWidth = maxX - minX + 1;
-	const worldHeight = maxY - minY + 1;
+	// Compute viewport dimensions: finite region + infinity edge cells
+	// If dimension has no finite data, worldWidth/Height = 0 (only show infinity edges)
+	const worldWidth = hasFiniteX ? (maxX - minX + 1) : 0;
+	const worldHeight = hasFiniteY ? (maxY - minY + 1) : 0;
 	const width = worldWidth + (infinityEdges.left ? 1 : 0) + (infinityEdges.right ? 1 : 0);
 	const height = worldHeight + (infinityEdges.top ? 1 : 0) + (infinityEdges.bottom ? 1 : 0);
 
@@ -265,6 +301,11 @@ function buildColumnLabels(viewport: Viewport): string[] {
 	const { worldBounds: [minX], infinityEdges, width } = viewport;
 	const labels: string[] = [];
 
+	// Special case: totally infinite dimension (width=1, both edges)
+	if (width === 1 && infinityEdges.left && infinityEdges.right) {
+		return [INFINITY_SYMBOL];
+	}
+
 	if (infinityEdges.left) labels.push(INFINITY_SYMBOL);
 
 	const numFiniteColumns = width - (infinityEdges.left ? 1 : 0) - (infinityEdges.right ? 1 : 0);
@@ -281,6 +322,11 @@ function buildRowLabels(viewport: Viewport): string[] {
 	const [, minY] = viewport.worldBounds;
 	const { infinityEdges, height } = viewport;
 	const labels: string[] = [];
+
+	// Special case: totally infinite dimension (height=1, both edges)
+	if (height === 1 && infinityEdges.top && infinityEdges.bottom) {
+		return [INFINITY_SYMBOL];
+	}
 
 	if (infinityEdges.top) labels.push(INFINITY_SYMBOL);
 

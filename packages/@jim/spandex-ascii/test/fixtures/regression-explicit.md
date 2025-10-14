@@ -1,4 +1,4 @@
-# Regression - Round-trip Scenarios
+# Regression - Round-trip Scenarios (BUG FIXED - Model 2: Explicit)
 
 ## Test: Coordinate System Modes
 
@@ -109,8 +109,8 @@ T = "TOP"
 Horizontal Band   Vertical Band
 
     ∞   ∞             ∞   C    
-                               
-∞   H | H         ∞   V | V |  
+                     ---+---+  
+∞   H | H         0   V | V |  
    ---+---           ---+---+  
 2   H | H         ∞   V | V |  
    ---+---                     
@@ -159,11 +159,11 @@ Empty   Add Horizontal     Add Vertical (LWW)
 
             ∞   ∞            ∞   A   B   C   ∞ 
            ---+---                             
-        1   H | H        ∞     |   | V |   |   
+        1   H | H        ∞     | H | V | H |   
            ---+---          ---+---+---+---+---
                          1   H | H | V | H | H 
                             ---+---+---+---+---
-                         ∞     |   | V |   |   
+                         ∞     | H | V | H |   
 
 H = "H"
 V = "V"
@@ -176,11 +176,11 @@ V = "V"
 ```ascii
 Global Fill   Positive Local Wins         Negative Local Wins      
 
-    ∞             ∞   C   ∞              ∞  -B  -A   A   B   C   ∞ 
+    ∞   ∞         ∞   C   ∞              ∞  -B  -A   A   B   C   ∞ 
                                                                    
-∞   G         ∞   G | G | G          ∞   G | G | G | G | G | G | G 
-                 ---+---+---            ---+---+---+---+---+---+---
-              2   G | + | G         -2   G | - | G | G | G | G | G 
+∞   G | G     ∞   G | G | G          ∞   G | G | G | G | G | G | G 
+   ---+---       ---+---+---            ---+---+---+---+---+---+---
+∞   G | G     2   G | + | G         -2   G | - | G | G | G | G | G 
                  ---+---+---            ---+---+---+---+---+---+---
               ∞   G | G | G         -1   G | G | G | G | G | G | G 
                                         ---+---+---+---+---+---+---
@@ -235,9 +235,11 @@ Empty
 ```ascii
 Infinite Everywhere
 
-    ∞              
+    ∞   ∞          
                    
-∞   ∞              
+∞   ∞ | ∞          
+   ---+---         
+∞   ∞ | ∞          
 
 ∞ = "EVERYWHERE"
 ```
@@ -251,11 +253,11 @@ Infinite Everywhere
 
     ∞   ∞        ∞   A   B   C   ∞ 
    ---+---                         
-1   H | H    ∞     |   | V |   |   
+1   H | H    ∞     | H | V | H |   
    ---+---      ---+---+---+---+---
              1   H | H | V | H | H 
                 ---+---+---+---+---
-             ∞     |   | V |   |   
+             ∞     | H | V | H |   
 
 H = "HORIZONTAL"
 V = "VERTICAL"
@@ -270,11 +272,11 @@ Empty    After H            After V
 
             ∞   ∞        ∞   A   B   C   ∞ 
            ---+---                         
-        1   H | H    ∞     |   | V |   |   
+        1   H | H    ∞     | H | V | H |   
            ---+---      ---+---+---+---+---
                      1   H | H | V | H | H 
                         ---+---+---+---+---
-                     ∞     |   | V |   |   
+                     ∞     | H | V | H |   
 
 H = "HORIZONTAL"
 V = "VERTICAL"

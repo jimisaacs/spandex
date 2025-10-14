@@ -1,4 +1,4 @@
-# Regression - Round-trip Scenarios
+# Regression - Round-trip Scenarios (BUG FIXED - Model 1: Compact)
 
 ## Test: Coordinate System Modes
 
@@ -66,14 +66,12 @@ D = "DATA"
 ## Test: Infinity Edges (all directions)
 
 ```ascii
- Top ∞     Right ∞     Bottom ∞     Left ∞   
+ Top ∞        Right ∞       Bottom ∞       Left ∞   
 
-    A         A   ∞        A          ∞   A  
-            +---+---     +---+       ---+---+
-∞ | T |   0 | R | R    0 | B |    0   L | L |
-  +---+     +---+---     +---+       ---+---+
-0 | T |                ∞ | B |               
-  +---+                                      
+    A            A             A             A    
+              +---          +---+          ---+   
+0 | T |     0 | R         0 | B |       0   L |  
+   ---+       +---                         ---+  
 
 B = "BOTTOM"
 L = "LEFT"
@@ -87,13 +85,11 @@ T = "TOP"
 
 ```ascii
  Top-Left     Top-Right    Bottom-Left   Bottom-Right
-
-    ∞   C         A   ∞        ∞   C         A   ∞   
-                              ---+---+     +---+---  
-∞   1 | 1 |   ∞ | 2 | 2    0   3 | 3 |   0 | 4 | 4   
-   ---+---+     +---+---      ---+---+     +---+---  
-2   1 | 1 |   2 | 2 | 2    ∞   3 | 3 |   ∞ | 4 | 4   
-   ---+---+     +---+---                             
+                                                     
+    C              A            C               A    
+                               ---+           +---   
+2   1 |        2 | 2        0   3 |         0 | 4    
+   ---+          +---                                
 
 1 = "TOP-LEFT"
 2 = "TOP-RIGHT"
@@ -108,12 +104,10 @@ T = "TOP"
 ```ascii
 Horizontal Band   Vertical Band
 
-    ∞   ∞             ∞   C    
-                               
-∞   H | H         ∞   V | V |  
-   ---+---           ---+---+  
-2   H | H         ∞   V | V |  
-   ---+---                     
+    ∞   ∞             C    
+                       +  
+2   H | H         0   V |  
+   ---+---  
 
 H = "HBAND"
 V = "VBAND"
@@ -157,13 +151,10 @@ X = "X"
 ```ascii
 Empty   Add Horizontal     Add Vertical (LWW)  
 
-            ∞   ∞            ∞   A   B   C   ∞ 
-           ---+---                             
-        1   H | H        ∞     |   | V |   |   
-           ---+---          ---+---+---+---+---
-                         1   H | H | V | H | H 
-                            ---+---+---+---+---
-                         ∞     |   | V |   |   
+            ∞   ∞            A   B   C  
+                                        
+        1   H | H        1   H | V | H  
+                                        
 
 H = "H"
 V = "V"
@@ -174,23 +165,13 @@ V = "V"
 ## Test: Global Override Evolution
 
 ```ascii
-Global Fill   Positive Local Wins         Negative Local Wins      
+Global Fill   Positive Local Wins   Negative Local Wins
 
-    ∞             ∞   C   ∞              ∞  -B  -A   A   B   C   ∞ 
-                                                                   
-∞   G         ∞   G | G | G          ∞   G | G | G | G | G | G | G 
-                 ---+---+---            ---+---+---+---+---+---+---
-              2   G | + | G         -2   G | - | G | G | G | G | G 
-                 ---+---+---            ---+---+---+---+---+---+---
-              ∞   G | G | G         -1   G | G | G | G | G | G | G 
-                                        ---+---+---+---+---+---+---
-                                     0   G | G | G | G | G | G | G 
-                                        ---+---+---+---+---+---+---
-                                     1   G | G | G | G | G | G | G 
-                                        ---+---+---+---+---+---+---
-                                     2   G | G | G | G | G | + | G 
-                                        ---+---+---+---+---+---+---
-                                     ∞   G | G | G | G | G | G | G 
+    ∞   ∞             C                  -B    
+                                               
+∞   G | G         2   + |           -2   - |   
+   ---+---                                     
+∞   G | G                                      
 
 - = "LOCAL-"
 + = "LOCAL+"
@@ -235,9 +216,11 @@ Empty
 ```ascii
 Infinite Everywhere
 
-    ∞              
+    ∞   ∞          
                    
-∞   ∞              
+∞   ∞ | ∞          
+   ---+---         
+∞   ∞ | ∞          
 
 ∞ = "EVERYWHERE"
 ```
@@ -249,13 +232,10 @@ Infinite Everywhere
 ```ascii
  After H            After V        
 
-    ∞   ∞        ∞   A   B   C   ∞ 
-   ---+---                         
-1   H | H    ∞     |   | V |   |   
-   ---+---      ---+---+---+---+---
-             1   H | H | V | H | H 
-                ---+---+---+---+---
-             ∞     |   | V |   |   
+    ∞   ∞            A   B   C  
+                                
+1   H | H        1   H | V | H  
+                                
 
 H = "HORIZONTAL"
 V = "VERTICAL"
@@ -268,13 +248,10 @@ V = "VERTICAL"
 ```ascii
 Empty    After H            After V        
 
-            ∞   ∞        ∞   A   B   C   ∞ 
-           ---+---                         
-        1   H | H    ∞     |   | V |   |   
-           ---+---      ---+---+---+---+---
-                     1   H | H | V | H | H 
-                        ---+---+---+---+---
-                     ∞     |   | V |   |   
+            ∞   ∞            A   B   C  
+                                        
+        1   H | H        1   H | V | H  
+                                        
 
 H = "HORIZONTAL"
 V = "VERTICAL"
