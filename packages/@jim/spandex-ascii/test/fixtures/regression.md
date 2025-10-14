@@ -66,14 +66,14 @@ D = "DATA"
 ## Test: Infinity Edges (all directions)
 
 ```ascii
- Top ∞     Right ∞     Bottom ∞     Left ∞   
+ Top ∞      Right ∞     Bottom ∞     Left ∞   
 
-    A         A   ∞        A          ∞   A  
-            +---+---     +---+       ---+---+
-∞ | T |   0 | R | R    0 | B |    0   L | L |
-  +---+     +---+---     +---+       ---+---+
-0 | T |                ∞ | B |               
-  +---+                                      
+    A         A   ∞         A          ∞   A  
+  +   +     +---+---+     +---+      +---+---+
+∞ | T |   0 | R | R     0 | B |    0   L | L |
+  +---+     +---+---+     +---+      +---+---+
+0 | T |                 ∞ | B |               
+  +---+                   +   +               
 
 B = "BOTTOM"
 L = "LEFT"
@@ -86,14 +86,14 @@ T = "TOP"
 ## Test: Infinity Corners
 
 ```ascii
- Top-Left     Top-Right    Bottom-Left   Bottom-Right
+ Top-Left      Top-Right    Bottom-Left   Bottom-Right
 
-    ∞   C         A   ∞        ∞   C         A   ∞   
-                              ---+---+     +---+---  
-∞   1 | 1 |   ∞ | 2 | 2    0   3 | 3 |   0 | 4 | 4   
-   ---+---+     +---+---      ---+---+     +---+---  
-2   1 | 1 |   2 | 2 | 2    ∞   3 | 3 |   ∞ | 4 | 4   
-   ---+---+     +---+---                             
+    ∞   C         A   ∞         ∞   C         A   ∞   
+  +   +   +     +   +   +     +---+---+     +---+---+ 
+∞   1 | 1 |   ∞ | 2 | 2     0   3 | 3 |   0 | 4 | 4   
+  +---+---+     +---+---+     +---+---+     +---+---+ 
+2   1 | 1 |   2 | 2 | 2     ∞   3 | 3 |   ∞ | 4 | 4   
+  +---+---+     +---+---+     +   +   +     +   +   + 
 
 1 = "TOP-LEFT"
 2 = "TOP-RIGHT"
@@ -109,11 +109,11 @@ T = "TOP"
 Horizontal Band   Vertical Band
 
     ∞   ∞             ∞   C    
-                               
+  +   +   +         +   +   +  
 ∞   H | H         ∞   V | V |  
-   ---+---           ---+---+  
+  +---+---+         +---+---+  
 2   H | H         ∞   V | V |  
-   ---+---                     
+  +---+---+         +   +   +  
 
 H = "HBAND"
 V = "VBAND"
@@ -155,15 +155,16 @@ X = "X"
 ## Test: Cross Formation (LWW decomposition)
 
 ```ascii
-Empty   Add Horizontal     Add Vertical (LWW)  
+ Empty    Add Horizontal     Add Vertical (LWW)   
 
-            ∞   ∞            ∞   A   B   C   ∞ 
-           ---+---                             
-        1   H | H        ∞     |   | V |   |   
-           ---+---          ---+---+---+---+---
-                         1   H | H | V | H | H 
-                            ---+---+---+---+---
-                         ∞     |   | V |   |   
+    A         ∞   ∞            ∞   A   B   C   ∞  
+  +---+     +---+---+        +   +   +   +   +   +
+0 |   |   1   H | H        ∞     |   | V |   |    
+  +---+     +---+---+        +---+---+---+---+---+
+                           1   H | H | V | H | H  
+                             +---+---+---+---+---+
+                           ∞     |   | V |   |    
+                             +   +   +   +   +   +
 
 H = "H"
 V = "V"
@@ -174,23 +175,24 @@ V = "V"
 ## Test: Global Override Evolution
 
 ```ascii
-Global Fill   Positive Local Wins         Negative Local Wins      
+Global Fill   Positive Local Wins         Negative Local Wins       
 
-    ∞             ∞   C   ∞              ∞  -B  -A   A   B   C   ∞ 
-                                                                   
-∞   G         ∞   G | G | G          ∞   G | G | G | G | G | G | G 
-                 ---+---+---            ---+---+---+---+---+---+---
-              2   G | + | G         -2   G | - | G | G | G | G | G 
-                 ---+---+---            ---+---+---+---+---+---+---
-              ∞   G | G | G         -1   G | G | G | G | G | G | G 
-                                        ---+---+---+---+---+---+---
-                                     0   G | G | G | G | G | G | G 
-                                        ---+---+---+---+---+---+---
-                                     1   G | G | G | G | G | G | G 
-                                        ---+---+---+---+---+---+---
-                                     2   G | G | G | G | G | + | G 
-                                        ---+---+---+---+---+---+---
-                                     ∞   G | G | G | G | G | G | G 
+    ∞             ∞   C   ∞              ∞  -B  -A   A   B   C   ∞  
+  +   +         +   +   +   +          +   +   +   +   +   +   +   +
+∞   G         ∞   G | G | G          ∞   G | G | G | G | G | G | G  
+  +   +         +---+---+---+          +---+---+---+---+---+---+---+
+              2   G | + | G         -2   G | - | G | G | G | G | G  
+                +---+---+---+          +---+---+---+---+---+---+---+
+              ∞   G | G | G         -1   G | G | G | G | G | G | G  
+                +   +   +   +          +---+---+---+---+---+---+---+
+                                     0   G | G | G | G | G | G | G  
+                                       +---+---+---+---+---+---+---+
+                                     1   G | G | G | G | G | G | G  
+                                       +---+---+---+---+---+---+---+
+                                     2   G | G | G | G | G | + | G  
+                                       +---+---+---+---+---+---+---+
+                                     ∞   G | G | G | G | G | G | G  
+                                       +   +   +   +   +   +   +   +
 
 - = "LOCAL-"
 + = "LOCAL+"
@@ -225,7 +227,12 @@ C = "C"
 ## Test: Empty Index
 
 ```ascii
-Empty
+ Empty 
+
+    A  
+  +---+
+0 |   |
+  +---+
 ```
 
 ---
@@ -236,8 +243,9 @@ Empty
 Infinite Everywhere
 
     ∞              
-                   
+  +   +            
 ∞   ∞              
+  +   +            
 
 ∞ = "EVERYWHERE"
 ```
@@ -247,15 +255,16 @@ Infinite Everywhere
 ## Test: Two-state progression
 
 ```ascii
- After H            After V        
+  After H             After V        
 
-    ∞   ∞        ∞   A   B   C   ∞ 
-   ---+---                         
-1   H | H    ∞     |   | V |   |   
-   ---+---      ---+---+---+---+---
-             1   H | H | V | H | H 
-                ---+---+---+---+---
-             ∞     |   | V |   |   
+    ∞   ∞         ∞   A   B   C   ∞  
+  +---+---+     +   +   +   +   +   +
+1   H | H     ∞     |   | V |   |    
+  +---+---+     +---+---+---+---+---+
+              1   H | H | V | H | H  
+                +---+---+---+---+---+
+              ∞     |   | V |   |    
+                +   +   +   +   +   +
 
 H = "HORIZONTAL"
 V = "VERTICAL"
@@ -266,15 +275,16 @@ V = "VERTICAL"
 ## Test: Three-state progression with empty state
 
 ```ascii
-Empty    After H            After V        
+ Empty      After H             After V        
 
-            ∞   ∞        ∞   A   B   C   ∞ 
-           ---+---                         
-        1   H | H    ∞     |   | V |   |   
-           ---+---      ---+---+---+---+---
-                     1   H | H | V | H | H 
-                        ---+---+---+---+---
-                     ∞     |   | V |   |   
+    A         ∞   ∞         ∞   A   B   C   ∞  
+  +---+     +---+---+     +   +   +   +   +   +
+0 |   |   1   H | H     ∞     |   | V |   |    
+  +---+     +---+---+     +---+---+---+---+---+
+                        1   H | H | V | H | H  
+                          +---+---+---+---+---+
+                        ∞     |   | V |   |    
+                          +   +   +   +   +   +
 
 H = "HORIZONTAL"
 V = "VERTICAL"

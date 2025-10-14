@@ -53,6 +53,17 @@ function updateExtent(coord: number, extent: Extent): void {
 	}
 }
 
+function validateStrictMode(legend: Record<string, unknown>, usedSymbols: Set<string> | null): void {
+	if (!usedSymbols) return;
+
+	const unusedSymbols = new Set(Object.keys(legend)).difference(usedSymbols);
+	if (unusedSymbols.size > 0) {
+		throw new Error(
+			`Render error (strict mode): Legend contains unused symbols: ${Array.from(unusedSymbols).join(', ')}`,
+		);
+	}
+}
+
 function analyzeQueryResults<T>(
 	query: () => IterableIterator<QueryResult<T>>,
 	legend: Record<string, T | Record<string, unknown>>,
@@ -111,6 +122,17 @@ function analyzeQueryResults<T>(
 		if (y2 === Infinity) infinityEdges.bottom = true;
 	}
 
+	// Special case: empty index (no fragments at all) → render minimal 1×1 grid at origin
+	if (fragments.length === 0) {
+		const viewport: Viewport = {
+			worldBounds: [0, 0, 0, 0],
+			width: 1,
+			height: 1,
+			infinityEdges: { left: false, top: false, right: false, bottom: false },
+		};
+		return [fragments, viewport] as const;
+	}
+
 	// Choose extent: prefer fully-finite, fallback to partial-infinity
 	const { x: xExtent, y: yExtent } = hasFullyFinite ? extent.fullyFinite : extent.partialInfinity;
 
@@ -128,16 +150,7 @@ function analyzeQueryResults<T>(
 			infinityEdges,
 		};
 
-		// Strict mode validation still applies
-		if (usedSymbols) {
-			const difference = new Set(Object.keys(legend)).difference(usedSymbols);
-			if (difference.size > 0) {
-				throw new Error(
-					`Render error (strict mode): Legend contains unused symbols: ${Array.from(difference).join(', ')}`,
-				);
-			}
-		}
-
+		validateStrictMode(legend, usedSymbols);
 		return [fragments, viewport] as const;
 	}
 
@@ -159,16 +172,7 @@ function analyzeQueryResults<T>(
 
 	const viewport: Viewport = { worldBounds, width, height, infinityEdges };
 
-	// Strict mode: validate all legend symbols were used
-	if (usedSymbols) {
-		const difference = new Set(Object.keys(legend)).difference(usedSymbols);
-		if (difference.size > 0) {
-			throw new Error(
-				`Render error (strict mode): Legend contains unused symbols: ${Array.from(difference).join(', ')}`,
-			);
-		}
-	}
-
+	validateStrictMode(legend, usedSymbols);
 	return [fragments, viewport] as const;
 }
 
@@ -390,17 +394,29 @@ function formatToAscii(
 				: BORDER_CHAR;
 			result += corner + BORDER_LINE;
 		}
-		result += infinityEdges.right ? '' : BORDER_CHAR;
-		if (infinityEdges.left) result = EMPTY_CELL + result.substring(1);
+		// Always add corner marker at right end
+		result += BORDER_CHAR;
 		return EMPTY_CELL.repeat(rowLabelWidth) + COLUMN_SEPARATOR + result;
+	};
+
+	// Helper: Build a line with + markers to cap vertical bars at infinity edges
+	const buildCapLine = (): string => {
+		const parts: string[] = [];
+		for (let x = 0; x <= width; x++) {
+			parts.push(BORDER_CHAR);
+			if (x < width) {
+				parts.push(EMPTY_CELL.repeat(CELL_WIDTH));
+			}
+		}
+		return EMPTY_CELL.repeat(rowLabelWidth) + COLUMN_SEPARATOR + parts.join('');
 	};
 
 	// Build top border once (reused for blank line length and/or first border)
 	const topBorder = buildBorder(0);
 
-	// Blank spacer line for top infinity edge
+	// Cap line for top infinity edge
 	if (infinityEdges.top) {
-		lines.push(EMPTY_CELL.repeat(topBorder.length));
+		lines.push(buildCapLine());
 	}
 
 	// Data rows
@@ -422,7 +438,9 @@ function formatToAscii(
 
 		lines.push(renderRow(rowLabel, cells));
 
-		if (isLastRow && !infinityEdges.bottom) {
+		if (isLastRow && infinityEdges.bottom) {
+			lines.push(buildCapLine());
+		} else if (isLastRow) {
 			lines.push(buildBorder(y + 1));
 		}
 	}

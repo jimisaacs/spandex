@@ -510,7 +510,7 @@ Deno.test('LazyPartitionedSpatialIndexImpl - Geometry', async (t) => {
 		const lines = rendered.split('\n');
 		const gridWidth = lines[0].match(/[A-Z]/g)?.length || 0;
 		assertEquals(gridWidth < 10, true, 'Grid should be smaller than default (10) due to finite extent');
-		assertEquals(gridWidth, 5, 'Grid should be 5×5 based on spatial join fragments');
+		assertEquals(gridWidth, 4, 'Grid should be 4×4 based on fully-finite fragments (compact viewport)');
 	});
 
 	await flush();
