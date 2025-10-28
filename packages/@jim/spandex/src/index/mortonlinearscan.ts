@@ -134,7 +134,12 @@ interface Entry<T> {
 	morton: number;
 }
 
-interface MortonLinearScanIndex<T> extends SpatialIndex<T> {
+/**
+ * Morton Linear Scan Index with additional introspection methods.
+ *
+ * Extends `SpatialIndex<T>` with size tracking.
+ */
+export interface MortonLinearScanIndex<T> extends SpatialIndex<T> {
 	/** Count of stored rectangles (O(1)) */
 	size(): number;
 }

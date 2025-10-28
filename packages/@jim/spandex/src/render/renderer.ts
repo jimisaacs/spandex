@@ -133,6 +133,34 @@ function renderProgression<
 	return context.layout(irs, layoutParams);
 }
 
+/**
+ * Create renderer frontend with specified backend and query strategy.
+ *
+ * **Responsibilities**:
+ * - Apply query strategy ('full', 'scanline', 'tiled')
+ * - Handle `includeOrigin` extent transforms
+ * - Delegate rendering to backend
+ * - Support standalone, layout, and progression rendering
+ *
+ * @template Output - Final rendered output type (e.g., string, HTMLElement)
+ * @template Params - Full render parameters
+ * @template LayoutParams - Layout composition parameters
+ * @template PartialParams - Per-item render parameters
+ * @template IR - Intermediate representation for layout composition
+ *
+ * @param backend - Backend implementation (creates contexts)
+ * @param strategy - Query strategy ('full' | 'scanline' | 'tiled')
+ * @returns Renderer instance with render, renderLayout, renderProgression
+ *
+ * @example
+ * ```typescript
+ * import { createRenderer } from '@jim/spandex/render';
+ * import { ASCIIBackend } from '@jim/spandex-ascii';
+ *
+ * const backend = new ASCIIBackend();
+ * const renderer = createRenderer(backend, 'full');
+ * ```
+ */
 export function createRenderer<
 	Output,
 	Params extends RenderParams,

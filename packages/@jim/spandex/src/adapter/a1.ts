@@ -13,11 +13,17 @@ import { type GridRange, gridRangeToRectangle, rectangleToGridRange } from './gr
 
 // Type-safe A1 range operations
 // deno-fmt-ignore
+/** Spreadsheet column letter (A-Z) */
 export type A1Column = 'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G' | 'H' | 'I' | 'J' | 'K' | 'L' | 'M' | 'N' | 'O' | 'P' | 'Q' | 'R' | 'S' | 'T' | 'U' | 'V' | 'W' | 'X' | 'Y' | 'Z';
+/** Cell range in A1 notation (e.g., "A1:C3") */
 export type A1CellRange = `${A1Cell}:${A1Cell}`;
+/** Column range in A1 notation (e.g., "B:D") */
 export type A1ColumnRange = `${A1Column}:${A1Column}`;
+/** Row range in A1 notation (e.g., "2:5") */
 export type A1RowRange = `${number}:${number}`;
+/** Single cell in A1 notation (e.g., "B3") */
 export type A1Cell = `${A1Column}${number}`;
+/** Any valid A1 notation range type */
 export type A1SheetRange = A1Cell | A1CellRange | A1ColumnRange | A1RowRange;
 // Future: higher-level range types
 //export type A1SpreadsheetRange<Sheet extends string> = `${Sheet}!${A1SheetRange}`;

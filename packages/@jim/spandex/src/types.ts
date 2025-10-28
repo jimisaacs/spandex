@@ -46,9 +46,12 @@ export type QueryResult<Value> = readonly [bounds: Readonly<Rectangle>, value: V
  * - `empty`: True if no rectangles have been absorbed
  */
 export interface ExtentResult {
-	readonly mbr: Readonly<Rectangle>; // finite MBR, even if some edges are flagged infinite
-	readonly edges: Readonly<EdgeFlags>; // which sides conceptually extend to ±∞
-	readonly empty: boolean; // true if no rectangle was absorbed
+	/** Minimum bounding rectangle of all finite coordinate portions */
+	readonly mbr: Readonly<Rectangle>;
+	/** Which edges conceptually extend to ±∞ */
+	readonly edges: Readonly<EdgeFlags>;
+	/** True if no rectangles have been absorbed */
+	readonly empty: boolean;
 }
 
 /**

@@ -130,3 +130,6 @@ jobs:
 
             - name: Publish @jim/spandex-ascii to JSR
               run: cd packages/@jim/spandex-ascii && deno publish
+
+            - name: Publish @jim/spandex-html to JSR
+              run: cd packages/@jim/spandex-html && deno publish

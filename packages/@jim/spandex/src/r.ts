@@ -7,9 +7,15 @@
 
 import type { EdgeFlags, Rectangle } from './types.ts';
 
-export const posInf = Number.POSITIVE_INFINITY;
-export const negInf = Number.NEGATIVE_INFINITY;
-export const isFin = Number.isFinite;
+// Re-export types that are used in public API
+export type { EdgeFlags, Rectangle } from './types.ts';
+
+/** Positive infinity constant for coordinate bounds */
+export const posInf: number = Number.POSITIVE_INFINITY;
+/** Negative infinity constant for coordinate bounds */
+export const negInf: number = Number.NEGATIVE_INFINITY;
+/** Test if value is finite (not ±∞ or NaN) */
+export const isFin: (value: number) => boolean = Number.isFinite;
 
 /**
  * Universal rectangle covering entire coordinate space: (-∞, +∞) × (-∞, +∞)
@@ -31,6 +37,12 @@ export function isEqual(a: Readonly<Rectangle | EdgeFlags>, b: Readonly<Rectangl
 	return a === b || (a[0] === b[0] && a[1] === b[1] && a[2] === b[2] && a[3] === b[3]);
 }
 
+/**
+ * Test if rectangle is equivalent to ALL (universal rectangle covering entire space).
+ *
+ * @param a Rectangle to test
+ * @returns True if rectangle equals ALL ([-∞, -∞, +∞, +∞])
+ */
 export function isAll(a: Readonly<Rectangle>): boolean {
 	return isEqual(a, ALL);
 }
@@ -93,16 +105,37 @@ export function make(xmin = negInf, ymin = negInf, xmax = posInf, ymax = posInf)
 	return validated([xmin, ymin, xmax, ymax]);
 }
 
+/**
+ * Test if rectangle `a` fully contains rectangle `b`.
+ *
+ * @param a Container rectangle
+ * @param b Contained rectangle
+ * @returns True if `a` spatially contains `b` (all bounds of `b` within `a`)
+ */
 export function contains(a: Readonly<Rectangle>, b: Readonly<Rectangle>): boolean {
 	const [ax, ay, ax2, ay2] = a;
 	const [bx, by, bx2, by2] = b;
 	return ax <= bx && ay <= by && ax2 >= bx2 && ay2 >= by2;
 }
 
-/** Convenience constants for common edge-flag states. */
+/** No edges are infinite (all bounds are finite) */
 export const NO_EDGES: Readonly<EdgeFlags> = [false, false, false, false];
+/** All edges are infinite (rectangle covers entire space) */
 export const ALL_EDGES: Readonly<EdgeFlags> = [true, true, true, true];
 
+/**
+ * Canonicalize EdgeFlags to sentinel reference when structurally equivalent.
+ *
+ * Maps equivalence classes to canonical representatives:
+ * - [false, false, false, false] → NO_EDGES
+ * - [true, true, true, true] → ALL_EDGES
+ * - otherwise → identity
+ *
+ * Enables fast equality checks via reference identity (===).
+ *
+ * @param a EdgeFlags to canonicalize
+ * @returns Canonical EdgeFlags reference
+ */
 export function canonicalEdges(a: Readonly<EdgeFlags>): Readonly<EdgeFlags> {
 	return isEqual(a, NO_EDGES) ? NO_EDGES : isEqual(a, ALL_EDGES) ? ALL_EDGES : a;
 }

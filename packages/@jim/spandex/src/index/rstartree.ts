@@ -105,7 +105,12 @@ function expansion(
 	return newArea - oldArea;
 }
 
-interface RStarTreeIndex<T> extends SpatialIndex<T> {
+/**
+ * R* Tree Index with additional introspection methods.
+ *
+ * Extends `SpatialIndex<T>` with size tracking and tree quality metrics.
+ */
+export interface RStarTreeIndex<T> extends SpatialIndex<T> {
 	/** Count of stored rectangles (O(1)) */
 	size(): number;
 	/** Get R-tree quality metrics for analysis */

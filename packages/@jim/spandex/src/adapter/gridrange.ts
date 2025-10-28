@@ -11,10 +11,21 @@ import type {
 	SpatialIndex,
 } from '../types.ts';
 
+/**
+ * Google Sheets GridRange: 2D bounds with half-open intervals.
+ *
+ * **Semantics**: Half-open intervals `[start, end)` — end is excluded
+ * **Example**: `{startRowIndex: 0, endRowIndex: 5}` represents rows 0, 1, 2, 3, 4 (NOT 5)
+ * **Unbounded**: undefined = extends to infinity
+ */
 export interface GridRange {
+	/** End column index (exclusive, undefined = unbounded right) */
 	endColumnIndex?: number | undefined;
+	/** End row index (exclusive, undefined = unbounded bottom) */
 	endRowIndex?: number | undefined;
+	/** Start column index (inclusive, undefined = unbounded left) */
 	startColumnIndex?: number | undefined;
+	/** Start row index (inclusive, undefined = unbounded top) */
 	startRowIndex?: number | undefined;
 }
 

@@ -121,7 +121,12 @@ function* spatialJoin<T extends Record<string, unknown>>(
 	}
 }
 
-interface LazyPartitionedIndex<T extends Record<string, unknown>> extends PartitionedSpatialIndex<T> {
+/**
+ * Lazy Partitioned Index with additional introspection methods.
+ *
+ * Extends `PartitionedSpatialIndex<T>` with partition management methods.
+ */
+export interface LazyPartitionedIndex<T extends Record<string, unknown>> extends PartitionedSpatialIndex<T> {
 	/**
 	 * Get all active partition keys (attributes that have been written to).
 	 *

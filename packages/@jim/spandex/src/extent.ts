@@ -1,8 +1,28 @@
+/**
+ * @module
+ *
+ * Extent computation: Minimum Bounding Rectangle (MBR) + infinity edge detection.
+ *
+ * Computes spatial bounds from query results, handling finite and infinite coordinates.
+ */
+
 import * as r from './r.ts';
 import type { ExtentResult, QueryResult } from './types.ts';
 
+// Re-export types that are used in public API
+export type { ExtentResult, QueryResult } from './types.ts';
+
 /**
  * Compute extent (MBR + infinity edges) from query results.
+ *
+ * Iterates over query results to find:
+ * - Minimum bounding rectangle (MBR) of all finite coordinates
+ * - Which edges extend to infinity
+ * - Whether the result set was empty
+ *
+ * @template T Value type stored in spatial index
+ * @param results Query results to compute extent from
+ * @returns ExtentResult with MBR, edge flags, and empty indicator
  */
 export function computeExtent<T>(results: Iterable<QueryResult<T>>): ExtentResult {
 	let empty = true;
