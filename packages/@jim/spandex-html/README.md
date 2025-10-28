@@ -1,25 +1,16 @@
 # @jim/spandex-html
 
-HTML rendering backend for 2D spatial indexes. Browser visualization with colors, gradients, and interactivity.
+[![JSR](https://jsr.io/badges/@jim/spandex-html)](https://jsr.io/@jim/spandex-html)
+[![JSR Score](https://jsr.io/badges/@jim/spandex-html/score)](https://jsr.io/@jim/spandex-html/score)
 
-**Part of**: `@jim/spandex` monorepo
+HTML rendering for spatial indexes. Rich browser visualization with colors, gradients, and smart infinite edge handling.
 
-## Installation
+**Requires**: [@jim/spandex](https://jsr.io/@jim/spandex) (core library)
 
-**Deno:**
-
-```typescript
-import { createRenderer } from 'jsr:@jim/spandex-html@0.1';
-```
-
-**Node.js:**
+## Install
 
 ```bash
-npx jsr add @jim/spandex-html
-```
-
-```typescript
-import { createRenderer } from '@jim/spandex-html';
+deno add jsr:@jim/spandex jsr:@jim/spandex-html
 ```
 
 ## Usage
@@ -88,7 +79,7 @@ interface HTMLRenderParams<T> {
 
 ## Infinite Edges
 
-Gradients fade toward infinite edges, directional arrows (⇡⇣⇠⇢), ∞ symbols in headers, tooltips.
+Rectangles with infinite bounds get special treatment: gradients fade toward infinity, directional arrows (⇡⇣⇠⇢) show direction, ∞ symbols appear in axis headers, and tooltips explain the bounds.
 
 ## Use Cases
 
@@ -154,24 +145,29 @@ const html = renderLayout(
 );
 ```
 
-## HTML vs ASCII
+## When to Use
 
-**HTML**: Browser, colors, large grids, interactive.
-**ASCII** (`@jim/spandex-ascii`): Terminal, CI/CD, plain text.
+**Use HTML when**: Browser debugging, rich documentation, interactive demos, large grids
 
-## Comparison: ASCII vs HTML
+**Use ASCII when**: Terminal output, CI/CD logs, text-only environments
 
-| Feature         | ASCII                    | HTML                   |
-| --------------- | ------------------------ | ---------------------- |
-| **Environment** | Terminal, logs, markdown | Browser, docs, tests   |
-| **Colors**      | No                       | Yes (inline styles)    |
-| **Interactive** | No                       | Yes (tooltips, events) |
-| **Scalability** | Small grids (<50x50)     | Any size               |
-| **Copy/paste**  | Perfect (plain text)     | Requires rendering     |
-| **File size**   | Tiny                     | Larger (HTML tags)     |
-| **Best for**    | CLI debugging, CI/CD     | Web debugging, docs    |
+| Feature        | [@jim/spandex-ascii](https://jsr.io/@jim/spandex-ascii) | @jim/spandex-html               |
+| -------------- | ------------------------------------------------------- | ------------------------------- |
+| Environment    | Terminal, logs, markdown                                | Browser, docs, tests            |
+| Colors         | No                                                      | Yes (inline styles)             |
+| Interactive    | No                                                      | Yes (hover states)              |
+| Infinite edges | Text symbols (∞, →)                                     | Gradients + directional arrows  |
+| Scalability    | Small grids (<50×50)                                    | Any size                        |
+| Copy/paste     | Perfect                                                 | Requires rendering              |
+| Best for       | CLI debugging, CI/CD                                    | Web debugging, rich docs, demos |
 
-Both backends implement the same `RenderBackend` interface from `@jim/spandex/render`.
+Both implement the same `RenderBackend` interface.
+
+## Related
+
+- **[@jim/spandex](https://jsr.io/@jim/spandex)** - Core library (required)
+- **[@jim/spandex-ascii](https://jsr.io/@jim/spandex-ascii)** - ASCII rendering backend
+- **[GitHub](https://github.com/jimisaacs/spandex)** - Full monorepo with research docs
 
 ## License
 

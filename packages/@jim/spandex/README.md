@@ -1,13 +1,20 @@
 # @jim/spandex
 
+[![JSR](https://jsr.io/badges/@jim/spandex)](https://jsr.io/@jim/spandex)
+[![JSR Score](https://jsr.io/badges/@jim/spandex/score)](https://jsr.io/@jim/spandex/score)
+
 Fast 2D spatial indexing with last-writer-wins semantics. Insert overlapping rectangles, library decomposes into disjoint fragments (≤4 per overlap).
 
 ## Installation
 
 **Deno:**
 
+```bash
+deno add jsr:@jim/spandex
+```
+
 ```typescript
-import createMortonLinearScanIndex from 'jsr:@jim/spandex@0.1/index/mortonlinearscan';
+import createMortonLinearScanIndex from '@jim/spandex/index/mortonlinearscan';
 ```
 
 **Node.js:**
@@ -187,13 +194,24 @@ index = createMortonLinearScanIndex<T>();
 
 **No `delete()`/`clear()`**: Insert `null` (LWW) or create new index.
 
-## Related
+## Related Packages
 
-- `@jim/spandex-ascii`, `@jim/spandex-html` - Visualization backends
-- `@local/spandex-testing` - Conformance axioms
-- `@local/snapmark` - Snapshot testing (general-purpose)
+### Rendering Backends
 
-See monorepo [PRODUCTION-GUIDE.md](../../../PRODUCTION-GUIDE.md), [BENCHMARKS.md](../../../BENCHMARKS.md), [docs/](../../../docs/).
+- **[@jim/spandex-ascii](https://jsr.io/@jim/spandex-ascii)** - ASCII visualization for terminal/logs
+- **[@jim/spandex-html](https://jsr.io/@jim/spandex-html)** - HTML visualization for browser debugging
+
+### Testing & Development
+
+- **[@local/spandex-testing](https://github.com/jimisaacs/spandex/tree/main/packages/%40local/spandex-testing)** - Conformance axioms
+- **[@local/snapmark](https://github.com/jimisaacs/spandex/tree/main/packages/%40local/snapmark)** - Snapshot testing framework
+
+### Documentation
+
+- **[GitHub Repository](https://github.com/jimisaacs/spandex)** - Full monorepo with docs
+- **[Production Guide](https://github.com/jimisaacs/spandex/blob/main/PRODUCTION-GUIDE.md)** - Algorithm selection
+- **[Benchmarks](https://github.com/jimisaacs/spandex/blob/main/BENCHMARKS.md)** - Performance data
+- **[Research Docs](https://github.com/jimisaacs/spandex/tree/main/docs)** - Analysis & theory
 
 ## License
 

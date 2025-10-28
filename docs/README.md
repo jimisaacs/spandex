@@ -1,18 +1,18 @@
-# Documentation Index
+# Documentation
 
-2D rectangle decomposition with last-writer-wins conflict resolution.
+Research and development docs for the [@jim/spandex](https://jsr.io/@jim/spandex) spatial indexing library.
 
-**Scope**: This directory documents the spatial indexing research project (`@jim/spandex*` packages). For general-purpose snapshot testing, see `packages/@local/snapmark/README.md`.
+**Package docs**: See individual README files in `packages/@jim/` for API reference and usage.
 
-## Navigation
+## Quick Links
 
-**Problem understanding**: [RECTANGLE-DECOMPOSITION-PRIMER](./RECTANGLE-DECOMPOSITION-PRIMER.md) → [diagrams/](./diagrams/)
+**New here?** [RECTANGLE-DECOMPOSITION-PRIMER](./RECTANGLE-DECOMPOSITION-PRIMER.md) explains the core problem
 
-**Implementation**: [Main README](../README.md) → [BENCHMARKS](../BENCHMARKS.md) → [PRODUCTION-GUIDE](../PRODUCTION-GUIDE.md)
+**Using the library?** [PRODUCTION-GUIDE](../PRODUCTION-GUIDE.md) picks algorithms, [BENCHMARKS](../BENCHMARKS.md) shows performance
 
-**Research**: [RESEARCH-SUMMARY](./core/RESEARCH-SUMMARY.md) → [analyses/](./analyses/) → [theoretical-foundation](./core/theoretical-foundation.md)
+**Contributing?** [IMPLEMENTATION-LIFECYCLE](./IMPLEMENTATION-LIFECYCLE.md) for adding code, [BENCHMARK-FRAMEWORK](./BENCHMARK-FRAMEWORK.md) for testing
 
-**Development**: [IMPLEMENTATION-LIFECYCLE](./IMPLEMENTATION-LIFECYCLE.md) → [BENCHMARK-FRAMEWORK](./BENCHMARK-FRAMEWORK.md)
+**Deep dive?** [RESEARCH-SUMMARY](./core/RESEARCH-SUMMARY.md) summarizes findings, [analyses/](./analyses/) has details
 
 ---
 
@@ -36,43 +36,41 @@ archive/docs/experiments/            # Rejected experiments (preserved)
 
 ---
 
-## Problem Formulation
+## The Problem
 
-**[RECTANGLE-DECOMPOSITION-PRIMER](./RECTANGLE-DECOMPOSITION-PRIMER.md)** - Maintain disjoint partition under overlapping insertions. Three conflict resolution strategies (LWW, shallow merge, spatial join).
+Insert overlapping rectangles, maintain non-overlapping partitions. When rectangles overlap, resolve conflicts with one of three strategies:
 
-**Detailed explanations** (`diagrams/`):
+- **Last-Writer-Wins** ([diagram](./diagrams/rectangle-decomposition-lww.md)) - What this library does
+- **Shallow Merge** ([diagram](./diagrams/rectangle-decomposition-merge.md)) - Combine properties
+- **Spatial Join** ([diagram](./diagrams/rectangle-decomposition-spatial-join.md)) - Keep separate, join on query
 
-- [Last-Writer-Wins](./diagrams/rectangle-decomposition-lww.md) - Used by this library
-- [Shallow Merge](./diagrams/rectangle-decomposition-merge.md) - Property combination
-- [Spatial Join](./diagrams/rectangle-decomposition-spatial-join.md) - Multi-index
+See [RECTANGLE-DECOMPOSITION-PRIMER](./RECTANGLE-DECOMPOSITION-PRIMER.md) for details.
 
-## Development Guides
+## Guides
 
-**[IMPLEMENTATION-LIFECYCLE.md](./IMPLEMENTATION-LIFECYCLE.md)** - Add/archive/restore implementations
+| Guide                                                                 | Purpose                     |
+| --------------------------------------------------------------------- | --------------------------- |
+| [RECTANGLE-DECOMPOSITION-PRIMER](./RECTANGLE-DECOMPOSITION-PRIMER.md) | Core problem explained      |
+| [IMPLEMENTATION-LIFECYCLE](./IMPLEMENTATION-LIFECYCLE.md)             | Add/archive implementations |
+| [BENCHMARK-FRAMEWORK](./BENCHMARK-FRAMEWORK.md)                       | Run performance tests       |
+| [TELEMETRY-GUIDE](./TELEMETRY-GUIDE.md)                               | Collect production metrics  |
+| [CLAUDE.md](./CLAUDE.md)                                              | Documentation standards     |
 
-**[BENCHMARK-FRAMEWORK.md](./BENCHMARK-FRAMEWORK.md)** - Performance testing and auto-discovery
+## Research
 
-**[TELEMETRY-GUIDE.md](./TELEMETRY-GUIDE.md)** - Production metrics collection
+**Summary**: [RESEARCH-SUMMARY](./core/RESEARCH-SUMMARY.md) - Key findings and recommendations
 
-**[CLAUDE.md](./CLAUDE.md)** - Documentation standards
+**Theory**: [theoretical-foundation](./core/theoretical-foundation.md) - Proofs and complexity analysis
 
----
+**Experiments** (`analyses/`):
 
-## Research Findings
+| Analysis                                                      | Finding                                       |
+| ------------------------------------------------------------- | --------------------------------------------- |
+| [morton-vs-hilbert](./analyses/morton-vs-hilbert-analysis.md) | Morton 25% faster, simpler encoding           |
+| [sparse-data](./analyses/sparse-data-analysis.md)             | Linear scan wins below n=100                  |
+| [transition-zone](./analyses/transition-zone-analysis.md)     | Crossover validated at n≈100                  |
+| [r-star](./analyses/r-star-analysis.md)                       | R* split best for construction                |
+| [adversarial](./analyses/adversarial-patterns.md)             | O(n) fragmentation bound holds                |
+| [statistics](./analyses/benchmark-statistics.md)              | Methodology: 5 runs, CV%<5%, effect size >20% |
 
-**[RESEARCH-SUMMARY.md](./core/RESEARCH-SUMMARY.md)** - All validated findings
-
-**[theoretical-foundation.md](./core/theoretical-foundation.md)** - Proofs, complexity analysis, formal model
-
-### Validated Results (`analyses/`)
-
-| Analysis                      | Result                                                  |
-| ----------------------------- | ------------------------------------------------------- |
-| morton-vs-hilbert-analysis.md | Morton 25% faster (simpler encoding, same locality)     |
-| sparse-data-analysis.md       | O(n) dominates for n<100 (tree overhead > scan cost)    |
-| transition-zone-analysis.md   | Empirical crossover at n≈100 (workload-validated)       |
-| r-star-analysis.md            | R* split: fastest construction, query pattern-dependent |
-| adversarial-patterns.md       | O(n) fragmentation bound empirically validated          |
-| benchmark-statistics.md       | Methodology: 5 runs, CV%<5%, effect size >20%           |
-
-**Rejected experiments**: `archive/docs/experiments/` (preserved for reproducibility)
+Failed experiments in `archive/docs/experiments/` (kept for reference).

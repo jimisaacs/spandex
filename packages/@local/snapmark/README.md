@@ -1,72 +1,49 @@
 # @local/snapmark
 
-Snapshot testing with markdown storage. General-purpose (not spandex-specific).
+**Dev-only**: General-purpose snapshot testing with markdown fixture storage.
+
+Not published to JSR. Used internally by [@jim/spandex](https://jsr.io/@jim/spandex) tests.
 
 ```typescript
 import { createFixtureGroup, jsonCodec } from '@local/snapmark';
 
-interface Civilization {
-	name: string;
-	period: string;
-	region: string;
-}
-
-Deno.test('Ancient civilizations', async (t) => {
-	const { assertMatchStep, flush } = createFixtureGroup(jsonCodec<Civilization>(), { context: t });
-
-	await assertMatchStep(t, 'Sumer', {
-		name: 'Sumer',
-		period: '4500-1900 BCE',
-		region: 'Mesopotamia',
-	});
-
-	await flush();
-});
-```
-
-First run captures, subsequent runs compare. Update: `UPDATE_FIXTURES=1 deno test`.
-
-**Codecs**: `jsonCodec`, `stringCodec`, `binaryCodec`, `imageDataUriCodec`
-**Adapters**: `base64Adapter`, `dataUriAdapter` (chain them)
-
-## Two Modes
-
-**Convention** (auto-infer path from test file location):
-
-```typescript
 Deno.test('My test', async (t) => {
-	const { assertMatchStep, flush } = createFixtureGroup(codec, { context: t });
-	// Path auto-inferred: test/foo.test.ts → test/fixtures/foo.md
+	const { assertMatchStep, flush } = createFixtureGroup(jsonCodec<T>(), { context: t });
 
-	await assertMatchStep(t, 'Name', value);
+	await assertMatchStep(t, 'Snapshot name', myData);
 
-	await flush();
+	await flush(); // Write on UPDATE_FIXTURES=1
 });
 ```
 
-**Manual** (explicit path):
+**Built-in codecs**: JSON, string, binary, image (data URIs)\
+**Built-in adapters**: Base64, data URI (chainable)
+
+## Usage
+
+**Auto-inferred path** (default):
 
 ```typescript
-Deno.test('Test', async (t) => {
-	const { assertMatch, flush } = createFixtureGroup(jsonCodec<T>(), {
-		context: t,
-		filePath: new URL('./fixtures/shared.md', import.meta.url),
-	});
+const { assertMatchStep, flush } = createFixtureGroup(codec, { context: t });
+// Path: test/foo.test.ts → test/fixtures/foo.md
+```
 
-	await assertMatch(value, { context: t });
+**Explicit path**:
 
-	await flush();
+```typescript
+const { assertMatch, flush } = createFixtureGroup(codec, {
+	context: t,
+	filePath: new URL('./fixtures/shared.md', import.meta.url),
 });
 ```
 
-## Examples
+**Update fixtures**: `UPDATE_FIXTURES=1 deno test`
 
-See actual snapshot files:
+## Related
 
-- [auto-infer.md](test/fixtures/auto-infer.md) - Convention mode
-- [manual.md](test/fixtures/manual.md) - Manual mode
-- [adapters.md](test/fixtures/adapters.md) - Base64 encoding
-- [image.md](test/fixtures/image.md) - SVG rendering
+- [@jim/spandex-ascii](https://jsr.io/@jim/spandex-ascii) - Uses this for ASCII snapshot tests
+- `@local/spandex-testing` - Uses this for conformance tests
+- [Examples](./test/fixtures/) - Real fixture files
 
 ## License
 
