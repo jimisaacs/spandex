@@ -1,8 +1,8 @@
 # Spatial Indexing Research Summary
 
-**Problem**: Maintain non-overlapping 2D ranges with last-writer-wins semantics for spreadsheet properties\
+**Problem**: Maintain non-overlapping 2D rectangles with last-writer-wins semantics\
 **Algorithm**: Rectangle decomposition (A \ B → ≤4 fragments)\
-**Constraint**: Google Apps Script server-side (limits optimization options)
+**Deployment Targets**: Pure JavaScript environments (browsers, Node.js, Deno, constrained runtimes). Optimized for environments without WASM/SharedArrayBuffer. Includes Google Apps Script for spreadsheet applications.
 
 ---
 
@@ -22,31 +22,23 @@
 
 ### 1. Morton Optimization: Pure Functions + Micro-optimizations
 
-**Breakthrough**: Extracting pure functions, caching property access, and using tight loops significantly improved Morton win rate.
+**Result**: Optimized Morton dominates sparse data (n<100).
 
-**Result**: Optimized Morton is the production implementation for sparse data (n<100) with dominant performance.
-
-**Key Insight**: Micro-optimizations compound. Eliminating `this` lookups, caching `entries` reference, and using indexed `for` loops saved ~5-10% per operation, resulting in dominant performance across all sparse data scenarios.
+**Key Insight**: Micro-optimizations compound. Eliminating `this` lookups, caching `entries` reference, and using indexed `for` loops saved ~5-10% per operation.
 
 **Optimizations applied**: Pure functions (no `this` overhead), cached `this.entries`, tight `for` loops, pre-allocated arrays
 
-**Result**: Morton dominates for sparse data, R*-tree wins at scale. See BENCHMARKS.md for current performance data.
-
-**Impact**: Validated that algorithm structure matters more than encoding complexity. Single-pass insertion + spatial ordering is the winning combination.
+**Impact**: Algorithm structure matters more than encoding complexity. Single-pass insertion + spatial ordering wins.
 
 ### 2. Space-Filling Curves: Speedup via Spatial Locality
 
-**Breakthrough**: Space-filling curves (Morton/Z-order) transform linear scan performance.
+**Result**: Morton curve (Z-order) dominates at small n via spatial ordering.
 
-**Result**: MortonLinearScanImpl outperforms naive linear scan via spatial ordering. Dominates at small n.
+**Mechanism**: Bit interleaving keeps spatially adjacent rectangles close in memory, improving cache utilization.
 
-**Mechanism**: Morton curve (bit interleaving) keeps spatially adjacent rectangles close in memory with constant-time encoding, improving cache utilization.
-
-**Historical note**: Morton superseded Hilbert curve implementation (25% faster due to simpler encoding). See [morton-vs-hilbert-analysis.md](../analyses/morton-vs-hilbert-analysis.md) for experimental comparison.
+**Historical note**: Morton superseded Hilbert curve (25% faster due to simpler encoding). See [morton-vs-hilbert-analysis.md](../analyses/morton-vs-hilbert-analysis.md).
 
 ### 3. Sparse Data Dominates (n < 100)
-
-**Real usage**: Individual property indices contain very few ranges.
 
 **Result**: Linear scan O(n) outperforms R-trees for n < 100 due to lower overhead and spatial locality.
 
@@ -55,7 +47,7 @@
 - Morton spatial locality: ~7µs (2.9x faster than R*-tree)
 - R*-tree: ~20µs (baseline)
 
-**Why linear scan wins**: At small n, tree construction overhead (node allocation, bbox updates) exceeds traversal benefits. Flat array iteration with Morton spatial ordering beats hierarchical pointer chasing.
+**Why**: At small n, tree construction overhead (node allocation, bbox updates) exceeds traversal benefits.
 
 ### 4. R* Split: Faster Construction, Workload-Dependent Queries
 
@@ -75,7 +67,7 @@
 - Overlapping n=1000: R* 15.1ms vs Midpoint 20.3ms (R* 34% faster)
 - Large n=5000: R* 13.5ms vs Midpoint 15.2ms (R* 12% faster)
 
-**Conclusion**: R* is fastest for construction. For queries: equivalent on sequential data, faster on overlapping/large data. Production choice depends on workload.
+**Conclusion**: R* fastest for construction. Queries: equivalent on sequential, faster on overlapping/large.
 
 ### 5. Transition Zone Mapped (100 < n < 600)
 
@@ -99,22 +91,16 @@
 - 1.29x average slowdown
 - Only 1.03x competitive with full R*
 
-**Lesson**: Axis selection (cheap) without overlap minimization (expensive but valuable) = cost without benefit.
-
 ### 7. TypedArrays: Only GAS-Compatible Optimization
 
-| Technology               | Performance | GAS Compatible |
-| ------------------------ | ----------- | -------------- |
-| TypedArrays (Int32Array) | Good        | ✅ Yes         |
-| WebAssembly              | Near-native | ❌ No          |
-| WebGPU                   | GPU compute | ❌ No          |
-| SharedArrayBuffer        | Parallel    | ❌ No          |
-
-**Impact**: `ArrayBuffer*` implementations represent maximum GAS performance.
+| Technology               | Performance | Constrained Runtime Compatible |
+| ------------------------ | ----------- | ------------------------------ |
+| TypedArrays (Int32Array) | Good        | ✅ Yes                         |
+| WebAssembly              | Near-native | ❌ No                          |
+| WebGPU                   | GPU compute | ❌ No                          |
+| SharedArrayBuffer        | Parallel    | ❌ No                          |
 
 ### 8. Comprehensive Benchmark Coverage (35 Scenarios)
-
-**Coverage**: Validates performance across both algorithmic edge cases and practical spreadsheet use cases
 
 **Benchmark categories**:
 
@@ -141,13 +127,11 @@
 
 **Total**: 35 scenarios × 8 implementations = 280 benchmark measurements
 
-**Impact**: Performance claims validated across full spectrum of both algorithmic edge cases and practical spreadsheet operations.
-
 ### 9. Implementation Style: Imperative vs Functional
 
 **Comparison**: Optimized (imperative + TypedArrays) vs Verbose (functional style)
 
-**Finding**: For performance-critical spatial indexing, imperative style with TypedArrays is essential.
+**Finding**: Imperative style with TypedArrays is essential.
 
 **Example** (CompactRTree vs RStarTreeImpl at n=1250):
 
@@ -157,7 +141,7 @@
 
 **Note**: Current benchmarks don't include CompactRTree for direct comparison. Data from implementation header.
 
-**Lesson**: Functional style acceptable for educational/reference implementations only. Production implementations require imperative style + TypedArrays for V8 optimization.
+**Lesson**: Functional style acceptable for educational/reference implementations. Production requires imperative style + TypedArrays.
 
 ### 10. Bulk Insert API: Rejected (LWW Constraint)
 
@@ -178,8 +162,6 @@
 - Sequential: O(k×n) with lower constant factors
 - For k ≪ n: Batch has extra O(k²) overhead with no benefit
 
-**Lesson**: Sequential inserts are optimal for LWW-constrained spatial indexing. Adding API surface area without performance benefit creates misleading complexity.
-
 **Full analysis**: `archive/docs/experiments/bulk-insert-api-experiment.md`
 
 ### 11. Modern Techniques Inapplicable
@@ -190,14 +172,12 @@
 
 **Findings**:
 
-- **Morton curves**: ✅ VALIDATED - Now production implementation. 25% faster than Hilbert due to simpler bit-interleaving encoding (constant-time vs iterative).
-- **Packed/STR bulk loading**: 4x faster tree construction but requires static data (no dynamic updates). Not suitable for interactive editing.
-- **Learned indexes**: ML-based spatial indexes require TensorFlow/PyTorch, model training, periodic rebuilds. Not practical in Google Apps Script (bundle size, compute limits, unpredictable data distributions).
-- **GPU acceleration**: No GPU access in Apps Script environment.
+- **Morton curves**: ✅ VALIDATED - Now production. 25% faster than Hilbert due to simpler bit-interleaving encoding (constant-time vs iterative).
+- **Packed/STR bulk loading**: 4x faster tree construction but requires static data (no dynamic updates).
+- **Learned indexes**: ML-based spatial indexes require TensorFlow/PyTorch, model training, periodic rebuilds. Not practical in constrained runtimes (bundle size, compute limits).
+- **GPU acceleration**: Not available in constrained environments.
 
-**Conclusion**: Project has reached optimization plateau for target use case (n<10K). Modern techniques target massive datasets (millions+ records) with predictable distributions.
-
-**Path forward**: Focus on APIs (telemetry ✅, serialization), production hardening, and validating assumptions with real-world data.
+**Conclusion**: Modern techniques target massive datasets (millions+ records) with predictable distributions.
 
 **Full analysis**: `archive/docs/experiments/modern-spatial-indexing-research.md`
 
@@ -209,19 +189,19 @@
 
 - **Performance optimizations**: None viable (all <10% improvement threshold)
   - Current performance is algorithmically determined, not implementation-limited
-  - The 2x spatial locality speedup (Morton curve) represents maximum gains for linear scan approach
+  - 2x spatial locality speedup (Morton curve) represents maximum gains for linear scan
   - Minor RTree inefficiencies (2-5% impact) below significance threshold
-- **Bundle size**: Already optimal for each active implementation
-  - Morton: ~1.8KB minified (optimal for spatial locality algorithm)
-  - RTree: ~8.4KB minified (appropriate for hierarchical structure complexity)
-- **Test coverage**: ✅ Production-ready comprehensive coverage
-  - Axiom-based conformance tests (core correctness properties, no redundancy)
-  - ASCII snapshot regression tests (visual validation across implementations)
-  - Cross-implementation consistency validation (fragment count verification)
-  - Adversarial worst-case fragmentation tests (geometric bound validation)
+- **Bundle size**: Already optimal
+  - Morton: ~1.8KB minified
+  - RTree: ~8.4KB minified
+- **Test coverage**: ✅ Production-ready
+  - Axiom-based conformance tests
+  - ASCII snapshot regression tests
+  - Cross-implementation consistency validation
+  - Adversarial worst-case fragmentation tests
   - All tests passing ✅
 
-**Conclusion**: Implementations are production-ready and well-optimized. Future performance gains require new algorithms (Morton curve, hybrid approaches) rather than micro-optimizations.
+**Conclusion**: Implementations are production-ready. Future gains require new algorithms rather than micro-optimizations.
 
 **Documentation**: [optimization-feasibility-study.md](../../archive/docs/experiments/optimization-feasibility-study-2025-10-07.md), [test-coverage-improvements.md](../../archive/docs/experiments/test-coverage-improvements-2025-10-07.md)
 
@@ -238,7 +218,7 @@ Flat array storage with various optimization strategies:
 - **TypedArrays**: Memory-efficient coordinate storage
 - **Educational**: Clear reference implementation
 
-See `packages/@jim/spandex/src/implementations/` for current implementations.
+See `packages/@jim/spandex/src/index/` for current implementations.
 
 **Practical**: n² fragmentation rare; typical O(n) performance.
 
@@ -250,7 +230,7 @@ Hierarchical index with various split strategies:
 - **Midpoint split**: Faster construction, acceptable quality
 - **Quadratic split** (Guttman 1984): Research baseline
 
-See `packages/@jim/spandex/src/implementations/` for current implementations, `archive/` for failed experiments.
+See `packages/@jim/spandex/src/index/` for current implementations, `archive/` for failed experiments.
 
 ---
 
@@ -354,4 +334,4 @@ Non-duplication (no identical ranges), disjointness (no overlaps).
 
 ---
 
-**Conclusion**: Context matters. Best algorithm depends on n (data size) and workload. Linear scan wins for sparse (n<100), R-tree wins for large (n>1000). All claims empirically validated.
+**Conclusion**: Best algorithm depends on n and workload. Linear scan wins for sparse (n<100), R-tree wins for large (n>1000).

@@ -1,450 +1,412 @@
 /**
  * ASCII grid parser - inverse of render()
  *
- * Pipeline: ASCII text → Extract sections (grids + legend) → Parse grids
+ * Pipeline: ASCII text → Find grid boundaries → Extract sections → Parse grids via stride-based extraction
+ *
+ * Parsing strategy:
+ * - Uses GRID_TOP_LEFT pattern to find grid boundaries
+ * - Uses deterministic grid structure (column labels, border, data rows at even indices)
+ * - All label and cell extraction uses calculated positions (stride-based)
  */
 
-import type { QueryResult, Rectangle } from '@jim/spandex';
-import {
-	ABSOLUTE_ORIGIN_MARKER,
-	BORDER_CHAR,
-	BORDER_LINE,
-	CELL_SEPARATOR,
-	EMPTY_CELL,
-	INFINITY_SYMBOL,
-} from './constants.ts';
-import type { CoordinateSystem } from './types.ts';
+import type { ExtentResult, QueryResult } from '@jim/spandex';
+import { computeExtent } from '@jim/spandex/extent';
+import * as r from '@jim/spandex/r';
+import { CELL_WIDTH, EMPTY_CELL, JUNCTIONS, LABELS, LINES } from './constants.ts';
+import { letterToColumn, parseRowLabel } from './coordinates.ts';
 
 //#region Lexical Patterns
 
-/** Matches grid top-left corner: `*---` (absolute), `+---` (viewport finite), `---` (viewport infinite) */
-const GRID_TOP_LEFT = new RegExp(`^\\s+[${ABSOLUTE_ORIGIN_MARKER}${BORDER_CHAR}]?${BORDER_LINE}`);
+const STRIDE = CELL_WIDTH + 1; // Cell width + separator
+const DATA_ROW_STRIDE = 2; // Border line (1) + data row (1)
 
-/** Matches data row line starting with row label: number or ∞ (e.g., "0 | R |" or "∞ | R |" or "1   H | ...") */
-const DATA_ROW_LINE = new RegExp(`^\\s*(-?\\d+|${INFINITY_SYMBOL})\\s`);
-
-/** Extracts cell content between pipe delimiters (with optional trailing |) */
-const CELL_CONTENT = new RegExp(`\\${CELL_SEPARATOR}(.+?)(?:\\${CELL_SEPARATOR}|\\s*)$`);
-
-/** Extracts row label (number, negative number, or ∞) from data line */
-const ROW_LABEL = new RegExp(`^\\s*(-?\\d+|${INFINITY_SYMBOL})`);
-
-/** Matches legend entry line: single character, " = ", value (e.g., "R = "RED"") */
-const LEGEND_ENTRY = /^(.) = (.+)$/;
-
-/** Matches column header characters: letters, infinity symbol, or negative prefix */
-const COLUMN_HEADER_CHARS = new RegExp(`[A-Z${INFINITY_SYMBOL}-]`);
-
-//#endregion
-
-//#region Semantic Analysis
+function buildGridTopLeftPattern(): string {
+	const junctions = Object.values(JUNCTIONS).map((j) => `\\${typeof j === 'string' ? j : j.cornerTopLeft}`).join('|');
+	const lines = Object.values(LINES).map((j) => `\\${j.horizontal}`).join('|');
+	return `(?:${junctions})(?:${lines}){${CELL_WIDTH}}`;
+}
 
 /**
- * Parse rendered ASCII grid(s) back to query results.
+ * Matches grid top-left corner patterns.
  *
- * Handles both single grids and progressions (multiple grids side-by-side).
- * A single grid is just a progression with one state.
- *
- * Pipeline: ASCII text → Extract sections → Parse structure → Parse individual grids
+ * Matches row label column (optional whitespace + SEPARATORS.row) followed by
+ * top-left junction + horizontal line pattern for each grid type:
+ * - Bounded: `┏━━━` or `*━━━` (with origin)
+ * - Semi: `+───` or `*───` (with origin)
+ * - Unbounded: `·   ` or `*   ` (with origin)
  */
-export function parse<T = unknown>(ascii: string): {
-	grids: Array<{
-		name?: string;
-		results: QueryResult<T>[];
-	}>;
-	legend: Record<string, T>;
-	coordinateSystem: CoordinateSystem;
-} {
-	const lines = ascii.split('\n').map((line) => line.trimEnd());
+const CELLS_TOP_LEFT_CANDIDATE = new RegExp(buildGridTopLeftPattern());
 
-	// Extract grids and legend (unified path for N grids)
-	const sections = extractSections(lines);
+/** Matches legend entry: single character, " = ", value (e.g., "R = "RED"") */
+const LEGEND_ENTRY = /^(.) = (.+)$/;
 
-	// If no grids found, invalid input
-	if (sections.grids.length === 0) {
-		throw new Error('Parse error: No grids found in input');
-	}
-
-	// Parse shared legend
-	const legend = parseLegend<T>(sections.legendLines);
-
-	// Detect coordinate system from first grid's top border
-	const firstGridBorder = sections.grids[0].gridLines.find((line) => GRID_TOP_LEFT.test(line)) ?? '';
-	const coordinateSystem = firstGridBorder.trimStart()[0] === ABSOLUTE_ORIGIN_MARKER ? 'absolute' : 'viewport';
-
-	// Parse each grid directly from structural content
-	const grids: Array<{ name?: string; results: QueryResult<T>[] }> = [];
-
-	for (const grid of sections.grids) {
-		// Parse grid cells directly (no pattern matching, just structural positions)
-		const results = parseGridFromLines<T>(grid.gridLines, legend);
-
-		grids.push({
-			name: grid.name,
-			results,
-		});
-	}
-
-	return {
-		grids,
-		legend: Object.fromEntries(legend),
-		coordinateSystem,
-	};
-}
+//#endregion
 
 //#region Section Extraction
 
 /**
- * Extract grids and legend from input using structural markers.
- *
- * Strategy: Find border lines (markers), then scan up/down to find full grid extent.
- * Border line marks a structural point - headers are above, data rows above/below.
+ * Extract grids and legend sections from input lines.
+ * Returns grid sections with boundaries (including labels) and legend lines.
  */
 function extractSections(lines: string[]): {
-	grids: Array<{ name?: string; gridLines: string[] }>;
+	grids: Array<{ name: string | undefined; lines: string[]; boundary: GridBoundaryWithLabels }>;
 	legendLines: string[];
 } {
-	// Find all border markers (these divide grids or separate ∞ rows from finite rows)
 	const gridBoundaries = findGridBoundaries(lines);
+	if (gridBoundaries.length === 0) return { grids: [], legendLines: [] };
 
-	if (gridBoundaries.length === 0) {
-		return { grids: [], legendLines: [] };
-	}
-
-	// Legend is everything below the bottommost grid
-	const bottommost = Math.max(...gridBoundaries.map((g) => g.bottom));
-	const legendLines = lines.slice(bottommost + 1).filter((line) => line.trim());
-
-	// Extract each grid (boundaries already include full extent)
-	const grids: Array<{ name?: string; gridLines: string[] }> = [];
+	// Single pass: find extent
+	let topmost = Infinity;
+	let bottommost = -Infinity;
 
 	for (const boundary of gridBoundaries) {
-		// Grid lines from top (header) to bottom (last data row)
-		const gridLines = lines.slice(boundary.top, boundary.bottom + 1);
-
-		// TODO: Extract optional name (lines above boundary.top for progressions)
-		grids.push({ name: undefined, gridLines });
+		if (boundary.topLine < topmost) topmost = boundary.topLine;
+		if (boundary.bottomLine > bottommost) bottommost = boundary.bottomLine;
 	}
 
-	return {
-		grids,
-		legendLines,
-	};
+	const linesAbove = lines.slice(0, topmost);
+	const legendLines = lines.slice(bottommost + 1).filter((line) => line.trim());
+	const gridNames = parseGridNames(linesAbove, gridBoundaries.length);
+
+	const grids = gridBoundaries.map((boundary, i) => ({
+		name: gridNames[i],
+		lines: lines.slice(boundary.topLine, boundary.bottomLine + 1),
+		boundary,
+	}));
+
+	return { grids, legendLines };
 }
 
 /**
- * Find all grid boundaries using structural markers (* or + or ---).
- * Uses a 2D cursor [row, col] approach: find border marker, then scan to find full extent.
- * Returns each grid's bounding box: left, right, top (header), bottom (last data row).
+ * Parse grid names by finding content regions separated by spacing (2+ spaces).
+ * Grid names are rendered with spacing between them (default 3 spaces).
  */
-export function findGridBoundaries(lines: string[]): Array<{
-	left: number;
-	right: number;
-	top: number;
-	bottom: number;
-}> {
-	// Position trackers: x = col, y = row
-	let posX = 0;
-	let posY = 0;
+function parseGridNames(linesAbove: string[], gridCount: number): Array<string | undefined> {
+	if (linesAbove.length === 0) return Array(gridCount).fill(undefined);
 
-	// Scan for border marker (the key structural reference)
-	let borderRow = -1;
-	for (posY = 0; posY < lines.length; posY++) {
-		if (GRID_TOP_LEFT.test(lines[posY])) {
-			borderRow = posY;
-			break;
-		}
-	}
+	const nameLine = linesAbove.find((line) => line.trim()) || '';
+	if (!nameLine.trim()) return Array(gridCount).fill(undefined);
 
-	// No border found - check if we have a grid with only infinity edges
-	if (borderRow === -1) {
-		// Look for data rows (infinity-only grids have data rows but no borders)
-		for (posY = 0; posY < lines.length; posY++) {
-			const line = lines[posY];
-			if (DATA_ROW_LINE.test(line) && line.includes(CELL_SEPARATOR)) {
-				borderRow = posY;
-				break;
+	// Find content regions separated by 2+ consecutive spaces
+	const regions: Array<{ start: number; end: number }> = [];
+	let inContent = false;
+	let start = 0;
+
+	for (let i = 0; i <= nameLine.length; i++) {
+		const isSpace = i === nameLine.length || nameLine[i] === ' ';
+
+		if (!isSpace && !inContent) {
+			start = i;
+			inContent = true;
+		} else if (isSpace && inContent) {
+			// Look ahead for spacing gap (2+ consecutive spaces)
+			let spaceCount = 0;
+			let j = i;
+			while (j < nameLine.length && nameLine[j] === ' ') {
+				spaceCount++;
+				j++;
+			}
+
+			if (spaceCount >= 2 || j === nameLine.length) {
+				regions.push({ start, end: i });
+				inContent = false;
 			}
 		}
 	}
 
-	if (borderRow === -1) return [];
+	return regions.slice(0, gridCount).map((r) => nameLine.substring(r.start, r.end).trim() || undefined);
+}
 
-	// From border marker, find horizontal extent (left, right)
-	const borderLine = lines[borderRow];
-	const left = borderLine.search(/[*+\-|]/);
-	if (left === -1) return [];
-
-	let right = left;
-	for (posX = left; posX < borderLine.length; posX++) {
-		const char = borderLine[posX];
-		if (char === ' ' || !char) break;
-		right = posX;
-	}
-
-	// From border marker, scan UP to find top (column headers)
-	// Scan within grid horizontal boundaries [left, right]
-	let top = borderRow;
-	for (posY = borderRow - 1; posY >= 0; posY--) {
-		const line = lines[posY];
-		const gridSection = line.substring(left, right + 1);
-
-		// Found column headers (letters/∞ but no pipes)
-		if (COLUMN_HEADER_CHARS.test(gridSection) && !gridSection.includes(CELL_SEPARATOR)) {
-			top = posY;
-			break;
-		}
-
-		// Found data row (has pipes) - update top and keep scanning for headers
-		if (gridSection.includes(CELL_SEPARATOR)) {
-			top = posY;
-			continue;
-		}
-
-		// Blank line or border - keep scanning
-		if (!gridSection.trim() || gridSection.trim().startsWith('---')) {
-			continue;
-		}
-
-		// Hit non-grid content - stop
-		break;
-	}
-
-	// From border marker, scan DOWN to find bottom (last data row)
-	let bottom = borderRow;
-	for (posY = borderRow; posY < lines.length; posY++) {
-		const line = lines[posY];
-
-		// Data row - update bottom and continue
-		if (DATA_ROW_LINE.test(line)) {
-			bottom = posY;
-			continue;
-		}
-
-		// Border line - keep scanning
-		if (GRID_TOP_LEFT.test(line)) {
-			continue;
-		}
-
-		// Hit non-grid content - stop
-		break;
-	}
-
-	return [{
-		left,
-		right,
-		top,
-		bottom,
-	}];
+interface GridBoundaryWithLabels {
+	// Line range for this grid (including labels)
+	topLine: number;
+	bottomLine: number;
+	// X position where cells start (first junction)
+	cellsXStart: number;
+	// Labels
+	columnLabels: string[];
+	rowLabels: string[];
 }
 
 /**
- * Calculate grid column ranges based on grid positions and spacing.
+ * Find all grid boundaries and labels using column label analysis.
  *
- * Range = grid boundary expanded left/right by half the spacing.
- * This accounts for centered grid names.
+ * Algorithm (see .temp/grid-parsing-algorithm.md):
+ * 1. Find border line with CELLS_TOP_CANDIDATE pattern
+ * 2. Parse column labels (stride-based) to find grid cells xmin/xmax
+ * 3. Scan down for grid cells ymax and parse row labels
+ * 4. Return boundaries with all labels included
  */
-function calculateGridRanges(
-	lines: string[],
-	gridBoundaries: Array<{ left: number; right: number; top: number; bottom: number }>,
-): Array<{ left: number; right: number }> {
-	if (gridBoundaries.length === 0) return [];
+function findGridBoundaries(lines: string[]): GridBoundaryWithLabels[] {
+	// Step 1: Find border line containing cell top border pattern
+	let borderLine = -1;
+	for (let y = 0; y < lines.length; y++) {
+		if (CELLS_TOP_LEFT_CANDIDATE.test(lines[y]!)) {
+			borderLine = y;
+			break;
+		}
+	}
+	// Border line must be at least 1 to have any labels
+	if (borderLine < 1) return [];
 
-	const gridRanges: Array<{ left: number; right: number }> = [];
-	const maxLen = Math.max(...lines.map((line) => line.length));
+	const columnLabelLineIndex = borderLine - 1;
+	const columnLabelLine = lines[columnLabelLineIndex]!;
+	const borderLineText = lines[borderLine]!;
 
-	for (let i = 0; i < gridBoundaries.length; i++) {
-		const grid = gridBoundaries[i];
-		const prevGrid = gridBoundaries[i - 1];
-		const nextGrid = gridBoundaries[i + 1];
-
-		// Calculate spacing to previous grid
-		const leftSpacing = prevGrid ? grid.left - prevGrid.right - 1 : 0;
-
-		// Calculate spacing to next grid
-		const rightSpacing = nextGrid ? nextGrid.left - grid.right - 1 : 0;
-
-		// Grid range extends left by half the left spacing
-		const left = prevGrid ? grid.left - Math.floor(leftSpacing / 2) : 0;
-
-		// Grid range extends right by half the right spacing
-		const right = nextGrid ? grid.right + Math.floor(rightSpacing / 2) : maxLen - 1;
-
-		gridRanges.push({ left, right });
+	// Step 2: Find all grid cell boundaries using CELLS_TOP_CANDIDATE pattern
+	// Each match gives us a cell's top border (left junction to right junction)
+	interface GridInfo {
+		cellsXmin: number; // Left junction position
+		cellsXmax: number; // Right junction position
+		columnLabels: string[];
 	}
 
-	return gridRanges;
+	const grids: GridInfo[] = [];
+	const leftPattern = new RegExp(CELLS_TOP_LEFT_CANDIDATE.source, 'g');
+
+	// Find all grid starts in the border line
+	matchLoop: for (let match: RegExpExecArray | null; (match = leftPattern.exec(borderLineText)) !== null;) {
+		const cellsXmin = match.index;
+		const columnLabels: string[] = [];
+
+		// Parse column labels starting from first cell (1 char after left junction)
+		for (let x = cellsXmin + 1; x < columnLabelLine.length; x += STRIDE) {
+			const label = columnLabelLine.substring(x, x + CELL_WIDTH).trim();
+			// Empty - end of this grid's labels
+			if (!label) break;
+			columnLabels.push(label);
+		}
+
+		if (columnLabels.length > 0) {
+			// cellsXmax is the position of the rightmost junction
+			// From left junction, each cell takes STRIDE (CELL_WIDTH + 1 for junction)
+			const cellsXmax = cellsXmin + columnLabels.length * STRIDE;
+			grids.push({ cellsXmin, cellsXmax, columnLabels });
+			// Continue searching after this grid's right edge
+			leftPattern.lastIndex = cellsXmax + 1;
+		} else {
+			// No column labels means end of parsing
+			break matchLoop;
+		}
+	}
+
+	if (!grids.length) return [];
+
+	// Step 3: For each grid, scan down to find cellsYmax and collect row labels
+	const boundaries: GridBoundaryWithLabels[] = [];
+
+	for (let gridIdx = 0; gridIdx < grids.length; gridIdx++) {
+		const grid = grids[gridIdx];
+		const ymin = columnLabelLineIndex;
+		let cellsYmax = borderLine;
+		const rowLabels: string[] = [];
+
+		// Determine row label extraction range
+		// For first grid: from start of line to grid's cellsXmin
+		// For subsequent grids: from previous grid's cellsXmax+1 to current grid's cellsXmin
+		const rowLabelStart = gridIdx === 0 ? 0 : grids[gridIdx - 1]!.cellsXmax + 1;
+		const rowLabelEnd = grid!.cellsXmin;
+
+		// Scan down from border to find last row with label and collect all row labels
+		// Data rows are at: borderLine + 1, borderLine + 3, borderLine + 5, ...
+		// (border at line N, then data at N+1, then interior border at N+2, then data at N+3, etc.)
+		for (let y = borderLine + 1; y < lines.length; y += DATA_ROW_STRIDE) {
+			const rowLine = lines[y]!;
+			if (!rowLine || !rowLine.trim()) break; // Empty line signals end
+
+			// Row label area: between previous grid's end and current grid's start
+			const rowLabel = rowLine.substring(rowLabelStart, rowLabelEnd).trim();
+
+			if (rowLabel) {
+				rowLabels.push(rowLabel);
+				cellsYmax = y;
+			} else {
+				break; // No row label means end of grid
+			}
+		}
+
+		boundaries.push({
+			topLine: ymin,
+			bottomLine: cellsYmax + 1, // Include bottom border line
+			cellsXStart: grid!.cellsXmin,
+			columnLabels: grid!.columnLabels,
+			rowLabels,
+		});
+	}
+
+	return boundaries;
 }
 
 //#endregion
 
-/**
- * Viewport IR - reconstructed from parsed grid structure.
- * Mirrors the Viewport structure in render.ts.
- */
-interface ParsedViewport {
-	minX: number;
-	minY: number;
-	columnLabels: string[]; // Includes ∞ symbols
-	rowLabels: string[]; // Includes ∞ symbols
-	infinityEdges: {
-		left: boolean;
-		top: boolean;
-		right: boolean;
-		bottom: boolean;
-	};
-}
+//#region Grid Parsing
 
 /**
- * Parse grid cells from lines, handling infinity edges.
- * Pipeline: Parse structure → Reconstruct viewport → Map cells to world coordinates
+ * Parse grid from lines - extract cells and detect origin marker.
  */
 function parseGridFromLines<T>(
 	gridLines: string[],
+	columnLabels: string[],
+	rowLabels: string[],
 	legend: Map<string, T>,
-): QueryResult<T>[] {
-	// Find column header line (first line with letters, ∞, or negative prefix -)
-	const headerIdx = gridLines.findIndex((line) => COLUMN_HEADER_CHARS.test(line));
-	if (headerIdx === -1) throw new Error('Parse error: No column headers found');
+	boundary: GridBoundaryWithLabels,
+): { results: QueryResult<T>[]; extent: ExtentResult; includeOrigin: boolean } {
+	// Detect origin marker
+	let includeOrigin = false;
+	for (let lineIdx = 1; lineIdx < gridLines.length; lineIdx += 2) {
+		const line = gridLines[lineIdx]!;
+		for (let col = 0; col <= columnLabels.length; col++) {
+			const junctionX = boundary.cellsXStart + col * STRIDE;
+			if (line[junctionX] === '*') {
+				includeOrigin = true;
+				break;
+			}
+		}
+		if (includeOrigin) break;
+	}
 
-	// Parse column labels from header
-	const headerLine = gridLines[headerIdx];
-	const columnLabels = headerLine
-		.trim()
-		.split(/\s+/)
-		.filter((s) => s && s !== CELL_SEPARATOR);
+	// Extract cell symbols
+	const cellsByRow: string[][] = [];
+	// Data rows start at line 2 (0=column labels, 1=top border), then every DATA_ROW_STRIDE lines
+	for (
+		let lineIdx = DATA_ROW_STRIDE;
+		lineIdx < gridLines.length && cellsByRow.length < rowLabels.length;
+		lineIdx += DATA_ROW_STRIDE
+	) {
+		const line = gridLines[lineIdx]!;
+		const cells: string[] = [];
+		for (let col = 0; col < columnLabels.length; col++) {
+			const cellX = boundary.cellsXStart + col * STRIDE + 1;
+			cells.push(line.substring(cellX, cellX + CELL_WIDTH).trim());
+		}
+		cellsByRow.push(cells);
+	}
 
-	// Parse row labels from data rows
-	const rowLabels: string[] = [];
-	for (let lineIdx = headerIdx + 1; lineIdx < gridLines.length; lineIdx++) {
-		const line = gridLines[lineIdx];
-		if (!DATA_ROW_LINE.test(line)) continue;
+	const { results, extent } = cellsToQueryResults(columnLabels, rowLabels, cellsByRow, legend, gridLines, boundary);
+	return { results, extent, includeOrigin };
+}
 
-		const rowMatch = line.match(ROW_LABEL);
-		if (rowMatch) {
-			rowLabels.push(rowMatch[1]);
+/**
+ * Convert cells to query results.
+ *
+ * Simple approach:
+ * 1. Map labels to coordinates (finite labels = their coordinate, infinity = null for now)
+ * 2. For each cell, inspect its 4 borders
+ * 3. Use label coordinates + border inspection to determine bounds
+ */
+function cellsToQueryResults<T>(
+	columnLabels: string[],
+	rowLabels: string[],
+	cellsByRow: string[][],
+	legend: Map<string, T>,
+	gridLines: string[],
+	boundary: GridBoundaryWithLabels,
+): { results: QueryResult<T>[]; extent: ExtentResult } {
+	if (columnLabels.length === 0 || rowLabels.length === 0) {
+		throw new Error('Parse error: Grid must have at least one column and one row');
+	}
+
+	// Empty grid check
+	if (
+		columnLabels.length === 1 && columnLabels[0] === LABELS.emptySet &&
+		rowLabels.length === 1 && rowLabels[0] === LABELS.emptySet
+	) {
+		return { results: [], extent: { mbr: r.ZERO, edges: r.ALL_EDGES, empty: true } };
+	}
+
+	const results: QueryResult<T>[] = [];
+
+	// Map labels to coordinates
+	// For finite labels: direct coordinate
+	// For infinity labels: we need to infer from adjacent finite labels
+	const colCoords: Map<number, number> = new Map();
+	const rowCoords: Map<number, number> = new Map();
+
+	// First pass: map all finite labels
+	for (let i = 0; i < columnLabels.length; i++) {
+		if (columnLabels[i] !== LABELS.infinity) {
+			colCoords.set(i, letterToColumn(columnLabels[i]!));
+		}
+	}
+	for (let i = 0; i < rowLabels.length; i++) {
+		if (rowLabels[i] !== LABELS.infinity) {
+			rowCoords.set(i, parseRowLabel(rowLabels[i]!));
 		}
 	}
 
-	// Reconstruct viewport (the IR)
-	const viewport = reconstructViewport(columnLabels, rowLabels);
-
-	// Parse cells using viewport mapping
-	const results: QueryResult<T>[] = [];
-
-	let rowIdx = 0;
-	for (let lineIdx = headerIdx + 1; lineIdx < gridLines.length; lineIdx++) {
-		const line = gridLines[lineIdx];
-		if (!DATA_ROW_LINE.test(line)) continue;
-
-		// Extract all cells: first cell is before the first |, rest are between | delimiters
-		const cells: string[] = [];
-
-		// Find first | to separate first cell from the rest
-		const firstPipeIdx = line.indexOf(CELL_SEPARATOR);
-		if (firstPipeIdx === -1) {
-			// No pipes - skip this line
-			rowIdx++;
-			continue;
-		}
-
-		// Extract first cell (between row label and first |)
-		const beforeFirstPipe = line.substring(0, firstPipeIdx);
-		const rowLabelMatch = beforeFirstPipe.match(ROW_LABEL);
-		if (rowLabelMatch) {
-			const firstCell = beforeFirstPipe.substring(rowLabelMatch[0].length).trim();
-			if (firstCell) { // Only add non-empty first cell
-				cells.push(firstCell);
-			}
-		}
-
-		// Extract remaining cells (between | delimiters)
-		const afterFirstPipe = line.substring(firstPipeIdx + 1); // Skip the first |
-		const remainingCells = afterFirstPipe
-			.split(CELL_SEPARATOR)
-			.map((c) => c.trim())
-			.filter((c) => c); // Remove empty cells (from trailing |)
-		cells.push(...remainingCells);
-
-		// Process all cells
-		for (let colIdx = 0; colIdx < cells.length; colIdx++) {
+	// Process each cell
+	for (let rowIdx = 0; rowIdx < rowLabels.length; rowIdx++) {
+		const cells = cellsByRow[rowIdx]!;
+		for (let colIdx = 0; colIdx < columnLabels.length; colIdx++) {
 			const cell = cells[colIdx];
 			if (!cell || cell === EMPTY_CELL) continue;
 
-			const symbol = cell[0]; // First character is the symbol
-			const value = legend.get(symbol);
-			if (value === undefined) {
-				throw new Error(`Parse error: No legend entry for symbol '${symbol}'`);
+			const value = legend.get(cell[0]!);
+			if (value == null) {
+				throw new Error(
+					`Parse error: No legend entry for symbol '${cell[0]}' at cell (col=${colIdx}, row=${rowIdx}). ` +
+						`Available legend keys: ${[...legend.keys()].join(', ')}`,
+				);
 			}
 
-			// Map grid position to world coordinate
-			const worldX = gridToWorldX(colIdx, viewport);
-			const worldY = gridToWorldY(rowIdx, viewport);
+			// Get borders
+			const dataLineIdx = DATA_ROW_STRIDE + rowIdx * DATA_ROW_STRIDE;
+			const leftJunctionX = boundary.cellsXStart + colIdx * STRIDE;
+			const rightJunctionX = leftJunctionX + STRIDE;
 
-			// Single-cell rectangle
-			const bounds: Rectangle = [worldX, worldY, worldX, worldY];
+			const dataLine = gridLines[dataLineIdx]!;
+			const topLine = gridLines[dataLineIdx - 1]!;
+			const bottomLine = gridLines[dataLineIdx + 1] || '';
 
-			results.push([bounds, value]);
+			const leftChar = dataLine[leftJunctionX] || ' ';
+			const rightChar = dataLine[rightJunctionX] || ' ';
+			const topSegment = topLine.substring(leftJunctionX + 1, rightJunctionX);
+			const bottomSegment = bottomLine.substring(leftJunctionX + 1, rightJunctionX);
+
+			const hasLeft = leftChar === '│' || leftChar === '┃';
+			const hasRight = rightChar === '│' || rightChar === '┃';
+			// Border exists only if there's an actual line segment, not just corner junctions
+			const hasTop = /[─━]/.test(topSegment);
+			const hasBottom = /[─━]/.test(bottomSegment);
+
+			// Determine coordinates
+			const colCoord = colCoords.get(colIdx);
+			const rowCoord = rowCoords.get(rowIdx);
+			let xmin: number, xmax: number, ymin: number, ymax: number;
+
+			// X coordinates
+			if (colCoord !== undefined) {
+				// Finite column label - check borders for extent
+				if (!hasLeft && !hasRight) {
+					// No vertical borders at all - extends infinitely in X
+					xmin = r.negInf;
+					xmax = r.posInf;
+				} else {
+					// Has vertical borders - bounded in X
+					xmin = hasLeft ? colCoord : r.negInf;
+					xmax = hasRight ? colCoord : r.posInf;
+				}
+			} else {
+				// Infinity column - use helper to infer from neighbors
+				[xmin, xmax] = inferInfinityBounds(hasLeft, hasRight, colIdx, colCoords, columnLabels.length);
+			}
+
+			// Y coordinates
+			if (rowCoord !== undefined) {
+				// Finite row label - check horizontal borders
+				ymin = hasTop ? rowCoord : r.negInf;
+				ymax = hasBottom ? rowCoord : r.posInf;
+			} else {
+				// Infinity row - use helper to infer from neighbors
+				[ymin, ymax] = inferInfinityBounds(hasTop, hasBottom, rowIdx, rowCoords, rowLabels.length);
+			}
+
+			results.push([[xmin, ymin, xmax, ymax], value]);
 		}
-
-		rowIdx++;
 	}
 
-	return results;
-}
-
-/**
- * Reconstruct viewport from parsed column and row labels.
- * This is the inverse of buildColumnLabels/buildRowLabels in render.ts.
- */
-function reconstructViewport(columnLabels: string[], rowLabels: string[]): ParsedViewport {
-	// Detect infinity edges
-	const infinityEdges = {
-		left: columnLabels[0] === INFINITY_SYMBOL,
-		right: columnLabels[columnLabels.length - 1] === INFINITY_SYMBOL,
-		top: rowLabels[0] === INFINITY_SYMBOL,
-		bottom: rowLabels[rowLabels.length - 1] === INFINITY_SYMBOL,
-	};
-
-	// Find min finite coordinates
-	const finiteColumns = columnLabels.filter((l) => l !== INFINITY_SYMBOL);
-	const finiteRows = rowLabels.filter((l) => l !== INFINITY_SYMBOL);
-
-	const minX = finiteColumns.length > 0 ? letterToCol(finiteColumns[0]) : 0;
-	const minY = finiteRows.length > 0 ? parseInt(finiteRows[0], 10) : 0;
-
-	return {
-		minX,
-		minY,
-		columnLabels,
-		rowLabels,
-		infinityEdges,
-	};
-}
-
-/**
- * Map grid column index to world X coordinate.
- * Inverse of worldToGrid in render.ts.
- */
-function gridToWorldX(gridX: number, viewport: ParsedViewport): number {
-	if (gridX >= viewport.columnLabels.length) {
-		throw new Error(
-			`Parse error: Grid column ${gridX} out of bounds (have ${viewport.columnLabels.length} columns)`,
-		);
-	}
-	const colLabel = viewport.columnLabels[gridX];
-	if (colLabel === INFINITY_SYMBOL) return gridX === 0 ? -Infinity : Infinity;
-	return letterToCol(colLabel);
-}
-
-/**
- * Map grid row index to world Y coordinate.
- * Inverse of worldToGrid in render.ts.
- */
-function gridToWorldY(gridY: number, viewport: ParsedViewport): number {
-	const rowLabel = viewport.rowLabels[gridY];
-	if (rowLabel === INFINITY_SYMBOL) return gridY === 0 ? -Infinity : Infinity;
-	return parseInt(rowLabel, 10);
+	const extent = computeExtent(results);
+	return { results, extent };
 }
 
 //#endregion
@@ -452,55 +414,116 @@ function gridToWorldY(gridY: number, viewport: ParsedViewport): number {
 //#region Utilities
 
 /**
- * Convert spreadsheet-style letter to column number ('A' → 0, 'Z' → 25, 'AA' → 26, ...).
- * Handles negative columns: '-A' → -1, '-B' → -2, etc.
- *
- * Inverse of columnToLetter() from render.ts
+ * Infer coordinate bounds for infinity label cells based on borders and neighbor coordinates.
  */
-function letterToCol(letter: string): number {
-	// Handle negative columns
-	if (letter.startsWith('-')) {
-		const positiveCol = letterToCol(letter.substring(1));
-		return -(positiveCol + 1);
+function inferInfinityBounds(
+	hasMin: boolean,
+	hasMax: boolean,
+	currentIdx: number,
+	coords: Map<number, number>,
+	maxIdx: number,
+): [number, number] {
+	if (!hasMin && !hasMax) {
+		return [r.negInf, r.posInf];
 	}
 
-	let col = 0;
-	for (let i = 0; i < letter.length; i++) {
-		col = col * 26 + (letter.charCodeAt(i) - 65 + 1);
+	let minCoord: number | undefined;
+	let maxCoord: number | undefined;
+
+	// Look backward for finite coordinate
+	for (let i = currentIdx - 1; i >= 0; i--) {
+		const c = coords.get(i);
+		if (c !== undefined) {
+			minCoord = c;
+			break;
+		}
 	}
-	return col - 1;
+
+	// Look forward for finite coordinate
+	for (let i = currentIdx + 1; i < maxIdx; i++) {
+		const c = coords.get(i);
+		if (c !== undefined) {
+			maxCoord = c;
+			break;
+		}
+	}
+
+	const min = hasMin
+		? (minCoord !== undefined ? minCoord + 1 : maxCoord !== undefined ? maxCoord - 1 : r.negInf)
+		: r.negInf;
+	const max = hasMax
+		? (maxCoord !== undefined ? maxCoord - 1 : minCoord !== undefined ? minCoord + 1 : r.posInf)
+		: r.posInf;
+
+	return [min, max];
 }
 
 function parseLegend<T>(lines: string[]): Map<string, T> {
 	const legend = new Map<string, T>();
 
 	for (const line of lines) {
-		const trimmed = line.trim();
-		if (!trimmed) continue;
-
-		const match = trimmed.match(LEGEND_ENTRY);
+		const match = line.trim().match(LEGEND_ENTRY);
 		if (!match) continue;
 
-		const symbol = match[1];
-		const rawValue = match[2].trim();
-
+		const symbol = match[1]!;
+		const rawValue = match[2]!.trim();
 		legend.set(symbol, parseValue<T>(rawValue));
 	}
-
 	return legend;
 }
 
 /**
- * Parse a legend value - supports objects, arrays, strings, numbers, booleans.
+ * Parse legend value (supports JSON or plain string).
  *
- * Inverse of serializeValue() from render.ts
+ * Attempts JSON parsing first for structured values (objects, arrays, numbers, booleans).
+ * Falls back to string if JSON parsing fails (for unquoted strings).
  */
 function parseValue<T>(rawValue: string): T {
 	try {
 		return JSON.parse(rawValue) as T;
-	} catch {
-		return rawValue as T;
+	} catch (err) {
+		// Only swallow SyntaxError (expected for unquoted strings)
+		// Re-throw critical errors (OOM, stack overflow, etc.)
+		if (err instanceof SyntaxError) {
+			return rawValue as T;
+		}
+		throw err;
 	}
+}
+
+//#endregion
+
+//#region Public API
+
+/**
+ * Parse rendered ASCII grid(s) back to query results.
+ *
+ * Handles single grids and multi-grid progressions (horizontal layout).
+ */
+export function parse<T = unknown>(ascii: string): {
+	grids: Array<{ name: string | undefined; results: QueryResult<T>[]; extent: ExtentResult; includeOrigin: boolean }>;
+	legend: Record<string, T>;
+} {
+	const lines = ascii.split('\n').map((line) => line.trimEnd());
+	const sections = extractSections(lines);
+
+	if (sections.grids.length === 0) {
+		throw new Error('Parse error: No grids found in input');
+	}
+
+	const legend = parseLegend<T>(sections.legendLines);
+	const grids = sections.grids.map(({ name, lines, boundary }) => {
+		const { results, extent, includeOrigin } = parseGridFromLines<T>(
+			lines,
+			boundary.columnLabels,
+			boundary.rowLabels,
+			legend,
+			boundary,
+		);
+		return { name, results, extent, includeOrigin };
+	});
+
+	return { grids, legend: Object.fromEntries(legend) };
 }
 
 //#endregion

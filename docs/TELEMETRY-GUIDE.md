@@ -4,20 +4,20 @@ Collect real-world usage metrics to validate optimization decisions.
 
 ## Why Telemetry?
 
-**Current State**: All performance optimizations assume "n<100 is typical" but this **has never been validated** with production data.
+Validate "n<100 is typical" assumption with production data.
 
-**Purpose**: Answer critical questions:
+**Questions to answer**:
 
-- What are real `n` distributions? (assumed <100, but is this true?)
-- What are real query patterns? (viewport queries vs full exports?)
-- What are real overlap patterns? (sequential vs random?)
-- Where are the actual bottlenecks?
+- Real `n` distributions?
+- Real query patterns? (viewport vs full exports)
+- Real overlap patterns? (sequential vs random)
+- Actual bottlenecks?
 
 ## Quick Start
 
 ```typescript
 import { TelemetryCollector } from '@local/spandex-telemetry';
-import { MortonLinearScanImpl } from '@jim/spandex';
+import createMortonLinearScanIndex from '@jim/spandex/index/mortonlinearscan';
 
 // 1. Create telemetry collector
 const telemetry = new TelemetryCollector({
@@ -31,47 +31,29 @@ const telemetry = new TelemetryCollector({
 });
 
 // 2. Wrap your spatial index
-const backgroundColors = new MortonLinearScanImpl<string>();
+const backgroundColors = createMortonLinearScanIndex<string>();
 const wrapped = telemetry.wrap(backgroundColors, 'backgroundColor');
 
-// 3. Use it normally (using Rectangle format [xmin, ymin, xmax, ymax])
-wrapped.insert([0, 0, 4, 4], 'red'); // columns 0-4, rows 0-4
-wrapped.query([0, 0, 9, 9]); // columns 0-9, rows 0-9
+// 3. Use normally (Rectangle format: [xmin, ymin, xmax, ymax])
+wrapped.insert([0, 0, 4, 4], 'red');
+wrapped.query([0, 0, 9, 9]);
 
-// Metrics are automatically collected and reported
+// Metrics auto-collected and reported
 ```
 
 ## What Gets Collected
 
-### Range Count Distribution (`nDistribution`)
+### Metrics Collected
 
-- `min`, `max`, `mean`, `median`, `p95`, `p99`
-- **Validates**: "n<100 is typical" assumption
+**`nDistribution`**: `min`, `max`, `mean`, `median`, `p95`, `p99` - Validates "n<100 is typical"
 
-### Operation Counts (`operations`)
+**`operations`**: `inserts`, `queries` - Read vs write balance
 
-- `inserts`, `queries`
-- **Shows**: Read vs write workload balance
+**`queryPatterns`**: `avgQueryArea`, `fullExportQueries`, `viewportQueries` - Viewport vs full exports
 
-### Query Patterns (`queryPatterns`)
+**`insertPatterns`**: `sequential`, `overlapping`, `avgOverlapArea` - Decomposition overhead
 
-- `avgQueryArea` - Average query rectangle size
-- `fullExportQueries` - Queries covering >80% of space
-- `viewportQueries` - Queries covering <10% of space
-- **Validates**: Viewport scrolling vs full exports
-
-### Insert Patterns (`insertPatterns`)
-
-- `sequential` - Non-overlapping inserts
-- `overlapping` - Inserts triggering decomposition
-- `avgOverlapArea` - Typical overlap size
-- **Shows**: Decomposition overhead
-
-### Performance Metrics (`performance`)
-
-- `insertP50`, `insertP95`, `insertP99` - Insert latencies
-- `queryP50`, `queryP95`, `queryP99` - Query latencies
-- **Identifies**: Bottlenecks and outliers
+**`performance`**: `insertP50/P95/P99`, `queryP50/P95/P99` - Latency bottlenecks
 
 ## Configuration
 
@@ -91,26 +73,17 @@ interface TelemetryConfig {
 }
 ```
 
-### Recommendation
-
-- **Production**: `reportingInterval: 1000` (low overhead, frequent data)
-- **Development**: `reportingInterval: 100` (faster feedback)
-- **Testing**: Use `forceReport()` for immediate data
+**Production**: `reportingInterval: 1000`
+**Development**: `reportingInterval: 100`
+**Testing**: `forceReport()`
 
 ## Privacy & Performance
 
-**Privacy**: Only aggregate statistics, no user data
+**Privacy**: Aggregate stats only. Never collects cell values, range contents, or user identifiers.
 
-- ✅ Collects: n distributions, query sizes, performance metrics
-- ❌ Never collects: Cell values, range contents, user identifiers
+**Performance**: <1ms overhead per operation. Zero when `enabled: false`.
 
-**Performance**: <1ms overhead per operation
-
-- Metrics stored in memory buffers
-- Reporting triggered at intervals
-- Zero overhead when `enabled: false`
-
-## Integration with Google Apps Script
+## Apps Script Integration
 
 ### Cloud Logging
 
@@ -153,16 +126,9 @@ const telemetry = new TelemetryCollector({
 ### Periodic Flush
 
 ```typescript
-// Force report on document close or time trigger
 function onDocumentClose() {
 	telemetry.forceReport('MortonLinearScanImpl', 'backgroundColor');
 }
-
-// Or set up time-based trigger
-function flushTelemetry() {
-	telemetry.forceReport('MortonLinearScanImpl', 'backgroundColor');
-}
-// Set up: Edit > Current project's triggers > Add trigger
 ```
 
 ## Analyzing Results
@@ -203,9 +169,7 @@ If viewport >> fullExport: Cache locality critical
 If fullExport common: Tree pruning less valuable
 ```
 
-## Example: Data Collection Campaign
-
-**Goal**: Collect 2 weeks of production data to validate optimization decisions
+## Data Collection Campaign
 
 **Step 1**: Enable telemetry
 
@@ -226,21 +190,17 @@ const telemetry = new TelemetryCollector({
 
 ```typescript
 const backgroundColors = telemetry.wrap(
-	new MortonLinearScanImpl<string>(),
+	createMortonLinearScanIndex<string>(),
 	'backgroundColor',
 );
 const fontWeights = telemetry.wrap(
-	new MortonLinearScanImpl<string>(),
+	createMortonLinearScanIndex<string>(),
 	'fontWeight',
 );
 // ... etc
 ```
 
-**Step 3**: Collect logs
-
-Check your Google Apps Script logs (View > Logs) or external service.
-
-**Step 4**: Analyze
+**Step 3**: Analyze
 
 ```typescript
 // Aggregate all metrics
@@ -263,54 +223,15 @@ if (globalP95 < 100) {
 
 ## Troubleshooting
 
-### Metrics not being reported
+**Metrics not reported**: Use small `reportingInterval: 10` or `forceReport()`
 
-**Problem**: `onReport` never called
+**Too much overhead**: Increase `reportingInterval` or disable
 
-**Fix**: Check `reportingInterval`. You need that many operations before reporting triggers.
-
-```typescript
-// For testing, use small interval
-reportingInterval: 10;
-
-// Or force report
-telemetry.forceReport('ImplName', 'propertyName');
-```
-
-### Too much overhead
-
-**Problem**: Telemetry slowing down app
-
-**Fix**: Increase `reportingInterval` or disable telemetry.
-
-```typescript
-// Lower frequency
-reportingInterval: 5000; // Every 5000 operations
-
-// Or disable in production
-enabled: false;
-```
-
-### Missing data
-
-**Problem**: Some properties not tracked
-
-**Fix**: Make sure you wrap **all** spatial indices.
-
-```typescript
-// Bad - only wraps one
-const bg = telemetry.wrap(new MortonLinearScanImpl(), 'bg');
-const font = new MortonLinearScanImpl(); // ❌ Not wrapped!
-
-// Good - wraps all
-const bg = telemetry.wrap(new MortonLinearScanImpl(), 'bg');
-const font = telemetry.wrap(new MortonLinearScanImpl(), 'font');
-```
+**Missing data**: Wrap all spatial indices
 
 ## Next Steps
 
-1. **Enable telemetry** in production (feature flag)
-2. **Collect 1-2 weeks** of data
-3. **Analyze results** using guide above
-4. **Update recommendations** in PRODUCTION-GUIDE.md based on real data
-5. **Consider adaptive implementation** if n varies widely
+1. Enable telemetry (feature flag)
+2. Collect 1-2 weeks
+3. Analyze results
+4. Update PRODUCTION-GUIDE.md with findings

@@ -246,5 +246,5 @@ insert(); // Single-pass with inline operations
 - Benchmark data: `BENCHMARKS.md`
 - Implementation files:
   - `archive/src/implementations/superseded/hilbertlinearscan.ts` (now archived, superseded by Morton)
-  - `packages/@jim/spandex/src/implementations/rstartree.ts` (active)
+  - `packages/@jim/spandex/src/index/rstartree.ts` (active)
   - `archive/src/implementations/superseded/compactlinearscan.ts` (archived)

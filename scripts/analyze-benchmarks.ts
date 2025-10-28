@@ -209,7 +209,7 @@ async function main() {
 	}
 
 	// Get all implementations
-	const implementations = Array.from(new Set(sorted.map((r) => r.implementation))).sort();
+	const implementations = Array.from(new Set(sorted.map((result) => result.implementation))).sort();
 
 	console.log(`RESULTS: ${implementations.length} Implementations × ${byScenario.size} Scenarios\n`);
 	console.log(`Implementations: ${implementations.join(', ')}\n`);
@@ -225,7 +225,11 @@ async function main() {
 
 		// Sort by mean time (fastest first)
 		const sortedResults = [...results].sort((a, b) => a.mean - b.mean);
-		const baseline = sortedResults[0]; // Fastest is baseline
+		if (sortedResults.length === 0) {
+			console.error('Error: No benchmark results to analyze');
+			return;
+		}
+		const baseline = sortedResults[0]!; // Guaranteed by length check
 
 		for (const result of sortedResults) {
 			const relative = result.mean / baseline.mean;
@@ -253,7 +257,8 @@ async function main() {
 
 	for (const [, results] of byScenario) {
 		const sortedResults = [...results].sort((a, b) => a.mean - b.mean);
-		const winner = sortedResults[0].implementation;
+		if (sortedResults.length === 0) continue; // Skip empty scenarios
+		const winner = sortedResults[0]!.implementation; // Guaranteed by length check
 		winCounts.set(winner, (winCounts.get(winner) || 0) + 1);
 	}
 
@@ -267,8 +272,8 @@ async function main() {
 		.sort((a, b) => b[1] - a[1]);
 
 	for (const [impl, wins] of rankedImpls) {
-		const implResults = sorted.filter((r) => r.implementation === impl);
-		const avgTime = implResults.reduce((sum, r) => sum + r.mean, 0) / implResults.length;
+		const implResults = sorted.filter((result) => result.implementation === impl);
+		const avgTime = implResults.reduce((sum, result) => sum + result.mean, 0) / implResults.length;
 		const winRate = ((wins / byScenario.size) * 100).toFixed(0);
 
 		console.log(
@@ -286,9 +291,9 @@ async function main() {
 	console.log('-'.repeat(60));
 
 	for (const impl of implementations) {
-		const implResults = sorted.filter((r) => r.implementation === impl);
-		const avgCV = implResults.reduce((sum, r) => sum + r.cv, 0) / implResults.length;
-		const maxCV = Math.max(...implResults.map((r) => r.cv));
+		const implResults = sorted.filter((result) => result.implementation === impl);
+		const avgCV = implResults.reduce((sum, result) => sum + result.cv, 0) / implResults.length;
+		const maxCV = Math.max(...implResults.map((result) => result.cv));
 		const status = maxCV < 5 ? '✅ Stable' : maxCV < 10 ? '⚠️  Variable' : '❌ Unstable';
 
 		console.log(
@@ -345,8 +350,8 @@ async function main() {
 | -------------- | ---- | -------- | ------------- |
 ${
 			rankedImpls.map(([impl, wins]) => {
-				const implResults = sorted.filter((r) => r.implementation === impl);
-				const avgTime = implResults.reduce((sum, r) => sum + r.mean, 0) / implResults.length;
+				const implResults = sorted.filter((result) => result.implementation === impl);
+				const avgTime = implResults.reduce((sum, result) => sum + result.mean, 0) / implResults.length;
 				const winRate = ((wins / byScenario.size) * 100).toFixed(0);
 				return `| ${impl} | ${wins} | ${winRate}% | ${avgTime.toFixed(1)} |`;
 			}).join('\n')
@@ -358,9 +363,9 @@ ${
 | -------------- | ------- | ------- | ------ |
 ${
 			implementations.map((impl) => {
-				const implResults = sorted.filter((r) => r.implementation === impl);
-				const avgCV = implResults.reduce((sum, r) => sum + r.cv, 0) / implResults.length;
-				const maxCV = Math.max(...implResults.map((r) => r.cv));
+				const implResults = sorted.filter((result) => result.implementation === impl);
+				const avgCV = implResults.reduce((sum, result) => sum + result.cv, 0) / implResults.length;
+				const maxCV = Math.max(...implResults.map((result) => result.cv));
 				const status = maxCV < 5 ? '✅ Stable' : maxCV < 10 ? '⚠️ Variable' : '❌ Unstable';
 				return `| ${impl} | ${avgCV.toFixed(2)} | ${maxCV.toFixed(2)} | ${status} |`;
 			}).join('\n')
@@ -371,20 +376,21 @@ ${
 ${
 			Array.from(byScenario.entries()).map(([scenario, results]) => {
 				const sortedResults = [...results].sort((a, b) => a.mean - b.mean);
-				const baseline = sortedResults[0];
+				if (sortedResults.length === 0) return ''; // Skip empty scenarios
+				const baseline = sortedResults[0]!; // Guaranteed by length check
 
 				return `### ${scenario}
 
 | Implementation | Mean (µs) | ±Stddev | CV% | Relative |
 | -------------- | --------- | ------- | --- | -------- |
 ${
-					sortedResults.map((r) => {
-						const relative = r.mean / baseline.mean;
-						const relStr = r === baseline ? '(fastest)' : `${relative.toFixed(2)}x`;
-						const marker = r === baseline ? ' ✓' : '';
-						return `| ${r.implementation}${marker} | ${r.mean.toFixed(1)} | ±${r.stddev.toFixed(1)} | ${
-							r.cv.toFixed(1)
-						} | ${relStr} |`;
+					sortedResults.map((result) => {
+						const relative = result.mean / baseline.mean;
+						const relStr = result === baseline ? '(fastest)' : `${relative.toFixed(2)}x`;
+						const marker = result === baseline ? ' ✓' : '';
+						return `| ${result.implementation}${marker} | ${result.mean.toFixed(1)} | ±${
+							result.stddev.toFixed(1)
+						} | ${result.cv.toFixed(1)} | ${relStr} |`;
 					}).join('\n')
 				}
 `;

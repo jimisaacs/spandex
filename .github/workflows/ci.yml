@@ -103,3 +103,30 @@ jobs:
                   file_pattern: 'docs/analyses/benchmark-statistics.md'
                   pull_options: '--rebase --autostash'
                   push_options: '--force-with-lease'
+
+    publish-jsr:
+        name: Publish to JSR
+        runs-on: ubuntu-latest
+        if: |
+            github.event_name == 'push' &&
+            github.ref == 'refs/heads/main' &&
+            startsWith(github.event.head_commit.message, 'chore: release v')
+        permissions:
+            contents: read
+            id-token: write
+        timeout-minutes: 10
+
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v4
+
+            - name: Setup Deno
+              uses: denoland/setup-deno@v1
+              with:
+                  deno-version: 2.x
+
+            - name: Publish @jim/spandex to JSR
+              run: cd packages/@jim/spandex && deno publish
+
+            - name: Publish @jim/spandex-ascii to JSR
+              run: cd packages/@jim/spandex-ascii && deno publish

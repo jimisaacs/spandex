@@ -2,6 +2,7 @@
 	"workspace": [
 		"./packages/@jim/spandex",
 		"./packages/@jim/spandex-ascii",
+		"./packages/@jim/spandex-html",
 		"./packages/@local/snapmark",
 		"./packages/@local/spandex-testing",
 		"./packages/@local/spandex-telemetry"
@@ -18,8 +19,8 @@
 		"test:spandex-testing": "deno test -A packages/@local/spandex-testing/",
 		"test:spandex-telemetry": "deno test -A packages/@local/spandex-telemetry/",
 		"test:adversarial": "deno test -A packages/@jim/spandex/test/adversarial.test.ts",
-		"test:morton": "deno test -A packages/@jim/spandex/test/implementations/mortonlinearscan/",
-		"test:rstartree": "deno test -A packages/@jim/spandex/test/implementations/rstartree/",
+		"test:morton": "deno test -A packages/@jim/spandex/test/index/mortonlinearscan/",
+		"test:rstartree": "deno test -A packages/@jim/spandex/test/index/rstartree/",
 		"bench": "deno bench -A benchmarks/performance.ts",
 		"bench:update": "deno run -A scripts/update-benchmarks.ts",
 		"bench:analyze": "deno run -A scripts/analyze-benchmarks.ts",
@@ -50,6 +51,12 @@
 	},
 	"compilerOptions": {
 		"lib": ["deno.window"],
-		"strict": true
+		"strict": true,
+		"erasableSyntaxOnly": true,
+		"exactOptionalPropertyTypes": true,
+		"noImplicitAny": true,
+		"noUncheckedIndexedAccess": true,
+		"noPropertyAccessFromIndexSignature": true,
+		"verbatimModuleSyntax": true
 	}
 }

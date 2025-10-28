@@ -4,12 +4,12 @@
  * All implementations must produce identical results. No surprises.
  */
 
-import type { SpatialIndex } from '@jim/spandex';
-import * as rect from '@jim/spandex/rect';
-import { assertEquals } from '@std/assert';
+import type { Rectangle, SpatialIndex } from '@jim/spandex';
+import * as r from '@jim/spandex/r';
+import { assertEquals, assertExists } from '@std/assert';
 import { CANONICAL_FRAGMENT_COUNTS } from './canonical-values.ts';
 
-export type IndexConstructor<T> = new () => SpatialIndex<T>;
+export type IndexConstructor<T, Bounds = Readonly<Rectangle>> = new () => SpatialIndex<T, Bounds>;
 
 /**
  * Test all active implementations for cross-implementation consistency.
@@ -22,7 +22,7 @@ export type IndexConstructor<T> = new () => SpatialIndex<T>;
  * @param implementations - Array of { name, Class } for all active implementations
  */
 export function testCrossImplementationConsistency(
-	implementations: Array<{ name: string; Class: IndexConstructor<string> }>,
+	implementations: Array<{ name: string; factory: () => SpatialIndex<string> }>,
 ): void {
 	Deno.test('Cross-implementation consistency - Fragment counts', () => {
 		// Test against canonical scenarios
@@ -30,7 +30,7 @@ export function testCrossImplementationConsistency(
 			{
 				name: 'small-overlapping',
 				ops: Array.from({ length: 50 }, (_, i) => ({
-					range: rect.make(i % 5, Math.floor(i / 3), (i % 5) + 3 - 1, Math.floor(i / 3) + 3 - 1),
+					range: r.make(i % 5, Math.floor(i / 3), (i % 5) + 3 - 1, Math.floor(i / 3) + 3 - 1),
 					value: `s_${i}`,
 				})),
 				expected: CANONICAL_FRAGMENT_COUNTS.SMALL_OVERLAPPING,
@@ -38,7 +38,7 @@ export function testCrossImplementationConsistency(
 			{
 				name: 'diagonal-pattern',
 				ops: Array.from({ length: 20 }, (_, i) => ({
-					range: rect.make(i * 2, i * 2, i * 2 + 5 - 1, i * 2 + 5 - 1),
+					range: r.make(i * 2, i * 2, i * 2 + 5 - 1, i * 2 + 5 - 1),
 					value: `d_${i}`,
 				})),
 				expected: CANONICAL_FRAGMENT_COUNTS.DIAGONAL,
@@ -46,7 +46,7 @@ export function testCrossImplementationConsistency(
 			{
 				name: 'large-overlapping',
 				ops: Array.from({ length: 1250 }, (_, i) => ({
-					range: rect.make(i % 10, Math.floor(i / 5), (i % 10) + 5 - 1, Math.floor(i / 5) + 5 - 1),
+					range: r.make(i % 10, Math.floor(i / 5), (i % 10) + 5 - 1, Math.floor(i / 5) + 5 - 1),
 					value: `overlap_${i}`,
 				})),
 				expected: CANONICAL_FRAGMENT_COUNTS.LARGE_OVERLAPPING,
@@ -54,8 +54,8 @@ export function testCrossImplementationConsistency(
 		];
 
 		for (const scenario of scenarios) {
-			const counts = implementations.map(({ name, Class }) => {
-				const index = new Class();
+			const counts = implementations.map(({ name, factory }) => {
+				const index = factory();
 				scenario.ops.forEach((op) => index.insert(op.range, op.value));
 				return { name, count: Array.from(index.query()).length };
 			});
@@ -71,13 +71,15 @@ export function testCrossImplementationConsistency(
 			}
 
 			// All implementations must match each other
+			assertExists(counts[0], 'Must have at least one implementation to test');
 			const firstCount = counts[0].count;
 			for (let i = 1; i < counts.length; i++) {
+				const count = counts[i]!;
 				assertEquals(
-					counts[i].count,
+					count.count,
 					firstCount,
 					`fragment count mismatch: ${counts[0].name} produced ${firstCount}, ` +
-						`but ${counts[i].name} produced ${counts[i].count} for ${scenario.name}`,
+						`but ${count.name} produced ${count.count} for ${scenario.name}`,
 				);
 			}
 		}
@@ -86,14 +88,14 @@ export function testCrossImplementationConsistency(
 	Deno.test('Cross-implementation consistency - Exact decompositions', () => {
 		// Verify implementations produce identical decompositions, not just counts
 		const operations = [
-			{ bounds: rect.make(0, 0, 4, 4), value: 'base' },
-			{ bounds: rect.make(2, 2, 6, 6), value: 'overlap1' },
-			{ bounds: rect.make(4, 1, 7, 2), value: 'overlap2' },
-			{ bounds: rect.make(1, 6, 3, 8), value: 'separate' },
+			{ bounds: r.make(0, 0, 4, 4), value: 'base' },
+			{ bounds: r.make(2, 2, 6, 6), value: 'overlap1' },
+			{ bounds: r.make(4, 1, 7, 2), value: 'overlap2' },
+			{ bounds: r.make(1, 6, 3, 8), value: 'separate' },
 		];
 
-		const results = implementations.map(({ name, Class }) => {
-			const index = new Class();
+		const results = implementations.map(({ name, factory }) => {
+			const index = factory();
 			operations.forEach((op) => index.insert(op.bounds, op.value));
 			const ranges = Array.from(index.query());
 
@@ -101,12 +103,12 @@ export function testCrossImplementationConsistency(
 			return {
 				name,
 				normalized: ranges
-					.map((r) => ({
-						xmin: r[0][0],
-						ymin: r[0][1],
-						xmax: r[0][2],
-						ymax: r[0][3],
-						value: r[1],
+					.map((result) => ({
+						xmin: result[0][0],
+						ymin: result[0][1],
+						xmax: result[0][2],
+						ymax: result[0][3],
+						value: result[1],
 					}))
 					.sort((a, b) => {
 						// Sort by ymin, ymax, xmin, xmax, value
@@ -121,11 +123,13 @@ export function testCrossImplementationConsistency(
 
 		// Compare all implementations against first one
 		const reference = results[0];
+		assertExists(reference, 'Must have at least one implementation to compare');
 		for (let i = 1; i < results.length; i++) {
+			const result = results[i]!;
 			assertEquals(
-				JSON.stringify(results[i].normalized),
+				JSON.stringify(result.normalized),
 				JSON.stringify(reference.normalized),
-				`${results[i].name} produced different decomposition than ${reference.name}`,
+				`${result.name} produced different decomposition than ${reference.name}`,
 			);
 		}
 	});

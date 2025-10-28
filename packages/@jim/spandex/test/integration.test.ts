@@ -6,11 +6,12 @@
  * 2. All implementations produce identical results to each other
  */
 
-import { MortonLinearScanImpl, RStarTreeImpl } from '@jim/spandex';
+import createMortonLinearScanIndex from '@jim/spandex/index/mortonlinearscan';
+import createRStarTreeIndex from '@jim/spandex/index/rstartree';
 import { testCrossImplementationConsistency } from '@local/spandex-testing/axiom';
 
 // Test all active implementations for consistency
 testCrossImplementationConsistency([
-	{ name: 'MortonLinearScan', Class: MortonLinearScanImpl },
-	{ name: 'RStarTree', Class: RStarTreeImpl },
+	{ name: 'MortonLinearScan', factory: createMortonLinearScanIndex },
+	{ name: 'RStarTree', factory: createRStarTreeIndex },
 ]);

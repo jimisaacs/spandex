@@ -26,7 +26,7 @@ import * as path from '@std/path';
 import type { FixtureCodec } from './codec.ts';
 import { defaultCompare } from './codec.ts';
 import { readFixtureFile, writeFixtureFile } from './disk.ts';
-import { FixtureFile } from './markdown.ts';
+import type { FixtureFile } from './markdown.ts';
 
 const DEFAULT_HEADER = '# Test Fixtures\n\nAutomatically generated fixture file.';
 
@@ -130,10 +130,10 @@ function resolveFixtureName(options: AssertMatchOptions): string {
 class FixtureGroupImpl<T> {
 	private readonly absFilePath: string;
 	private readonly codec: FixtureCodec<T>;
-	private readonly defaultLanguageTag?: string;
+	private readonly defaultLanguageTag: string | undefined;
 
 	/** partial file to update only if we are in update mode */
-	private readonly encountered?: { header?: string } & Omit<FixtureFile, 'header'>;
+	private readonly encountered?: { header: string | undefined } & Omit<FixtureFile, 'header'>;
 
 	constructor(codec: FixtureCodec<T>, options: Readonly<FixtureGroupOptions>) {
 		const { languageTag, updateMode = isUpdateMode(), context, header } = options;
@@ -218,11 +218,12 @@ class FixtureGroupImpl<T> {
 			header: encountered.header ?? existing?.header ?? DEFAULT_HEADER,
 			fixtures: encountered.fixtures,
 		};
+		const fixtureCount = newFile.fixtures.size;
 		await writeFixtureFile(this.absFilePath, newFile, this.defaultLanguageTag, options);
 		encountered.fixtures.clear();
 
 		console.log(`✓ Updated fixtures: ${path.relative(Deno.cwd(), this.absFilePath)}`);
-		console.log(`  Captured: ${newFile.fixtures.size} fixtures`);
+		console.log(`  Captured: ${fixtureCount} fixtures`);
 	}
 }
 

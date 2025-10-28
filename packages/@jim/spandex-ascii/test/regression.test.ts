@@ -10,18 +10,19 @@
  * Includes single-grid and multi-state rendering scenarios.
  */
 
-import type { SpatialIndex } from '@jim/spandex';
-import { MortonLinearScanImpl } from '@jim/spandex';
-import { renderProgression, renderStates } from '@jim/spandex-ascii';
-import * as rect from '@jim/spandex/rect';
+import { createRenderer } from '@jim/spandex-ascii';
 import { asciiStringCodec, createFixtureGroup } from '@local/snapmark';
+import { createRegressionScenarios } from '@local/spandex-testing/regression-scenarios';
+import { validateRoundTrip } from '@local/spandex-testing/round-trip';
 
 const FIXTURE_PATH = new URL('./fixtures/regression.md', import.meta.url);
-// const FIXTURE_PATH = new URL('./fixtures/regression-finite-only.md', import.meta.url);
 
 //#region REGRESSION SCENARIOS
 
 Deno.test('Regression - Round-trip Scenarios', async (t) => {
+	const { renderLayout, renderProgression } = createRenderer();
+	const scenarios = createRegressionScenarios();
+
 	const { assertMatch, flush } = createFixtureGroup(asciiStringCodec(), {
 		context: t,
 		filePath: FIXTURE_PATH,
@@ -29,47 +30,34 @@ Deno.test('Regression - Round-trip Scenarios', async (t) => {
 
 	//#region COMPARISONS (independent states, same input)
 
-	await t.step('Coordinate System Modes', async () => {
-		// Show viewport vs absolute rendering
-		const result = renderProgression(
-			() => new MortonLinearScanImpl<string>(),
+	await t.step('Origin Inclusion Modes', async () => {
+		const { index1, index2, index3 } = scenarios.originInclusion();
+		const legend = { 'D': 'DATA' };
+
+		const result = renderLayout(
 			[
-				{
-					name: 'Viewport Mode',
-					action: (idx: SpatialIndex<string>) => idx.insert([5, 10, 6, 10], 'DATA'),
-				},
+				{ params: { name: 'No Origin 1' }, source: index1 },
+				{ params: { name: 'No Origin 2' }, source: index2 },
+				{ params: { name: 'No Origin 3' }, source: index3 },
 			],
-			{ 'D': 'DATA' },
-			{ coordinateSystem: 'viewport', strict: true },
+			{ legend, strict: true, includeOrigin: false },
 		);
 
-		const result2 = renderProgression(
-			() => new MortonLinearScanImpl<string>(),
+		const result2 = renderLayout(
 			[
-				{
-					name: 'Absolute Mode',
-					action: (idx: SpatialIndex<string>) => idx.insert([5, 10, 6, 10], 'DATA'),
-				},
+				{ params: { name: 'Origin Included 1' }, source: index1 },
+				{ params: { name: 'Origin Included 2' }, source: index2 },
+				{ params: { name: 'Origin Included 3' }, source: index3 },
 			],
-			{ 'D': 'DATA' },
-			{ coordinateSystem: 'absolute', strict: true },
+			{ legend, strict: true, includeOrigin: true },
 		);
 
-		const result3 = renderProgression(
-			() => new MortonLinearScanImpl<string>(),
-			[
-				{
-					name: 'Negative Coords',
-					action: (idx: SpatialIndex<string>) => idx.insert([-5, -3, -2, -1], 'DATA'),
-				},
-			],
-			{ 'D': 'DATA' },
-			{ coordinateSystem: 'absolute', strict: true },
-		);
+		await assertMatch(result, { name: 'Origin Excluded' });
+		await assertMatch(result2, { name: 'Origin Included' });
 
-		// Combine results with separator
-		const combined = `${result}\n\n---\n\n${result2}\n\n---\n\n${result3}`;
-		await assertMatch(combined, { name: 'Coordinate System Modes' });
+		// Validate round-trip parsing
+		validateRoundTrip<string>(result, 3, { legend }, true);
+		validateRoundTrip<string>(result2, 3, { legend }, true);
 	});
 
 	//#endregion
@@ -77,103 +65,107 @@ Deno.test('Regression - Round-trip Scenarios', async (t) => {
 	//#region VARIATIONS (related but independent scenarios)
 
 	await t.step('Infinity Edges (all directions)', async () => {
-		const top = new MortonLinearScanImpl<string>();
-		top.insert([0, -Infinity, 0, 0], 'TOP');
+		const { top, right, bottom, left } = scenarios.infinityEdges();
+		const legend = { 'T': 'TOP', 'R': 'RIGHT', 'B': 'BOTTOM', 'L': 'LEFT' };
 
-		const right = new MortonLinearScanImpl<string>();
-		right.insert([0, 0, Infinity, 0], 'RIGHT');
-
-		const bottom = new MortonLinearScanImpl<string>();
-		bottom.insert([0, 0, 0, Infinity], 'BOTTOM');
-
-		const left = new MortonLinearScanImpl<string>();
-		left.insert([-Infinity, 0, 0, 0], 'LEFT');
-
-		const result = renderStates(
+		const result = renderLayout(
 			[
-				{ name: 'Top ∞', query: () => top.query() },
-				{ name: 'Right ∞', query: () => right.query() },
-				{ name: 'Bottom ∞', query: () => bottom.query() },
-				{ name: 'Left ∞', query: () => left.query() },
+				{ params: { name: 'Top ∞' }, source: top },
+				{ params: { name: 'Right ∞' }, source: right },
+				{ params: { name: 'Bottom ∞' }, source: bottom },
+				{ params: { name: 'Left ∞' }, source: left },
 			],
-			{ 'T': 'TOP', 'R': 'RIGHT', 'B': 'BOTTOM', 'L': 'LEFT' },
+			{ legend, strict: true },
 		);
 
 		await assertMatch(result, { name: 'Infinity Edges (all directions)' });
+		validateRoundTrip<string>(result, 4, { legend }, true);
 	});
 
 	await t.step('Infinity Corners', async () => {
-		const topLeft = new MortonLinearScanImpl<string>();
-		topLeft.insert([-Infinity, -Infinity, 2, 2], 'TOP-LEFT');
+		const { topLeft, topRight, bottomLeft, bottomRight } = scenarios.infinityCorners();
+		const legend = { '1': 'TOP-LEFT', '2': 'TOP-RIGHT', '3': 'BOTTOM-LEFT', '4': 'BOTTOM-RIGHT' };
 
-		const topRight = new MortonLinearScanImpl<string>();
-		topRight.insert([0, -Infinity, Infinity, 2], 'TOP-RIGHT');
-
-		const bottomLeft = new MortonLinearScanImpl<string>();
-		bottomLeft.insert([-Infinity, 0, 2, Infinity], 'BOTTOM-LEFT');
-
-		const bottomRight = new MortonLinearScanImpl<string>();
-		bottomRight.insert([0, 0, Infinity, Infinity], 'BOTTOM-RIGHT');
-
-		const result = renderStates(
+		const result = renderLayout(
 			[
-				{ name: 'Top-Left', query: () => topLeft.query() },
-				{ name: 'Top-Right', query: () => topRight.query() },
-				{ name: 'Bottom-Left', query: () => bottomLeft.query() },
-				{ name: 'Bottom-Right', query: () => bottomRight.query() },
+				{ params: { name: 'Top-Left' }, source: topLeft },
+				{ params: { name: 'Top-Right' }, source: topRight },
+				{ params: { name: 'Bottom-Left' }, source: bottomLeft },
+				{ params: { name: 'Bottom-Right' }, source: bottomRight },
 			],
-			{ '1': 'TOP-LEFT', '2': 'TOP-RIGHT', '3': 'BOTTOM-LEFT', '4': 'BOTTOM-RIGHT' },
+			{ legend, strict: true },
 		);
 
 		await assertMatch(result, { name: 'Infinity Corners' });
+		validateRoundTrip<string>(result, 4, { legend }, true);
 	});
 
 	await t.step('Infinity Bands (3 edges)', async () => {
-		// Horizontal band: infinite on top, left, right; finite on bottom
-		const horizontal = new MortonLinearScanImpl<string>();
-		horizontal.insert([-Infinity, -Infinity, Infinity, 2], 'HBAND');
+		const { horizontal, vertical } = scenarios.infinityBands();
+		const legend = { 'H': 'HBAND', 'V': 'VBAND' };
 
-		// Vertical band: infinite on left, top, bottom; finite on right
-		const vertical = new MortonLinearScanImpl<string>();
-		vertical.insert([-Infinity, -Infinity, 2, Infinity], 'VBAND');
-
-		const result = renderStates(
+		const result = renderLayout(
 			[
-				{ name: 'Horizontal Band', query: () => horizontal.query() },
-				{ name: 'Vertical Band', query: () => vertical.query() },
+				{ params: { name: 'Horizontal Band' }, source: horizontal },
+				{ params: { name: 'Vertical Band' }, source: vertical },
 			],
-			{ 'H': 'HBAND', 'V': 'VBAND' },
+			{ legend, strict: true },
 		);
 
 		await assertMatch(result, { name: 'Infinity Bands (3 edges)' });
+		validateRoundTrip<string>(result, 2, { legend }, true);
 	});
 
 	await t.step('Data Density Variations', async () => {
-		const singleCell = new MortonLinearScanImpl<string>();
-		singleCell.insert([1, 1, 1, 1], 'X');
+		const { singleCell, sparse, dense } = scenarios.dataDensity();
+		const legend = { 'X': 'X', 'A': 'A', 'B': 'B', 'C': 'C', 'D': 'D' };
 
-		const sparse = new MortonLinearScanImpl<string>();
-		sparse.insert([0, 0, 0, 0], 'A');
-		sparse.insert([3, 3, 3, 3], 'B');
-		sparse.insert([6, 6, 6, 6], 'C');
-
-		const dense = new MortonLinearScanImpl<string>();
-		for (let x = 0; x < 4; x++) {
-			for (let y = 0; y < 4; y++) {
-				dense.insert([x, y, x, y], 'D');
-			}
-		}
-
-		const result = renderStates(
+		const result = renderLayout(
 			[
-				{ name: 'Single Cell', query: () => singleCell.query() },
-				{ name: 'Sparse', query: () => sparse.query() },
-				{ name: 'Dense 4×4', query: () => dense.query() },
+				{ params: { name: 'Single Cell' }, source: singleCell },
+				{ params: { name: 'Sparse' }, source: sparse },
+				{ params: { name: 'Dense 4×4' }, source: dense },
 			],
-			{ 'X': 'X', 'A': 'A', 'B': 'B', 'C': 'C', 'D': 'D' },
+			{ legend, strict: true },
 		);
 
 		await assertMatch(result, { name: 'Data Density Variations' });
+		validateRoundTrip<string>(result, 3, { legend }, true);
+	});
+
+	await t.step('Partitioned Index - Multiple attributes', async () => {
+		type CellData = { bg: string; fg: string };
+		const { factory, steps } = scenarios.progressions.partitionedMultiple<CellData>();
+		const legend = {
+			'B': { bg: 'BACK' },
+			'F': { fg: 'FORE' },
+			'X': { bg: 'BACK', fg: 'FORE' },
+			'D': { bg: 'DARK', fg: 'FORE' },
+		};
+
+		const result = renderProgression(
+			factory,
+			steps.map(({ name, action }) => ({ params: { name }, action })),
+			{ legend, strict: true },
+		);
+
+		await assertMatch(result, { name: 'Partitioned Index - Multiple attributes' });
+		validateRoundTrip<Record<string, unknown>>(result, 3, { legend }, true);
+	});
+
+	await t.step('Partitioned Index - Attribute override', async () => {
+		type CellData = { color: string };
+		const { factory, steps } = scenarios.progressions.partitionedOverride<CellData>();
+		const legend = { 'R': { color: 'RED' }, 'B': { color: 'BLUE' } };
+
+		const result = renderProgression(
+			factory,
+			steps.map(({ name, action }) => ({ params: { name }, action })),
+			{ legend, strict: true },
+		);
+
+		await assertMatch(result, { name: 'Partitioned Index - Attribute override' });
+		validateRoundTrip<Record<string, unknown>>(result, 2, { legend }, true);
 	});
 
 	//#endregion
@@ -181,69 +173,45 @@ Deno.test('Regression - Round-trip Scenarios', async (t) => {
 	//#region CUMULATIVE EVOLUTIONS (showing LWW/decomposition)
 
 	await t.step('Cross Formation (LWW decomposition)', async () => {
+		const { factory, steps } = scenarios.progressions.crossFormation();
+		const legend = { 'H': 'H', 'V': 'V' };
+
 		const result = renderProgression(
-			() => new MortonLinearScanImpl<string>(),
-			[
-				{ name: 'Empty', action: () => {} },
-				{
-					name: 'Add Horizontal',
-					action: (idx: SpatialIndex<string>) => idx.insert([-Infinity, 1, Infinity, 1], 'H'),
-				},
-				{
-					name: 'Add Vertical (LWW)',
-					action: (idx: SpatialIndex<string>) => idx.insert([1, -Infinity, 1, Infinity], 'V'),
-				},
-			],
-			{ 'H': 'H', 'V': 'V' },
+			factory,
+			steps.map(({ name, action }) => ({ params: { name }, action })),
+			{ legend, strict: true },
 		);
 
 		await assertMatch(result, { name: 'Cross Formation (LWW decomposition)' });
+		validateRoundTrip<string>(result, 3, { legend }, true);
 	});
 
 	await t.step('Global Override Evolution', async () => {
+		const { factory, steps } = scenarios.progressions.globalOverride();
+		const legend = { 'G': 'GLOBAL', '+': 'LOCAL+', '-': 'LOCAL-' };
+
 		const result = renderProgression(
-			() => new MortonLinearScanImpl<string>(),
-			[
-				{
-					name: 'Global Fill',
-					action: (idx: SpatialIndex<string>) => idx.insert(rect.ALL, 'GLOBAL'),
-				},
-				{
-					name: 'Positive Local Wins',
-					action: (idx: SpatialIndex<string>) => idx.insert([2, 2, 2, 2], 'LOCAL+'),
-				},
-				{
-					name: 'Negative Local Wins',
-					action: (idx: SpatialIndex<string>) => idx.insert([-2, -2, -2, -2], 'LOCAL-'),
-				},
-			],
-			{ 'G': 'GLOBAL', '+': 'LOCAL+', '-': 'LOCAL-' },
+			factory,
+			steps.map(({ name, action }) => ({ params: { name }, action })),
+			{ legend, strict: true },
 		);
 
 		await assertMatch(result, { name: 'Global Override Evolution' });
+		validateRoundTrip<string>(result, 3, { legend }, true);
 	});
 
 	await t.step('Overlap Decomposition (fragments)', async () => {
+		const { factory, steps } = scenarios.progressions.overlapDecomposition();
+		const legend = { 'A': 'A', 'B': 'B', 'C': 'C' };
+
 		const result = renderProgression(
-			() => new MortonLinearScanImpl<string>(),
-			[
-				{
-					name: 'Shape A',
-					action: (idx: SpatialIndex<string>) => idx.insert([0, 0, 2, 2], 'A'),
-				},
-				{
-					name: 'Add B (decomposes A)',
-					action: (idx: SpatialIndex<string>) => idx.insert([1, 1, 3, 3], 'B'),
-				},
-				{
-					name: 'Add C (further decomp)',
-					action: (idx: SpatialIndex<string>) => idx.insert([2, 0, 2, 3], 'C'),
-				},
-			],
-			{ 'A': 'A', 'B': 'B', 'C': 'C' },
+			factory,
+			steps.map(({ name, action }) => ({ params: { name }, action })),
+			{ legend, strict: true },
 		);
 
 		await assertMatch(result, { name: 'Overlap Decomposition (fragments)' });
+		validateRoundTrip<string>(result, 3, { legend }, true);
 	});
 
 	//#endregion
@@ -251,28 +219,31 @@ Deno.test('Regression - Round-trip Scenarios', async (t) => {
 	//#region SINGLE STATES (no value in multi-state)
 
 	await t.step('Empty Index', async () => {
+		const { factory, steps } = scenarios.progressions.empty();
 		const result = renderProgression(
-			() => new MortonLinearScanImpl<string>(),
-			[{ name: 'Empty', action: () => {} }],
-			{},
-			{ strict: true },
+			factory,
+			steps.map(({ name, action }) => ({ params: { name }, action })),
+			{ legend: {}, strict: true },
 		);
 
 		await assertMatch(result, { name: 'Empty Index' });
+		validateRoundTrip<string>(result, 1, { legend: {} }, true);
 	});
 
 	await t.step('All Infinity (no finite data)', async () => {
-		const result = renderProgression(
-			() => new MortonLinearScanImpl<string>(),
-			[{
-				name: 'Infinite Everywhere',
-				action: (idx: SpatialIndex<string>) => idx.insert(rect.ALL, 'EVERYWHERE'),
-			}],
-			{ '∞': 'EVERYWHERE' },
-			{ strict: true },
+		const { viewport, absolute } = scenarios.allInfinity();
+		const legend = { '∞': 'EVERYWHERE' };
+
+		const result = renderLayout(
+			[
+				{ source: viewport, params: { name: 'Origin Excluded', includeOrigin: false } },
+				{ source: absolute, params: { name: 'Origin Included', includeOrigin: true } },
+			],
+			{ legend, strict: true },
 		);
 
 		await assertMatch(result, { name: 'All Infinity (no finite data)' });
+		validateRoundTrip<string>(result, 2, { legend }, true);
 	});
 
 	//#endregion
@@ -280,85 +251,61 @@ Deno.test('Regression - Round-trip Scenarios', async (t) => {
 	//#region PROGRESSION FEATURES (spacing, multi-state)
 
 	await t.step('Two-state progression', async () => {
+		const { factory, steps } = scenarios.progressions.twoState();
+		const legend = { 'H': 'HORIZONTAL', 'V': 'VERTICAL' };
+
 		const result = renderProgression(
-			() => new MortonLinearScanImpl<string>(),
-			[
-				{
-					name: 'After H',
-					action: (idx: SpatialIndex<string>) => idx.insert([-Infinity, 1, Infinity, 1], 'HORIZONTAL'),
-				},
-				{
-					name: 'After V',
-					action: (idx: SpatialIndex<string>) => idx.insert([1, -Infinity, 1, Infinity], 'VERTICAL'),
-				},
-			],
-			{ 'H': 'HORIZONTAL', 'V': 'VERTICAL' },
+			factory,
+			steps.map(({ name, action }) => ({ params: { name }, action })),
+			{ legend, strict: true },
 		);
 
 		await assertMatch(result, { name: 'Two-state progression' });
+		validateRoundTrip<string>(result, 2, { legend }, true);
 	});
 
 	await t.step('Three-state progression with empty state', async () => {
+		const { factory, steps } = scenarios.progressions.threeState();
+		const legend = { 'H': 'HORIZONTAL', 'V': 'VERTICAL' };
+
 		const result = renderProgression(
-			() => new MortonLinearScanImpl<string>(),
-			[
-				{ name: 'Empty', action: () => {} },
-				{
-					name: 'After H',
-					action: (idx: SpatialIndex<string>) => idx.insert([-Infinity, 1, Infinity, 1], 'HORIZONTAL'),
-				},
-				{
-					name: 'After V',
-					action: (idx: SpatialIndex<string>) => idx.insert([1, -Infinity, 1, Infinity], 'VERTICAL'),
-				},
-			],
-			{ 'H': 'HORIZONTAL', 'V': 'VERTICAL' },
+			factory,
+			steps.map(({ name, action }) => ({ params: { name }, action })),
+			{ legend, strict: true },
 		);
 
 		await assertMatch(result, { name: 'Three-state progression with empty state' });
+		validateRoundTrip<string>(result, 3, { legend }, true);
 	});
 
 	await t.step('Custom spacing between grids', async () => {
+		const { factory, steps } = scenarios.progressions.customSpacing();
+		const legend = { 'X': 'X', 'Y': 'Y' };
+
 		const result = renderProgression(
-			() => new MortonLinearScanImpl<string>(),
-			[
-				{
-					name: 'A',
-					action: (idx: SpatialIndex<string>) => idx.insert([0, 0, 0, 0], 'X'),
-				},
-				{
-					name: 'B',
-					action: (idx: SpatialIndex<string>) => idx.insert([1, 0, 1, 0], 'Y'),
-				},
-			],
-			{ 'X': 'X', 'Y': 'Y' },
-			{ spacing: 5 },
+			factory,
+			steps.map(({ name, action }) => ({ params: { name }, action })),
+			{ legend, spacing: 5, strict: true },
 		);
 
 		await assertMatch(result, { name: 'Custom spacing between grids' });
+		validateRoundTrip<string>(result, 2, { legend, spacing: 5 }, true);
 	});
 
 	await t.step('Independent states (non-cumulative)', async () => {
-		// Create two independent indexes
-		const index1 = new MortonLinearScanImpl<string>();
-		index1.insert([0, 0, 1, 0], 'RED');
+		const { index1, index2 } = scenarios.independentStates();
+		const legend = { 'R': 'RED', 'B': 'BLUE' };
 
-		const index2 = new MortonLinearScanImpl<string>();
-		index2.insert([0, 0, 1, 0], 'BLUE');
-
-		// Capture snapshots
-		const state1 = Array.from(index1.query());
-		const state2 = Array.from(index2.query());
-
-		const result = renderStates(
+		const result = renderLayout(
 			[
-				{ name: 'Index A', query: () => state1.values() },
-				{ name: 'Index B', query: () => state2.values() },
+				{ params: { name: 'Index A' }, source: index1 },
+				{ params: { name: 'Index B' }, source: index2 },
 			],
-			{ 'R': 'RED', 'B': 'BLUE' },
+			{ legend, spacing: 5 },
 		);
 
 		await assertMatch(result, { name: 'Independent states (non-cumulative)' });
+		validateRoundTrip<string>(result, 2, { legend, spacing: 5 }, true);
 	});
 
 	//#endregion

@@ -155,7 +155,7 @@ x = (x | (x << 1)) & 0x55555555;
 
 See:
 
-- **Production**: `packages/@jim/spandex/src/implementations/mortonlinearscan.ts`
+- **Production**: `packages/@jim/spandex/src/index/mortonlinearscan.ts`
 - **Archived**: Code in git history (see `archive/IMPLEMENTATION-HISTORY.md` for SHA)
 - **Analysis**: `docs/analyses/morton-vs-hilbert-analysis.md`
 

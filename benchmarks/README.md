@@ -42,10 +42,10 @@ Main benchmark suite comparing all active implementations.
 Example:
 
 ```typescript
-import { RStarTreeImpl } from '@jim/spandex';
+import createRStarTreeIndex from '@jim/spandex/index/rstartree';
 
 Deno.bench('RStarTree - custom scenario', () => {
-	const index = new RStarTreeImpl();
+	const index = createRStarTreeIndex();
 	// ... benchmark code
 });
 ```

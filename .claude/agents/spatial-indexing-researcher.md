@@ -68,7 +68,7 @@ Validated by `assertInvariants()` in every conformance test.
 
 ### Current State of the Art
 
-**Production Approaches** (see `packages/@jim/spandex/src/implementations/` for current implementations):
+**Production Approaches** (see `packages/@jim/spandex/src/index/` for current implementations):
 
 - Morton spatial locality: O(n), n<100 (25% faster than Hilbert via simpler encoding)
 - R-tree with R* split: O(log n), n≥100 (optimal tree quality)
@@ -80,7 +80,7 @@ Validated by `assertInvariants()` in every conformance test.
 - R* split: fastest construction, workload-dependent queries
 - Transition zone: 100 < n < 600 depends on overlap patterns
 
-Check `packages/@jim/spandex/src/implementations/` for all active implementations (auto-discovered).
+Check `packages/@jim/spandex/src/index/` for all active implementations (auto-discovered).
 
 ## Research Methodology
 
@@ -111,7 +111,7 @@ Check `packages/@jim/spandex/src/implementations/` for all active implementation
    [What would validate this]
    ```
 
-2. **Implement**: Create `packages/@jim/spandex/src/implementations/[name].ts`
+2. **Implement**: Create `packages/@jim/spandex/src/index/[name].ts`
    - Implement `SpatialIndex<T>` interface
    - Add JSDoc with complexity analysis
    - Include references if applicable
@@ -417,9 +417,9 @@ When running an experiment autonomously:
 
 - `docs/core/RESEARCH-SUMMARY.md` - Current state of knowledge
 - `docs/core/theoretical-foundation.md` - Mathematical foundations
-- `packages/@jim/spandex/src/implementations/linearscan.ts` - Simple reference implementation
-- `packages/@jim/spandex/src/implementations/hilbertlinearscan.ts` - Current production (O(n))
-- `packages/@jim/spandex/src/implementations/rtree.ts` - Current production (O(log n))
+- `packages/@jim/spandex/src/index/linearscan.ts` - Simple reference implementation
+- `packages/@jim/spandex/src/index/hilbertlinearscan.ts` - Current production (O(n))
+- `packages/@jim/spandex/src/index/rtree.ts` - Current production (O(log n))
 
 **During analysis**: Reference these for methodology
 
@@ -444,7 +444,7 @@ When running an experiment autonomously:
    - Rationale: Morton uses simpler bit interleaving vs Hilbert's rotation
    - Success criteria: >10% faster with CV% <5%, passes all conformance tests
 
-2. ✅ Implement `packages/@jim/spandex/src/implementations/mortonlinearscan.ts`:
+2. ✅ Implement `packages/@jim/spandex/src/index/mortonlinearscan.ts`:
    - Morton index calculation (bit interleaving)
    - Same structure as HilbertLinearScan but with morton() instead of hilbert()
    - JSDoc with complexity, references
@@ -488,7 +488,7 @@ You are **scientific first**. Negative results are valuable:
 You are **efficient**. Auto-discovery means:
 
 - No manual benchmark registration
-- Just create files in packages/@jim/spandex/src/implementations/
+- Just create files in packages/@jim/spandex/src/index/
 - Tests and benchmarks find them automatically
 
 **Remember**: This is active research. The goal isn't just "make it work" but "understand why it works (or doesn't)" and document it rigorously for future researchers.

@@ -31,6 +31,26 @@ deno task bench:analyze 5 docs/analyses/benchmark-statistics.md
 
 ---
 
+## Documentation Sync
+
+### `sync-docs.ts`
+
+AI assistant utility to auto-sync documentation when code changes.
+
+**Run**: `deno task sync-docs`
+
+**What it does**:
+
+1. Detects changed files (implementations, tests, benchmarks)
+2. Regenerates appropriate documentation (`BENCHMARKS.md`)
+3. Reports what was updated
+
+**When to run**: After archiving/unarchiving implementations or modifying active implementations
+
+**Note**: This is primarily used by AI assistants (Claude Code, Cursor IDE) to prevent documentation drift. Manually run if you notice docs are out of sync.
+
+---
+
 ## Benchmark Automation
 
 ### `update-benchmarks.ts`
@@ -83,8 +103,8 @@ Archives an implementation (moves to `archive/`, updates imports).
 
 **What it does**:
 
-1. Moves `packages/@jim/spandex/src/implementations/X.ts` → `archive/src/implementations/<category>/X.ts`
-2. Moves `packages/@jim/spandex/test/implementations/X/` → `archive/test/<category>/X/`
+1. Moves `packages/@jim/spandex/src/index/X.ts` → `archive/src/implementations/<category>/X.ts`
+2. Moves `packages/@jim/spandex/test/index/X/` → `archive/test/<category>/X/`
 3. Updates imports
 4. Adds archive header
 5. Verifies type-checking

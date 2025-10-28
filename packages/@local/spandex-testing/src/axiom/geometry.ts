@@ -3,17 +3,21 @@
  *
  * Tests geometric correctness using ASCII visualization. Each test has a visual fixture
  * that documents expected behavior, making these tests both verification and documentation.
+ * Includes round-trip validation (render → parse → render).
  */
 
 import type { SpatialIndex } from '@jim/spandex';
-import { render } from '@jim/spandex-ascii';
+import { createRenderer } from '@jim/spandex-ascii';
+import * as r from '@jim/spandex/r';
 import { asciiStringCodec, createFixtureGroup } from '@local/snapmark';
+import { validateRoundTrip } from '../round-trip.ts';
 
 export async function testGeometryAxioms(
 	t: Deno.TestContext,
 	filePath: string | URL,
 	implementation: () => SpatialIndex<string>,
 ): Promise<void> {
+	const { render } = createRenderer();
 	const { assertMatch, flush } = createFixtureGroup(asciiStringCodec(), {
 		header: '# Implementation Geometry Axioms\n\nAutomatically generated fixture file.',
 		context: t,
@@ -26,15 +30,17 @@ export async function testGeometryAxioms(
 		const index = implementation();
 		index.insert([1, 1, 3, 2], 'TEST');
 
-		const actual = render(() => index.query(), { T: 'TEST' });
+		const legend = { T: 'TEST' };
+		const actual = render(index, { legend });
 
 		assertMatch(actual, { name: 'Single Rectangle' });
+		validateRoundTrip(actual, 1, { legend });
 	});
 
 	await t.step('Empty index', () => {
 		const index = implementation();
 
-		const actual = render(() => index.query(), {});
+		const actual = render(index, { legend: {} });
 
 		assertMatch(actual, { name: 'Empty Index' });
 	});
@@ -47,9 +53,11 @@ export async function testGeometryAxioms(
 		index.insert([0, 0, 4, 9], 'left');
 		index.insert([5, 0, 9, 9], 'right');
 
-		const actual = render(() => index.query(), { l: 'left', r: 'right' });
+		const legend = { l: 'left', r: 'right' };
+		const actual = render(index, { legend });
 
 		assertMatch(actual, { name: 'Adjacent Horizontal Ranges' });
+		validateRoundTrip(actual, 1, { legend });
 	});
 
 	await t.step('Adjacent vertical', () => {
@@ -57,9 +65,11 @@ export async function testGeometryAxioms(
 		index.insert([0, 0, 9, 4], 'top');
 		index.insert([0, 5, 9, 9], 'bottom');
 
-		const actual = render(() => index.query(), { t: 'top', b: 'bottom' });
+		const legend = { t: 'top', b: 'bottom' };
+		const actual = render(index, { legend });
 
 		assertMatch(actual, { name: 'Adjacent Vertical Ranges' });
+		validateRoundTrip(actual, 1, { legend });
 	});
 
 	await t.step('Adjacent corners', () => {
@@ -69,9 +79,11 @@ export async function testGeometryAxioms(
 		index.insert([0, 5, 4, 9], 'C');
 		index.insert([5, 5, 9, 9], 'D');
 
-		const actual = render(() => index.query(), { A: 'A', B: 'B', C: 'C', D: 'D' });
+		const legend = { A: 'A', B: 'B', C: 'C', D: 'D' };
+		const actual = render(index, { legend });
 
 		assertMatch(actual, { name: 'Adjacent Corner Ranges' });
+		validateRoundTrip(actual, 1, { legend });
 	});
 
 	await t.step('Non-overlapping grid', () => {
@@ -81,9 +93,11 @@ export async function testGeometryAxioms(
 		index.insert([0, 2, 1, 3], 'C');
 		index.insert([2, 2, 3, 3], 'D');
 
-		const actual = render(() => index.query(), { A: 'A', B: 'B', C: 'C', D: 'D' });
+		const legend = { A: 'A', B: 'B', C: 'C', D: 'D' };
+		const actual = render(index, { legend });
 
 		assertMatch(actual, { name: 'Adjacent Non-Overlapping' });
+		validateRoundTrip(actual, 1, { legend });
 	});
 	//#endregion Adjacency (Non-Overlapping)
 
@@ -94,9 +108,11 @@ export async function testGeometryAxioms(
 		index.insert([1, 1, 4, 4], 'first');
 		index.insert([2, 2, 3, 3], 'second');
 
-		const actual = render(() => index.query(), { f: 'first', s: 'second' });
+		const legend = { f: 'first', s: 'second' };
+		const actual = render(index, { legend });
 
 		assertMatch(actual, { name: 'Overlap Resolution' });
+		validateRoundTrip(actual, 1, { legend });
 	});
 
 	await t.step('Last writer wins', () => {
@@ -104,9 +120,11 @@ export async function testGeometryAxioms(
 		index.insert([1, 1, 2, 2], 'first');
 		index.insert([2, 2, 3, 3], 'second');
 
-		const actual = render(() => index.query(), { f: 'first', s: 'second' });
+		const legend = { f: 'first', s: 'second' };
+		const actual = render(index, { legend });
 
 		assertMatch(actual, { name: 'Last Writer Wins' });
+		validateRoundTrip(actual, 1, { legend });
 	});
 
 	await t.step('4-way split', () => {
@@ -114,9 +132,11 @@ export async function testGeometryAxioms(
 		index.insert([0, 0, 9, 9], 'base');
 		index.insert([3, 3, 6, 6], 'center');
 
-		const actual = render(() => index.query(), { b: 'base', c: 'center' });
+		const legend = { b: 'base', c: 'center' };
+		const actual = render(index, { legend });
 
 		assertMatch(actual, { name: 'Fragment Generation (4-split)' });
+		validateRoundTrip(actual, 1, { legend });
 	});
 
 	await t.step('L-shaped overlap', () => {
@@ -124,9 +144,11 @@ export async function testGeometryAxioms(
 		index.insert([0, 0, 9, 9], 'base');
 		index.insert([5, 5, 14, 14], 'overlap');
 
-		const actual = render(() => index.query(), { b: 'base', o: 'overlap' });
+		const legend = { b: 'base', o: 'overlap' };
+		const actual = render(index, { legend });
 
 		assertMatch(actual, { name: 'L-Shaped Overlap' });
+		validateRoundTrip(actual, 1, { legend });
 	});
 
 	await t.step('Non-overlapping preservation', () => {
@@ -134,9 +156,11 @@ export async function testGeometryAxioms(
 		index.insert([1, 1, 2, 2], 'first');
 		index.insert([5, 5, 6, 6], 'second');
 
-		const actual = render(() => index.query(), { f: 'first', s: 'second' });
+		const legend = { f: 'first', s: 'second' };
+		const actual = render(index, { legend });
 
 		assertMatch(actual, { name: 'Non-Overlapping Preservation' });
+		validateRoundTrip(actual, 1, { legend });
 	});
 	//#endregion Overlap Patterns
 
@@ -149,7 +173,9 @@ export async function testGeometryAxioms(
 		index.insert([6, 0, 6, 12], 'vertical');
 		index.insert([0, 0, 4, 4], 'origin');
 
-		const actual = render(() => index.query(), { p: 'point', h: 'horizontal', v: 'vertical', o: 'origin' });
+		const actual = render(index, {
+			legend: { p: 'point', h: 'horizontal', v: 'vertical', o: 'origin' },
+		});
 
 		assertMatch(actual, { name: 'Boundary Conditions' });
 	});
@@ -159,26 +185,25 @@ export async function testGeometryAxioms(
 		index.insert([1, 1, 1, 1], 'cell');
 		index.insert([2, 1, 2, 1], 'adjacent');
 
-		index.insert([
-			Number.NEGATIVE_INFINITY,
-			Number.NEGATIVE_INFINITY,
-			Number.POSITIVE_INFINITY,
-			Number.POSITIVE_INFINITY,
-		], 'global');
+		index.insert(r.ALL, 'global');
 
-		const actual = render(() => index.query(), { c: 'cell', a: 'adjacent', g: 'global' });
+		const legend = { g: 'global' };
+		const actual = render(index, { legend });
 
 		assertMatch(actual, { name: 'Global Range Override' });
+		// Skip round-trip: render() vs renderLayout() differ on infinity edge annotations
 	});
 
 	await t.step('Infinite ranges', () => {
 		const index = implementation();
-		index.insert([4, 0, 6, Infinity], 'vertical');
-		index.insert([0, 5, Infinity, 7], 'horizontal');
+		index.insert([4, 0, 6, r.posInf], 'vertical');
+		index.insert([0, 5, r.posInf, 7], 'horizontal');
 
-		const actual = render(() => index.query(), { v: 'vertical', h: 'horizontal' });
+		const legend = { v: 'vertical', h: 'horizontal' };
+		const actual = render(index, { legend });
 
 		assertMatch(actual, { name: 'Infinite Ranges' });
+		// Skip round-trip: render() vs renderLayout() differ on infinity edge annotations
 	});
 	//#endregion Special Coordinates
 
@@ -188,18 +213,22 @@ export async function testGeometryAxioms(
 		const index = implementation();
 		index.insert([5, 5, 7, 7], 'DATA');
 
-		const actual = render(() => index.query(), { D: 'DATA' });
+		const legend = { D: 'DATA' };
+		const actual = render(index, { legend });
 
 		assertMatch(actual, { name: 'Viewport Offset' });
+		validateRoundTrip(actual, 1, { legend });
 	});
 
 	await t.step('Query boundary precision', () => {
 		const index = implementation();
 		index.insert([5, 5, 8, 8], 'test');
 
-		const actual = render(() => index.query(), { t: 'test' });
+		const legend = { t: 'test' };
+		const actual = render(index, { legend });
 
 		assertMatch(actual, { name: 'Query Boundary Precision' });
+		validateRoundTrip(actual, 1, { legend });
 	});
 	//#endregion Viewport
 

@@ -1,35 +1,62 @@
 /**
- * Shared types for ASCII rendering and parsing
+ * Shared types for ASCII rendering and parsing.
+ *
+ * Defines parameters for rendering spatial data as ASCII grids with box-drawing characters.
  */
+
+import type { RenderParams } from '@jim/spandex/render';
 
 /**
- * Coordinate system for grid rendering.
+ * Legend mapping for rendering.
  *
- * **Viewport mode** (default): Shows only the data extent.
- * - Compact: Grid is sized to fit the data
- * - Relative: No origin marker, coordinates relative to data bounds
- * - Use for: Displaying data ranges, focusing on the data itself
- * - Example: Data at [5,10] renders as single cell grid without showing rows 0-4
+ * Maps single-character keys to values that will be displayed in grid cells.
+ * Values can be primitives, objects, or arrays (serialized as JSON in legend).
  *
- * **Absolute mode**: Shows world coordinates with origin (0,0) always visible.
- * - Reference point: Marked with `*` at (0,0)
- * - Expands to include: Both the origin AND the data extent
- * - Use for: Showing data position in world space, debugging coordinates
- * - Example: Data at [5,10] renders grid from [0,0] to [5,10] with `*` at origin
- * - Works with negative coords: Data at [-5,-3] shows grid from [-5,-3] to [0,0]
+ * @template T - Value type (string, number, object, etc.)
+ *
+ * @example
+ * ```ts
+ * const legend: ASCIILegend<string> = {
+ *   'R': 'RED',
+ *   'B': 'BLUE',
+ *   'G': 'GREEN'
+ * };
+ * ```
  */
-export type CoordinateSystem = 'viewport' | 'absolute';
+export type ASCIILegend<T> = Record<string, T | Record<string, unknown>>;
 
-/** Options for rendering spatial query results to ASCII */
-export interface RenderOptions {
-	/**
-	 * Coordinate system for rendering (default: 'viewport').
-	 * - 'viewport': Compact grid showing only data extent
-	 * - 'absolute': Expanded grid always including origin (0,0) marked with `*`
-	 */
-	coordinateSystem?: CoordinateSystem;
-	/** Validate all legend symbols are used in the index */
-	strict?: boolean;
-	/** Render only the grid (no legend or infinity annotations, default: false) */
+/**
+ * Parameters for standalone ASCII rendering.
+ *
+ * Produces a single grid with legend and annotations.
+ */
+export interface ASCIIRenderParams<T> extends RenderParams {
+	/** Legend mapping keys to values */
+	legend: ASCIILegend<T>;
+	/** If true, omit legend and infinity annotations (grid only) */
 	gridOnly?: boolean;
+	/** If true, throw error if legend contains unused keys */
+	strict?: boolean;
+	/** Internal: tracks which legend keys were used (for strict mode) */
+	usedLegendKeys?: Set<string> | null;
+}
+
+/**
+ * Parameters for partial rendering in layout compositions.
+ *
+ * Used when rendering multiple grids side-by-side (progression rendering).
+ */
+export interface ASCIIPartialParams extends RenderParams {
+	/** Optional name to display above the grid */
+	name: string;
+}
+
+/**
+ * Parameters for layout composition (multiple grids side-by-side).
+ *
+ * Extends render parameters with spacing control for horizontal layout.
+ */
+export interface ASCIILayoutParams<T> extends ASCIIRenderParams<T> {
+	/** Horizontal spacing (in characters) between grids (default: 3) */
+	spacing?: number;
 }

@@ -1,18 +1,16 @@
 # Theoretical Foundation
 
-> Mathematical model and algorithm correctness proofs
-
-**Navigation**: [Research Summary](./RESEARCH-SUMMARY.md) • [Production Guide](../../PRODUCTION-GUIDE.md) • [Benchmarks](../../BENCHMARKS.md)
+Mathematical model and correctness proofs.
 
 ## Glossary
 
-- **AABB**: Axis-Aligned Bounding Box. Rectangle with edges parallel to coordinate axes.
-- **Rectangle**: Core library type `[xmin, ymin, xmax, ymax]` using **closed intervals** `[min, max]` where both endpoints are included. Used by all implementations. Example: `[0, 0, 9, 9]` represents columns 0-9, rows 0-9.
-- **GridRange**: Google Sheets API type with fields `{startRowIndex?, endRowIndex?, startColumnIndex?, endColumnIndex?}`. Uses **half-open intervals** `[start, end)` where `start` is included but `end` is not. 0-indexed. `undefined` means unbounded (entire row/column). Converted to Rectangle via adapter layer.
-- **Spatial Partition**: A set of disjoint (non-overlapping) rectangles that tile a region of space. Maintained via geometric set difference.
-- **Rectangle Decomposition**: Geometric operation `A \ B` (set subtraction) that produces ≤4 disjoint fragments. Used to maintain spatial partitions under insertions. See [visual guide](../diagrams/rectangle-decomposition.md).
-- **Last Writer Wins** (LWW): When ranges overlap, the most recent insertion takes precedence. This is the conflict resolution strategy.
-- **Spatial Index**: Data structure optimized for geometric queries. Examples: R-trees (hierarchical), quadtrees (space partitioning), or simple rectangle stores (linear scan).
+- **AABB**: Axis-Aligned Bounding Box
+- **Rectangle**: `[xmin, ymin, xmax, ymax]` using closed intervals `[min, max]` (both endpoints included)
+- **GridRange**: Google Sheets API type using half-open intervals `[start, end)` (end excluded). Converted via adapter.
+- **Spatial Partition**: Disjoint rectangles maintained via geometric set difference
+- **Rectangle Decomposition**: `A \ B` produces ≤4 disjoint fragments
+- **Last Writer Wins** (LWW): Most recent insertion wins in overlaps
+- **Spatial Index**: Data structure for geometric queries (R-trees, quadtrees, linear scan)
 
 ## Problem
 
@@ -43,7 +41,7 @@ Two distinct algorithms, each with multiple implementation strategies:
 
 ### Algorithm 1: Linear Scan with Rectangle Decomposition
 
-**Implementations**: Various optimization strategies (spatial locality, compact storage, TypedArrays, educational reference). See `packages/@jim/spandex/src/implementations/` for current active implementations.
+**Implementations**: See `packages/@jim/spandex/src/index/` for current active implementations.
 
 ```
 INSERT(R, v):
@@ -53,27 +51,15 @@ INSERT(R, v):
   4. Insert R and valid fragments into flat array
 ```
 
-**Complexity**:
+**Complexity**: O(n) insert, O(n²) for n sequential inserts
 
-- **Insert**: O(n) per operation (scan existing entries + splice fragments into sorted array)
-- **n sequential inserts**: O(n²) total work (index grows from 0 to ≈4n entries empirically)
+**Space**: O(n) entries (≈4n worst case)
 
-**Space**: O(n) entries stored (empirically ≈4n worst case, see adversarial tests via `deno task test:adversarial`)
+**Best for**: Sparse data (n < 100)
 
-**Best for**: Sparse data (n < 100), where constant-factor overhead dominates
-
-**Optimization Strategies**:
-
-- **Spatial locality**: Space-filling curve ordering (2x faster via improved memory access patterns)
-- **Compact storage**: Pure functions, minimal code size (1.2KB minified)
-- **TypedArrays**: Memory-efficient coordinate storage
-- **Educational**: Explicit helper functions for clarity
-
-See `packages/@jim/spandex/src/implementations/` for current variants.
+**Optimizations**: Spatial locality (2x faster), compact storage, TypedArrays
 
 ### Algorithm 2: Hierarchical R*-tree (O(log n))
-
-**Implementation approach**: R-tree with R* split algorithm
 
 ```
 INSERT(R, v):
@@ -82,95 +68,43 @@ INSERT(R, v):
   3. Insert R and fragments into tree with R* node splitting
 ```
 
-R* Split Algorithm (Beckmann et al., 1990):
+R* Split (Beckmann et al., 1990): Choose axis minimizing perimeter sum, choose split minimizing overlap. O(m log m) per split (m=10).
 
-- Choose split axis by minimizing perimeter sum (margin metric)
-- Within axis, choose split point to minimize overlap
-- Complexity: O(m log m) per split where m = max entries per node (m=10)
-- Better tree quality than Guttman's quadratic split (1984)
-
-**Space**: O(n) total (n leaf entries + O(n/M) internal nodes where M = branching factor)
-**Best for**: Large datasets (n ≥ 1000), write-heavy or balanced workloads
-
-**Performance**: [BENCHMARKS.md](../../BENCHMARKS.md) for comprehensive empirical comparison across data sizes and workload patterns.
+**Space**: O(n)
+**Best for**: Large datasets (n ≥ 1000)
 
 ---
 
-### R-Tree Insert Complexity (Detailed Analysis)
+### R-Tree Insert Complexity
 
-**Operation**: `insert(R_new, v)` with rectangle decomposition and last-writer-wins semantics
+**Operation**: `insert(R_new, v)` requires finding and modifying ALL overlapping entries (not just one).
 
-Unlike standard R-tree insertion (which finds single insertion point), our use case requires finding and modifying ALL overlapping entries.
+**Steps**:
 
-**Step 1** - Find all overlapping entries:
+1. Find overlaps: O(k × log n) worst case, O(log n) average (k = overlap count)
+2. Decompose: O(k) - each produces ≤4 fragments
+3. Reinsert: (4k + 1) × O(log n) = O(k × log n)
 
-- **Algorithm**: Recursive tree traversal visiting all paths whose bounding boxes intersect R_new
-- **Let k** = number of entries that overlap with R_new (data-dependent)
-- **Traversal cost**:
-  - Must visit all tree paths leading to overlapping entries
-  - Each path has depth O(log n) on average
-  - In worst case, may need to visit O(k) paths
-  - **Cost**: O(k × log n) worst case, O(log n) average case when k is small
-- **Best case**: k = 0 (no overlaps) → O(log n) single traversal
-- **Average case**: k ≪ n (sparse overlaps) → O(log n) dominated by tree depth
-- **Worst case**: k = Θ(n) (all entries overlap) → O(n log n) must visit many paths
+**Overall**:
 
-**Step 2** - Decompose overlapping rectangles:
+- **Best** (k=0): O(log n)
+- **Average** (constant k): O(log n)
+- **Worst** (k = Θ(n)): O(n log n)
 
-- **Algorithm**: For each r ∈ overlaps, compute r \ R_new (set subtraction)
-- **Fragment generation**: Each rectangle produces ≤4 disjoint fragments (proven in Correctness section)
-- **Total fragments**: ≤ 4k fragments generated
-- **Cost**: O(k) constant time per rectangle
-
-**Step 3** - Reinsert fragments and new range:
-
-- **Algorithm**: Insert R_new and up to 4k fragments into tree
-- **Each insertion**: O(log n) traversal + potential node split
-- **Node splits**: Amortized O(1) splits per insertion (tree remains balanced)
-- **Total**: (4k + 1) × O(log n) = O(k × log n)
-
-**Overall Complexity**:
-
-- **Best case** (no overlaps, k=0):
-  - Step 1: O(log n), Step 2: O(0), Step 3: O(log n)
-  - **Total: O(log n)**
-
-- **Average case** (sparse data, constant k):
-  - Step 1: O(log n), Step 2: O(1), Step 3: O(log n)
-  - **Total: O(log n)** - constant k absorbed into Big-O
-
-- **Worst case** (dense overlaps, k = Θ(n)):
-  - Step 1: O(n log n), Step 2: O(n), Step 3: O(n log n)
-  - **Total: O(n log n)** - degrades to near-linear when most entries overlap
-
-**Empirical Validation**:
-
-Adversarial tests (designed to maximize overlaps) show k grows sublinearly:
-
-- 100 inserts with pathological concentric pattern → 232 final ranges
-- Average k ≈ 2.3 overlaps per insert (not Θ(n))
-- Even under worst-case patterns, k remains small
-- See adversarial tests (run via `deno task test:adversarial`) for full methodology
-
-**Practical Complexity**: For typical spreadsheet data with sparse overlaps, k is small and constant, making the practical complexity **O(log n) per insert**, matching standard R-tree performance. The theoretical O(n log n) worst case occurs only when nearly all entries overlap with every insertion, which is geometrically constrained by finite grid area.
+**Empirical**: Adversarial tests show k ≈ 2.3 average (sublinear growth), not Θ(n).
 
 ---
 
 ## Correctness Proof
 
-**Theorem**: The rectangle decomposition algorithm maintains a valid spatial partition satisfying LWW semantics.
+**Theorem**: Rectangle decomposition maintains valid spatial partition with LWW semantics.
 
-**Definitions**:
-
-- **Spatial Partition**: A set of rectangles `R = {r₁, r₂, ..., rₙ}` where `rᵢ ∩ rⱼ = ∅` for all `i ≠ j`
-- **LWW Property**: For any cell `(row, col)`, `value(row, col) = vₖ` where `vₖ` is from the most recent insert covering that cell
-
-**Invariants** (must hold after each operation):
+**Invariants**:
 
 1. **Disjoint**: ∀ rᵢ, rⱼ ∈ R, i ≠ j ⟹ rᵢ ∩ rⱼ = ∅
-2. **LWW**: ∀ cell c, value(c) is from the most recent insert covering c
-3. **Coverage**: ∀ inserted cell c, ∃ r ∈ R such that c ∈ r
-4. **Minimality**: No two adjacent rectangles with the same value
+2. **LWW**: ∀ cell c, value(c) from most recent insert
+3. **Coverage**: ∀ inserted cell c, ∃ r ∈ R: c ∈ r
+4. **Minimality**: No adjacent rectangles with same value
 
 **Proof by Induction**:
 
@@ -178,47 +112,21 @@ Adversarial tests (designed to maximize overlaps) show k grows sublinearly:
 
 **Inductive step**: Assume invariants hold before insert(R_new, v_new). Prove they hold after.
 
-**Step 1** (Find overlaps): Let `O = {r ∈ R | r ∩ R_new ≠ ∅}`
+**Steps**:
 
-- Correctness: Only rectangles that intersect R_new are affected
+1. Find overlaps O = {r ∈ R | r ∩ R_new ≠ ∅}
+2. Remove O: R' = R \ O (preserves disjointness)
+3. Decompose: fragments(r) = r \ R_new for each r ∈ O (≤4 per r)
+4. Insert: R'' = R' ∪ {R_new} ∪ ⋃fragments(r)
 
-**Step 2** (Remove overlaps): R' = R \ O
+**Invariant preservation**:
 
-- **Invariant 1 preserved**: Removing elements preserves disjointness
-- **Invariant 2 temporarily violated**: Cells in O now uncovered (will be fixed in Step 4)
+- **Disjoint**: Fragments disjoint from R_new (by set difference) and from R' (subsets of removed) ✓
+- **LWW**: R_new overwrites (most recent), fragments retain old values ✓
+- **Coverage**: R_new + fragments cover all cells previously in O ✓
+- **Minimality**: Optional (most implementations skip)
 
-**Step 3** (Decompose): For each `r ∈ O`, compute `fragments(r) = r \ R_new`
-
-- Set difference produces ≤4 disjoint rectangles per r
-- Geometric fact: `r \ R_new` tiles the area `r ∩ R̄_new` with disjoint rectangles
-- **Proof**: Top, Bottom, Left, Right fragments are disjoint by construction (non-overlapping strips)
-
-**Step 4** (Insert): R'' = R' ∪ {R_new} ∪ ⋃(fragments(r) for r in O)
-
-- **Invariant 1**:
-  - R' is disjoint (from Step 2)
-  - R_new is disjoint from R' (all overlaps were removed)
-  - fragments(r) are disjoint from R_new (by definition of set difference)
-  - fragments(r) are disjoint from R' (subsets of removed rectangles)
-  - ✓ Preserved
-
-- **Invariant 2** (LWW):
-  - Cells in R_new get v_new (most recent) ✓
-  - Cells in fragments retain old values (not covered by R_new) ✓
-  - Cells in R' retain old values (not affected) ✓
-
-- **Invariant 3** (Coverage):
-  - Cells previously in O are now covered by R_new or fragments(r) ✓
-  - Cells in R' remain covered ✓
-
-- **Invariant 4** (Minimality):
-  - Post-processing step (not shown) merges adjacent same-value rectangles
-  - Optional: Most implementations don't enforce this for simplicity
-
-**Worst-case fragmentation**: Each insert can split all n existing rectangles into ≤4 fragments each.
-
-- After n inserts: ≤ 4n rectangles (if every insert overlaps everything)
-- Realistic case: O(n) rectangles due to spatial locality
+**Worst-case**: ≤ 4n rectangles after n inserts. Realistic: O(n) due to spatial locality.
 
 ∎
 
@@ -226,36 +134,13 @@ Adversarial tests (designed to maximize overlaps) show k grows sublinearly:
 
 ## Correctness of Spatial Locality Optimization
 
-**Theorem**: Maintaining space-filling curve sorted order (Morton/Hilbert) preserves all invariants (disjointness, LWW semantics).
+**Theorem**: Space-filling curve ordering preserves all invariants.
 
-**Key Question**: Does sorting by spatial locality break correctness?
+**Proof**: Sorting affects STORAGE ORDER only, not geometric decomposition. Same fragments generated, just stored in different order.
 
-**Answer**: No. Space-filling curve sorting is applied AFTER decomposition, not during.
-
-**Proof**:
-
-The algorithm is:
-
-1. Find overlaps O (same as naive)
-2. Remove O (same as naive)
-3. Decompose overlaps: fragments = {r \ R_new | r ∈ O} (same as naive)
-4. **Re-insert fragments AND new range in spatial-locality-sorted order** (ONLY DIFFERENCE)
-
-**Critical insight**: Space-filling curve sorting affects STORAGE ORDER, not the geometric decomposition.
-
-**Invariant preservation**:
-
-- **Disjointness**: Decomposition produces disjoint fragments (proven above). Spatial sorting doesn't change geometry, only storage order. ∴ Preserved ✓
-
-- **LWW**: New range overwrites overlapping regions (removal + insertion). Fragments keep old values. Spatial sorting happens AFTER value assignment. ∴ Preserved ✓
-
-- **Coverage**: Same fragments generated, just stored in different order. ∴ Preserved ✓
-
-- **Minimality**: Not enforced by either variant. ∴ N/A
-
-**Complexity difference**: Binary search insertion O(log n) vs append O(1), but both are dominated by O(n) scan and splice. Worst-case remains O(n²) for n inserts.
-
-**Conclusion**: Spatial locality optimization is **semantically equivalent** to naive ordering, differing only in storage order for improved memory access patterns.
+- **Disjointness**: Geometry unchanged ✓
+- **LWW**: Sorting happens after value assignment ✓
+- **Coverage**: Same fragments ✓
 
 ∎
 
@@ -281,15 +166,11 @@ The algorithm is:
 | Query (region) | O(log n + k) | O(k)     | k = matching rectangles     |
 | n Inserts      | O(n log n)   | O(n)     | Balanced tree structure     |
 
-**Worst case**: O(n) insert if tree becomes unbalanced (rare with good split heuristics)
-
 ---
 
-## Fragmentation Worst-Case Analysis
+## Fragmentation Worst-Case
 
-**Question**: What's the absolute worst-case space complexity accounting for fragmentation cascades?
-
-**Pathological insertion pattern**:
+**Pathological pattern**:
 
 ```
 Insert rectangle that overlaps ALL existing rectangles
@@ -306,79 +187,37 @@ Repeat n times
 - ...
 - Insert n: Overlaps (4^(n-1)), creates ≤4^n fragments → **total: 4^n**
 
-**Worst-case space**: O(4^n) - EXPONENTIAL!
+**Worst-case space**: O(4^n) - EXPONENTIAL (but impossible in practice)
 
-**Is this realistic?** **NO!**
+**Why impossible**:
 
-**Why exponential fragmentation is impossible in practice**:
+1. **Geometric constraint**: Total area ≤ grid bounds (finite) → fragments bounded by grid resolution
+2. **Spatial locality**: Real patterns clustered, k ≪ n overlaps per insert
+3. **Empirical**: Adversarial tests show ~50-75 rectangles (linear), not 4^100
 
-1. **Geometric constraint**: After decomposition, fragments are SMALLER than originals
-   - Each fragment has area ≤ original rectangle area
-   - Total area covered ≤ grid bounds (finite)
-   - ∴ Number of fragments bounded by grid resolution
-
-2. **Spatial locality**: Real insertion patterns have locality
-   - Spreadsheet edits are clustered (user working in region)
-   - Typical: k overlaps per insert where k ≪ n
-   - Measured: Average k ≈ 2-5 in realistic workloads
-
-3. **Empirical validation**: Adversarial tests with pathological patterns:
-   - Theoretical worst: 4^100 rectangles (impossible)
-   - Actual result: ~50-75 rectangles (linear growth)
-   - See adversarial tests (run via `deno task test:adversarial`) for concentric, diagonal, checkerboard patterns
-
-**Practical bound**: O(n) to O(4n) rectangles after n inserts, not O(4^n).
-
-**Spatial locality impact**: Sorting doesn't affect fragmentation - same decomposition algorithm, just different storage order.
+**Practical bound**: O(n) to O(4n) rectangles after n inserts.
 
 ---
 
-### Geometric Bound on Fragmentation (Formal Proof)
+### Geometric Bound (Formal Proof)
 
-The above empirical observation can be proven mathematically using geometric constraints.
-
-**Theorem**: After n insertions into a bounded grid of area A, the maximum number of disjoint rectangles R_max is bounded by A / A_min, where A_min is the minimum rectangle area.
+**Theorem**: After n insertions into bounded grid (area A), max rectangles R_max ≤ A / A_min.
 
 **Proof**:
 
-**Given**:
+1. Grid area = A (finite)
+2. Rectangles disjoint (proven above)
+3. Each rectangle area ≥ A_min
+4. R × A_min ≤ A
+5. Therefore: **R ≤ A / A_min**
 
-1. Grid has finite area A (e.g., rows × cols for spreadsheet)
-2. All rectangles are disjoint (proven in Correctness Proof above)
-3. Each rectangle has area ≥ A_min (minimum: 1 cell for spreadsheets)
+**Implication**: Exponential O(4^n) geometrically impossible.
 
-**Derive**:
+**Example**: 10^6 cell grid → max 10^6 rectangles, not 4^100 ≈ 10^60
 
-1. Let R = number of disjoint rectangles stored
-2. Total area covered = sum of all rectangle areas
-3. Since rectangles are disjoint: total area covered = Σ area(r_i) for all r_i
-4. Each area(r_i) ≥ A_min (by definition)
-5. Therefore: R × A_min ≤ total area covered ≤ A (grid bounds)
-6. Therefore: **R ≤ A / A_min**
+**Empirical**: 100 pathological inserts → 232 ranges (2.3x), not 4^100
 
-**Implication**: Exponential O(4^n) fragmentation is **geometrically impossible**.
-
-**Example** (spreadsheet with 1,000,000 cells):
-
-- Grid area A = 10^6 cells
-- Minimum area A_min = 1 cell
-- Maximum rectangles: R_max ≤ 10^6 / 1 = **10^6 rectangles**
-- NOT 4^100 ≈ 10^60 rectangles (theoretical exponential)
-
-**Example** (typical editing with multi-cell ranges):
-
-- Grid area A = 10^6 cells
-- Typical minimum area A_min ≈ 10 cells (small ranges)
-- Maximum rectangles: R_max ≤ 10^6 / 10 = **10^5 rectangles**
-
-**Empirical validation**: Adversarial tests confirm this bound:
-
-- 100 pathological inserts → 232 final ranges (2.3x fragmentation)
-- 1000 inserts would yield ≈ 2300 ranges (linear, not 4^1000)
-- Fragmentation ratio decreases as n grows (3.70x → 2.32x from n=10 to n=100)
-- See adversarial tests (run via `deno task test:adversarial`) for full results
-
-**Conclusion**: The practical complexity is **O(n) rectangles after n inserts**, bounded by geometric constraints. The theoretical O(4^n) represents an impossible scenario that violates finite area limits. When combined with typical spatial locality (k ≈ 2-3 overlaps per insert), actual fragmentation grows linearly with a small constant factor.
+**Conclusion**: Practical O(n) rectangles after n inserts.
 
 ∎
 
@@ -392,21 +231,8 @@ The above empirical observation can be proven mathematically using geometric con
 
 **Layered Architecture**:
 
-The library uses a clear separation between core and external APIs:
-
-**Core Library** (implementations):
-
-- Uses `Rectangle` type with closed intervals `[min, max]`
-- All geometric operations work with closed intervals
-- No knowledge of external API types (GridRange, A1 notation, etc.)
-
-**Adapter Layer** (optional):
-
-- Converts external API types to Rectangle and vice versa
-- `src/adapters/gridrange.ts`: GridRange (half-open) ⟷ Rectangle (closed)
-- `src/adapters/a1.ts`: A1 notation → Rectangle (closed)
-
-**Coordinate System Summary**:
+- **Core**: `Rectangle` with closed intervals `[min, max]`
+- **Adapters**: Convert external API types (GridRange, A1) to Rectangle
 
 | Layer                  | Format                | Example: Rows 0-9           |
 | ---------------------- | --------------------- | --------------------------- |
@@ -414,17 +240,7 @@ The library uses a clear separation between core and external APIs:
 | Adapter (GridRange)    | GridRange (half-open) | `{startRow: 0, endRow: 10}` |
 | Adapter (A1)           | A1 notation           | `"A1:J10"`                  |
 
-**Conversion** (in adapter layer):
-
-- GridRange → Rectangle: Subtract 1 from end coordinates (`endRow: 10` → `ymax: 9`)
-- Rectangle → GridRange: Add 1 to max coordinates (`ymax: 9` → `endRow: 10`)
-- `undefined` in GridRange → `±Infinity` in Rectangle (unbounded dimensions)
-
-**Rationale**:
-
-- Closed intervals simplify geometric operations (no `±1` adjustments needed)
-- Clear separation between core algorithms and external API concerns
-- Implementations remain generic and reusable across different API contexts
+**Conversion**: GridRange ⟷ Rectangle via `±1` on end coordinates. `undefined` → `±∞`.
 
 ### Operations
 
@@ -451,24 +267,14 @@ Before:        After decomposition:
 Result: A \ B produces 4 disjoint fragments (Top, Bottom, Left, Right)
 ```
 
-**Inclusive intervals** `[min, max]` (Reference):
+**Inclusive intervals** `[min, max]`:
 
-- **Top**: `[a.xmin, a.ymin, a.xmax, b.ymin-1]` — rows before B starts
-- **Bottom**: `[a.xmin, b.ymax+1, a.xmax, a.ymax]` — rows after B ends
-- **Left**: `[a.xmin, max(a.ymin,b.ymin), b.xmin-1, min(a.ymax,b.ymax)]` — columns before B
-- **Right**: `[b.xmax+1, max(a.ymin,b.ymin), a.xmax, min(a.ymax,b.ymax)]` — columns after B
+- **Top**: `[a.xmin, a.ymin, a.xmax, b.ymin-1]`
+- **Bottom**: `[a.xmin, b.ymax+1, a.xmax, a.ymax]`
+- **Left**: `[a.xmin, max(a.ymin,b.ymin), b.xmin-1, min(a.ymax,b.ymax)]`
+- **Right**: `[b.xmax+1, max(a.ymin,b.ymin), a.xmax, min(a.ymax,b.ymax)]`
 
-**Half-open intervals** `[min, max)` (Optimized only):
-
-- **Top**: `[a.xmin, a.ymin, a.xmax, min(a.ymax, b.ymin)]` — up to where B starts
-- **Bottom**: `[a.xmin, max(a.ymin, b.ymax), a.xmax, a.ymax]` — from where B ends
-- **Left**: `[a.xmin, max(a.ymin,b.ymin), min(a.xmax, b.xmin), min(a.ymax,b.ymax)]`
-- **Right**: `[max(a.xmin, b.xmax), max(a.ymin,b.ymin), a.xmax, min(a.ymax,b.ymax)]`
-
-**Why different?** In `[start, end)` notation, `end` is already exclusive, so no `±1` adjustments needed!
-
-- Inclusive: "row 4" = `[4, 4]` so "before row 5" = `[_, _, _, 4]` (need `5-1`)
-- Half-open: "row 4" = `[4, 5)` so "before row 5" = `[_, _, _, 5)` (already correct!)
+**Half-open intervals** `[min, max)`: No `±1` adjustments needed (end already exclusive).
 
 ## Testing
 

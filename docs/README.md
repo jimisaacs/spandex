@@ -2,6 +2,8 @@
 
 2D rectangle decomposition with last-writer-wins conflict resolution.
 
+**Scope**: This directory documents the spatial indexing research project (`@jim/spandex*` packages). For general-purpose snapshot testing, see `packages/@local/snapmark/README.md`.
+
 ## Navigation
 
 **Problem understanding**: [RECTANGLE-DECOMPOSITION-PRIMER](./RECTANGLE-DECOMPOSITION-PRIMER.md) → [diagrams/](./diagrams/)
@@ -36,13 +38,13 @@ archive/docs/experiments/            # Rejected experiments (preserved)
 
 ## Problem Formulation
 
-**[RECTANGLE-DECOMPOSITION-PRIMER](./RECTANGLE-DECOMPOSITION-PRIMER.md)** - Core problem: maintain disjoint partition under overlapping insertions. Three conflict resolution strategies (LWW, shallow merge, spatial join).
+**[RECTANGLE-DECOMPOSITION-PRIMER](./RECTANGLE-DECOMPOSITION-PRIMER.md)** - Maintain disjoint partition under overlapping insertions. Three conflict resolution strategies (LWW, shallow merge, spatial join).
 
 **Detailed explanations** (`diagrams/`):
 
-- [Last-Writer-Wins](./diagrams/rectangle-decomposition-lww.md) - This library's approach
-- [Shallow Merge](./diagrams/rectangle-decomposition-merge.md) - Property combination alternative
-- [Spatial Join](./diagrams/rectangle-decomposition-spatial-join.md) - Multi-index approach
+- [Last-Writer-Wins](./diagrams/rectangle-decomposition-lww.md) - Used by this library
+- [Shallow Merge](./diagrams/rectangle-decomposition-merge.md) - Property combination
+- [Spatial Join](./diagrams/rectangle-decomposition-spatial-join.md) - Multi-index
 
 ## Development Guides
 

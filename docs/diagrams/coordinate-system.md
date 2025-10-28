@@ -1,4 +1,4 @@
-# Coordinate System: Half-Open Intervals
+# Interval Notation: Half-Open vs Closed
 
 ## What are Half-Open Intervals?
 

@@ -32,7 +32,7 @@ const testFilename = filename.replace('.ts', '.test.ts');
 
 const archiveSrcPath = `archive/src/implementations/${category}/${filename}`;
 const archiveTestPath = `archive/test/${category}/${testFilename}`;
-const srcPath = `packages/@jim/spandex/src/implementations/${filename}`;
+const srcPath = `packages/@jim/spandex/src/index/${filename}`;
 const testPath = `test/${testFilename}`;
 
 console.log(`\n📂 Unarchiving ${implName}...\n`);
@@ -68,7 +68,7 @@ console.log(`✅ Removed archive header from ${srcPath}`);
 
 console.log(`\n✅ Unarchive complete!\n`);
 console.log(`Next steps:`);
-console.log(`1. Benchmarks will auto-discover it from packages/@jim/spandex/src/implementations/`);
+console.log(`1. Benchmarks will auto-discover it from packages/@jim/spandex/src/index/`);
 console.log(`2. Fix imports: convert workspace imports back to relative imports if needed`);
 console.log(`3. Run: deno task test && deno task bench:update`);
 console.log(`4. Commit: git commit -m "unarchive: Restore ${implName} from ${category}"`);

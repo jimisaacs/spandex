@@ -6,7 +6,7 @@ Quick reference for managing implementations in this research project.
 
 ### 1. Create the implementation
 
-Requirements: Implement `SpatialIndex<T>`, add JSDoc comments, use `implements` keyword
+Implement `SpatialIndex<T>`, add JSDoc, use `implements` keyword
 
 ```typescript
 import type { SpatialIndex } from '../types.ts';
@@ -26,9 +26,9 @@ export default class NewImpl<T> implements SpatialIndex<T> {
 
 ### 2. Create tests
 
-Create test directory `packages/@jim/spandex/test/implementations/newimpl/` with three test files:
+Create test directory `packages/@jim/spandex/test/index/newimpl/` with three test files:
 
-**`property.test.ts`** - Core correctness axioms:
+**`property.test.ts`** - Core axioms:
 
 ```typescript
 import { NewImpl } from '@jim/spandex';
@@ -39,12 +39,11 @@ Deno.test('NewImpl - Property Axioms', async (t) => {
 });
 ```
 
-**`geometry.test.ts`** - Geometric operations with snapshot validation:
+**`geometry.test.ts`** - Geometric operations:
 
 ```typescript
 import { NewImpl } from '@jim/spandex';
-import { createFixtureGroup } from '@local/snapmark';
-import { asciiStringCodec } from '@local/spandex-testing/ascii';
+import { asciiStringCodec, createFixtureGroup } from '@local/snapmark';
 import { testGeometryAxioms } from '@local/spandex-testing/axiom';
 
 Deno.test('NewImpl - Geometry Axioms', async (t) => {
@@ -63,8 +62,7 @@ Deno.test('NewImpl - Geometry Axioms', async (t) => {
 
 ```typescript
 import { NewImpl } from '@jim/spandex';
-import { createFixtureGroup } from '@local/snapmark';
-import { asciiStringCodec } from '@local/spandex-testing/ascii';
+import { asciiStringCodec, createFixtureGroup } from '@local/snapmark';
 import { testVisualAxioms } from '@local/spandex-testing/axiom';
 
 Deno.test('NewImpl - Visual Axioms', async (t) => {
@@ -81,18 +79,16 @@ Deno.test('NewImpl - Visual Axioms', async (t) => {
 
 ### 3. Generate fixtures
 
-On first run, or when test behavior changes intentionally:
-
 ```bash
 # For new implementation (replace 'newimpl' with your implementation name)
-UPDATE_FIXTURES=1 deno test -A packages/@jim/spandex/test/implementations/newimpl/
+UPDATE_FIXTURES=1 deno test -A packages/@jim/spandex/test/index/newimpl/
 
 # Or for existing implementations
 UPDATE_FIXTURES=1 deno task test:morton
 UPDATE_FIXTURES=1 deno task test:rstartree
 ```
 
-Review generated `packages/@jim/spandex/test/fixtures/*.md` files to ensure snapshots are correct.
+Review generated `packages/@jim/spandex/test/fixtures/*.md` files.
 
 ### 4. Verify
 
@@ -102,11 +98,9 @@ deno task check             # Type-checking passes
 deno task bench:update      # Regenerate BENCHMARKS.md (~2 min)
 ```
 
-Benchmarks auto-discover from `packages/@jim/spandex/src/implementations/`.
-
 ### 5. Document
 
-Update `docs/analyses/` with findings if this is a research experiment.
+Update `docs/analyses/` with findings.
 
 ---
 
@@ -121,11 +115,7 @@ deno task archive:impl <Name> <category>
 
 **Categories**: `superseded` | `failed-experiments`
 
-The script moves files, fixes imports, adds archive header, and verifies type-checking.
-
-### Manual Process (Not Recommended)
-
-If you need to archive without using the script:
+### Manual Process
 
 **1. Document the implementation:**
 
@@ -146,8 +136,8 @@ If not already done, create `archive/docs/experiments/[name]-experiment.md` docu
 
 ```bash
 # Remove implementation and tests
-git rm packages/@jim/spandex/src/implementations/X.ts
-git rm -r packages/@jim/spandex/test/implementations/X/
+git rm packages/@jim/spandex/src/index/X.ts
+git rm -r packages/@jim/spandex/test/index/X/
 
 # Update exports in mod.ts if needed
 ```
@@ -159,8 +149,6 @@ deno task bench:update      # Quick update (~2 min)
 deno task bench:analyze 5 docs/analyses/benchmark-statistics.md  # Full stats (~30 min)
 ```
 
-Benchmarks auto-discover active implementations.
-
 ---
 
 ## Restoring an Archived Implementation
@@ -170,7 +158,7 @@ deno task unarchive:impl <Name> <category>
 # Example: deno task unarchive:impl HybridRTree failed-experiments
 ```
 
-The script moves files back, removes archive header, and verifies type-checking. Then:
+Then:
 
 ```bash
 deno task test              # Verify tests pass
@@ -181,56 +169,51 @@ deno task bench:update      # Update benchmarks
 
 ## Retrieving Archived Code
 
-Archived implementations have been removed from the repository but are preserved in git history. To access them:
-
 **1. Find the git SHA:**
 
-Check `archive/IMPLEMENTATION-HISTORY.md` for the commit SHA where the code last existed.
+Check `archive/IMPLEMENTATION-HISTORY.md` for commit SHA.
 
 **2. View the archived file:**
 
 ```bash
 # View implementation
-git show <SHA>:packages/@jim/spandex/src/implementations/archivedimpl.ts
+git show <SHA>:packages/@jim/spandex/src/index/archivedimpl.ts
 
 # View tests
-git show <SHA>:packages/@jim/spandex/test/implementations/archivedimpl/
+git show <SHA>:packages/@jim/spandex/test/index/archivedimpl/
 ```
 
 **3. Extract for comparison:**
 
 ```bash
 # Extract to temporary location
-git show <SHA>:packages/@jim/spandex/src/implementations/archivedimpl.ts > /tmp/archivedimpl.ts
+git show <SHA>:packages/@jim/spandex/src/index/archivedimpl.ts > /tmp/archivedimpl.ts
 
 # Create temporary benchmark
 # (manually adjust imports as needed)
 ```
 
-**Why archived code was removed:** Maintaining legacy implementations requires keeping imports, tests, and type-checking in sync. By preserving only documentation + git history, we avoid maintenance burden while maintaining full reproducibility.
-
 ---
 
 ## Quick Reference
 
-| Task                          | Command                                                                   |
-| ----------------------------- | ------------------------------------------------------------------------- |
-| Add implementation            | Create file in `packages/@jim/spandex/src/implementations/`, create tests |
-| Archive implementation        | `deno task archive:impl <Name> <category>`                                |
-| Restore implementation        | `deno task unarchive:impl <Name> <category>`                              |
-| View archived code            | `git show <SHA>:path/to/file.ts` (SHA from IMPLEMENTATION-HISTORY.md)     |
-| List active implementations   | `ls packages/@jim/spandex/src/implementations/`                           |
-| List archived implementations | See `archive/IMPLEMENTATION-HISTORY.md`                                   |
+| Task                          | Command                                                               |
+| ----------------------------- | --------------------------------------------------------------------- |
+| Add implementation            | Create file in `packages/@jim/spandex/src/index/`, create tests       |
+| Archive implementation        | `deno task archive:impl <Name> <category>`                            |
+| Restore implementation        | `deno task unarchive:impl <Name> <category>`                          |
+| View archived code            | `git show <SHA>:path/to/file.ts` (SHA from IMPLEMENTATION-HISTORY.md) |
+| List active implementations   | `ls packages/@jim/spandex/src/index/`                                 |
+| List archived implementations | See `archive/IMPLEMENTATION-HISTORY.md`                               |
 
 ---
 
 ## Best Practices
 
-1. Document WHY archived, not just what
-2. Keep archives runnable
-3. Benchmark before archiving
-4. Update `docs/analyses/`
-5. Clean commits: `feat:`, `archive:`, `unarchive:`
+1. Document why archived
+2. Benchmark before archiving
+3. Update `docs/analyses/`
+4. Commit conventions: `feat:`, `archive:`, `unarchive:`
 
 ---
 

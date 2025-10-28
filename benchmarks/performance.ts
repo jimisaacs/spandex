@@ -8,7 +8,7 @@ const archivedFilter = args.find((arg) => arg.startsWith('--include-archived='))
 
 /**
  * Auto-discover implementations from file system
- * Convention: All *.ts files in the directory are implementation classes
+ * Convention: All *.ts files export a default factory function
  */
 async function discoverImplementations(baseDir: string, label?: string) {
 	const implementations = [];
@@ -40,7 +40,7 @@ async function discoverImplementations(baseDir: string, label?: string) {
 
 						if (module.default && typeof module.default === 'function') {
 							const displayName = `${implName} [${category.name}]`;
-							implementations.push({ name: displayName, Class: module.default, active: false });
+							implementations.push({ name: displayName, factory: module.default, active: false });
 						}
 					} catch (error) {
 						const message = error instanceof Error ? error.message : String(error);
@@ -49,7 +49,7 @@ async function discoverImplementations(baseDir: string, label?: string) {
 				}
 			}
 		} else {
-			// Flat structure: packages/@jim/spandex/src/implementations/*.ts
+			// Flat structure: packages/@jim/spandex/src/index/*.ts
 			for (const file of entries) {
 				if (!file.name.endsWith('.ts')) continue;
 
@@ -57,10 +57,20 @@ async function discoverImplementations(baseDir: string, label?: string) {
 					const path = `../${baseDir}/${file.name}`;
 					const module = await import(path);
 
+					// All implementations export a default factory function
 					if (module.default && typeof module.default === 'function') {
 						const implName = file.name.replace('.ts', '');
 						const displayName = label ? `${implName} [${label}]` : implName;
-						implementations.push({ name: displayName, Class: module.default, active: !label });
+
+						// Special handling for LazyPartitionedIndex which requires a factory parameter
+						if (implName === 'lazypartitionedindex') {
+							// Import the default factory (MortonLinearScan)
+							const defaultFactoryModule = await import('@jim/spandex/index/mortonlinearscan');
+							const wrappedFactory = () => module.default(defaultFactoryModule.default);
+							implementations.push({ name: displayName, factory: wrappedFactory, active: !label });
+						} else {
+							implementations.push({ name: displayName, factory: module.default, active: !label });
+						}
 					}
 				} catch (error) {
 					const message = error instanceof Error ? error.message : String(error);
@@ -76,7 +86,7 @@ async function discoverImplementations(baseDir: string, label?: string) {
 	return implementations;
 }
 
-const activeImplementations = await discoverImplementations('packages/@jim/spandex/src/implementations');
+const activeImplementations = await discoverImplementations('packages/@jim/spandex/src/index');
 const archivedImplementations = includeArchived ? await discoverImplementations('archive/src/implementations') : [];
 
 const implementations = [
@@ -166,9 +176,9 @@ const allScenarios = { ...sparseScenarios, ...largeScenarios };
 //#region Write-Heavy Benchmarks (Pure Inserts)
 
 for (const [scenarioName, operations] of Object.entries(allScenarios)) {
-	for (const { name, Class } of implementations) {
+	for (const { name, factory } of implementations) {
 		Deno.bench(`${name} - write: ${scenarioName}`, () => {
-			const index = new Class();
+			const index = factory(); // Factory function, not constructor
 			operations.forEach((op) => index.insert(op.range, op.value));
 		});
 	}
@@ -177,11 +187,11 @@ for (const [scenarioName, operations] of Object.entries(allScenarios)) {
 
 //#region Read-Heavy Benchmarks (Many queries after setup)
 
-for (const { name, Class } of implementations) {
+for (const { name, factory } of implementations) {
 	// Sparse scenarios with frequent queries
 	for (const [scenarioName, operations] of Object.entries(sparseScenarios)) {
 		Deno.bench(`${name} - read: ${scenarioName} + 100 queries`, () => {
-			const index = new Class();
+			const index = factory();
 			operations.forEach((op) => index.insert(op.range, op.value));
 
 			// 100 viewport queries
@@ -196,7 +206,7 @@ for (const { name, Class } of implementations) {
 	// Large scenarios with frequent queries
 	for (const [scenarioName, operations] of Object.entries(largeScenarios)) {
 		Deno.bench(`${name} - read: ${scenarioName} + 100 queries`, () => {
-			const index = new Class();
+			const index = factory();
 			operations.forEach((op) => index.insert(op.range, op.value));
 
 			// 100 viewport queries
@@ -212,10 +222,10 @@ for (const { name, Class } of implementations) {
 
 //#region Mixed Benchmarks (80% write, 20% read)
 
-for (const { name, Class } of implementations) {
+for (const { name, factory } of implementations) {
 	// Sparse mixed workloads
 	Deno.bench(`${name} - mixed: sparse-sequential (n=50) 80/20`, () => {
-		const index = new Class();
+		const index = factory();
 		for (let i = 0; i < 50; i++) {
 			index.insert([0, i * 10, 0, i * 10] as Rectangle, `seq_${i}`);
 			if (i % 5 === 0) {
@@ -225,7 +235,7 @@ for (const { name, Class } of implementations) {
 	});
 
 	Deno.bench(`${name} - mixed: sparse-overlapping (n=40) 80/20`, () => {
-		const index = new Class();
+		const index = factory();
 		for (let i = 0; i < 40; i++) {
 			index.insert(
 				[(i % 4) * 5, Math.floor(i / 4) * 5, (i % 4) * 5 + 7, Math.floor(i / 4) * 5 + 7] as Rectangle,
@@ -239,7 +249,7 @@ for (const { name, Class } of implementations) {
 
 	// Large mixed workloads
 	Deno.bench(`${name} - mixed: large-sequential (n=1000) 80/20`, () => {
-		const index = new Class();
+		const index = factory();
 		for (let i = 0; i < 1000; i++) {
 			index.insert([0, i, 0, i] as Rectangle, `seq_${i}`);
 			if (i % 5 === 0) {
@@ -249,7 +259,7 @@ for (const { name, Class } of implementations) {
 	});
 
 	Deno.bench(`${name} - mixed: large-overlapping (n=500) 80/20`, () => {
-		const index = new Class();
+		const index = factory();
 		for (let i = 0; i < 500; i++) {
 			index.insert(
 				[i % 10, Math.floor(i / 5), (i % 10) + 4, Math.floor(i / 5) + 4] as Rectangle,
@@ -281,12 +291,12 @@ function generateQueryRange(max: number, random: () => number): Rectangle {
 }
 
 // Scenario 1: Sequential data (tests best-case tree structure)
-for (const { name, Class } of implementations) {
+for (const { name, factory } of implementations) {
 	Deno.bench({
 		name: `${name} - query-only: sequential (n=1000, 10k queries)`,
 		group: 'query-sequential',
 		fn: () => {
-			const index = new Class();
+			const index = factory();
 			// Warm-up: Build index with sequential data (NOT measured)
 			for (let i = 0; i < 1000; i++) {
 				index.insert(
@@ -307,12 +317,12 @@ for (const { name, Class } of implementations) {
 }
 
 // Scenario 2: Overlapping data (tests tree quality under stress)
-for (const { name, Class } of implementations) {
+for (const { name, factory } of implementations) {
 	Deno.bench({
 		name: `${name} - query-only: overlapping (n=1000, 10k queries)`,
 		group: 'query-overlapping',
 		fn: () => {
-			const index = new Class();
+			const index = factory();
 			// Warm-up: Build index with high overlap (NOT measured)
 			for (let i = 0; i < 1000; i++) {
 				index.insert(
@@ -332,12 +342,12 @@ for (const { name, Class } of implementations) {
 }
 
 // Scenario 3: Large dataset (tests scalability)
-for (const { name, Class } of implementations) {
+for (const { name, factory } of implementations) {
 	Deno.bench({
 		name: `${name} - query-only: large (n=5000, 10k queries)`,
 		group: 'query-large',
 		fn: () => {
-			const index = new Class();
+			const index = factory();
 			// Warm-up: Build large index (NOT measured)
 			for (let i = 0; i < 5000; i++) {
 				index.insert(
@@ -360,8 +370,8 @@ for (const { name, Class } of implementations) {
 //#region Correctness Verification
 
 Deno.bench('Correctness verification', () => {
-	const results = implementations.map(({ Class }) => {
-		const index = new Class();
+	const results = implementations.map(({ factory }) => {
+		const index = factory();
 		largeScenarios['large-overlapping (n=1250)'].forEach((op) => index.insert(op.range, op.value));
 		return index.query().length;
 	});

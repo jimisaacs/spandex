@@ -1,42 +1,44 @@
 # Production Guide
 
+Algorithm selection for `@jim/spandex` spatial indexing.
+
 ## Algorithm Selection
 
 ```
-n < 100  → MortonLinearScanImpl  (O(n), ~7µs @ n=50)
-n ≥ 100  → RStarTreeImpl         (O(log n), ~50µs @ n=100)
+n < 100  → createMortonLinearScanIndex()  (O(n), ~7µs @ n=50)
+n ≥ 100  → createRStarTreeIndex()         (O(log n), ~50µs @ n=100)
 ```
 
 **Rationale**: Empirically validated crossover at n≈100 across write-heavy, read-heavy, and mixed workloads. Linear scan overhead (iteration) < tree overhead (traversal + maintenance) for sparse data.
 
 ## Implementation Details
 
-### MortonLinearScanImpl
+### Morton Linear Scan
 
 **Complexity**: O(n) insert, O(n) query\
 **Storage**: Flat array, Morton-ordered\
-**Optimization**: Spatial locality via Z-order curve (constant-time bit interleaving)
+**Optimization**: Spatial locality via Z-order curve
 
 ```typescript
-import { MortonLinearScanImpl } from '@jim/spandex';
-const index = new MortonLinearScanImpl<T>();
+import createMortonLinearScanIndex from '@jim/spandex/index/mortonlinearscan';
+const index = createMortonLinearScanIndex<T>();
 ```
 
-### RStarTreeImpl
+### R-Star Tree
 
 **Complexity**: O(log n) expected insert/query\
 **Storage**: Hierarchical bounding volume tree\
-**Split algorithm**: R* (Beckmann et al. 1990) - minimizes overlap and area
+**Split algorithm**: R* (Beckmann et al. 1990)
 
 ```typescript
-import { RStarTreeImpl } from '@jim/spandex';
-const index = new RStarTreeImpl<T>();
+import createRStarTreeIndex from '@jim/spandex/index/rstartree';
+const index = createRStarTreeIndex<T>();
 ```
 
 ## Empirical Validation
 
-**Measurement**: 5 runs × Deno internal sampling (50-500 total iterations), CV% < 5% (stable)\
-**Effect size**: Report performance differences >20% (well above measurement noise)\
+**Measurement**: 5 runs × Deno internal sampling (50-500 total iterations), CV% < 5%\
+**Effect size**: Report performance differences >20%\
 **Cross-platform**: Relative rankings stable, absolute values vary ±10-20%
 
 See [BENCHMARKS.md](./BENCHMARKS.md) for complete data, [benchmark-statistics.md](./docs/analyses/benchmark-statistics.md) for methodology.
@@ -57,11 +59,11 @@ See `docs/analyses/transition-zone-analysis.md` for detailed empirical analysis.
 
 ## Usage Patterns
 
-**Sparse properties** (n < 100 per property type): Independent `MortonLinearScanImpl` per property.
+**Independent attributes** (n < 100 per attribute): Use `LazyPartitionedIndex` with Morton backend per attribute.
 
-**Large consolidated datasets** (n ≥ 100): Single `RStarTreeImpl` per property type.
+**Large consolidated data** (n ≥ 100): Use R-Star tree for single large dataset.
 
-**Spatial join**: Query across multiple indices, combine at query time. Simpler than merge-based approaches for independent properties.
+**Spatial join**: Query across multiple independent indexes, combine at query time.
 
 ---
 
@@ -71,10 +73,59 @@ See `docs/analyses/transition-zone-analysis.md` for detailed empirical analysis.
 interface SpatialIndex<T> {
 	insert(bounds: Rectangle, value: T): void;
 	query(bounds?: Rectangle): IterableIterator<[Rectangle, T]>;
+	extent(): ExtentResult;
 }
 ```
 
-Both implementations provide identical interface. Migration requires only constructor change.
+Identical interface. Migration = swap factory function.
+
+### Implementation-Specific Methods
+
+**Diagnostic methods** available on concrete types (not on `SpatialIndex<T>` interface):
+
+```typescript
+// MortonLinearScanIndex
+import createMortonLinearScanIndex from '@jim/spandex/index/mortonlinearscan';
+const morton = createMortonLinearScanIndex<string>();
+morton.size(); // Count of stored rectangles (O(1))
+
+// RStarTreeIndex
+import createRStarTreeIndex from '@jim/spandex/index/rstartree';
+const rtree = createRStarTreeIndex<string>();
+rtree.size(); // Count of stored rectangles (O(1))
+rtree.getTreeQualityMetrics(); // { depth, overlapArea, deadSpace, nodeCount }
+```
+
+**Why not on base interface?** These expose internal implementation details. Use the concrete type when needed:
+
+```typescript
+import type { MortonLinearScanIndex } from '@jim/spandex/index/mortonlinearscan';
+
+function analyzeFragmentation(index: MortonLinearScanIndex<string>) {
+	return index.size(); // Type-safe access
+}
+```
+
+### Common Patterns
+
+**"Deleting" formatting** (use Last-Writer-Wins):
+
+```typescript
+// Clear formatting in region
+index.insert([0, 0, 10, 10], null); // LWW overwrites previous values
+```
+
+**Resetting entire index**:
+
+```typescript
+// Create new index instead of clear()
+index = createMortonLinearScanIndex<CellStyle>();
+```
+
+**Why no `delete()` or `clear()`?**
+
+- Delete = insert null (LWW semantics)
+- Clear = create new index (same performance, clearer intent)
 
 ---
 
@@ -83,8 +134,9 @@ Both implementations provide identical interface. Migration requires only constr
 **Procedure**:
 
 1. `data = Array.from(oldIndex.query())`
-2. `newIndex.insert(...)` for each entry
-3. Swap reference
+2. `newIndex = createRStarTreeIndex<T>()`
+3. `newIndex.insert(...)` for each entry
+4. Swap reference
 
 **Complexity**: O(n) export + O(n log n) R-tree reconstruction or O(n²) linear scan reconstruction.
 

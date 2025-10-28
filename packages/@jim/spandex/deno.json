@@ -1,11 +1,19 @@
 {
 	"name": "@jim/spandex",
-	"version": "1.0.0",
+	"version": "0.1.0",
 	"exports": {
 		".": "./src/mod.ts",
-		"./rect": "./src/rect.ts",
-		"./adapters/a1": "./src/adapters/a1.ts",
-		"./adapters/gridrange": "./src/adapters/gridrange.ts"
+		"./r": "./src/r.ts",
+		"./extent": "./src/extent.ts",
+		"./render": "./src/render/mod.ts",
+		"./index/mortonlinearscan": "./src/index/mortonlinearscan.ts",
+		"./index/rstartree": "./src/index/rstartree.ts",
+		"./index/lazypartitionedindex": "./src/index/lazypartitionedindex.ts",
+		"./adapter/a1": "./src/adapter/a1.ts",
+		"./adapter/gridrange": "./src/adapter/gridrange.ts"
 	},
-	"license": "MIT"
+	"license": "MIT",
+	"publish": {
+		"exclude": ["test/"]
+	}
 }

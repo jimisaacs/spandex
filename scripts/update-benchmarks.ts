@@ -44,21 +44,26 @@ for (const line of lines) {
 	const pattern = /^\|\s*([\w-]+)\s+-\s+(.+?)\s+\|\s*([\d.]+)\s*(µs|ns|ms)\s*\|/;
 	const match = line.match(pattern);
 	if (match) {
+		// Regex guarantees these captures exist when match is truthy
 		const [, impl, scenario, time, unit] = match;
+		const implName = impl!;
+		const scenarioName = scenario!;
+		const timeStr = time!;
+		const unitStr = unit!;
 
-		if (scenario === 'Correctness verification') continue;
+		if (scenarioName === 'Correctness verification') continue;
 
-		implementationNames.add(impl);
-		scenarioNames.add(scenario);
+		implementationNames.add(implName);
+		scenarioNames.add(scenarioName);
 
-		if (!results[scenario]) {
-			results[scenario] = {};
+		if (!results[scenarioName]) {
+			results[scenarioName] = {};
 		}
 
-		let timeInMs = parseFloat(time);
-		if (unit === 'µs') timeInMs /= 1000;
-		else if (unit === 'ns') timeInMs /= 1_000_000;
-		results[scenario][impl] = timeInMs;
+		let timeInMs = parseFloat(timeStr);
+		if (unitStr === 'µs') timeInMs /= 1000;
+		else if (unitStr === 'ns') timeInMs /= 1_000_000;
+		results[scenarioName][implName] = timeInMs;
 	}
 }
 
@@ -80,7 +85,7 @@ const queryOnlyScenarios = Array.from(scenarioNames).filter((s) => s.startsWith(
 
 // Generate markdown
 const formatResults = (scenario: Record<string, number>) => {
-	const baseline = scenario.RStarTree || 1; // RStarTree is now the baseline
+	const baseline = scenario['RStarTree'] || 1; // RStarTree is now the baseline
 	const entries = Object.entries(scenario).sort(([, a], [, b]) => a - b);
 
 	return entries.map(([impl, time]) => {
@@ -109,7 +114,7 @@ const generateSummary = async (
 		// Convert implementation name to lowercase filename
 		// "RStarTree" -> "rstartree.ts", "LinearScan" -> "linearscan.ts", etc.
 		const filename = impl.toLowerCase().replace(/linearscan/g, 'linearscan') + '.ts';
-		const filePath = `packages/@jim/spandex/src/implementations/${filename}`;
+		const filePath = `packages/@jim/spandex/src/index/${filename}`;
 		try {
 			bundleSizes[impl] = await getBundleSize(filePath);
 		} catch {
@@ -131,10 +136,11 @@ const generateSummary = async (
 	for (const scenario of allScenarios) {
 		const entries = Object.entries(scenario);
 		if (entries.length === 0) continue;
+		// reduce() on non-empty array is guaranteed to return a value
 		const fastestEntry = entries.reduce((min, curr) => curr[1] < min[1] ? curr : min);
 		const slowestEntry = entries.reduce((max, curr) => curr[1] > max[1] ? curr : max);
-		fastest[fastestEntry[0]]++;
-		slowest[slowestEntry[0]]++;
+		fastest[fastestEntry[0]]!++;
+		slowest[slowestEntry[0]]!++;
 	}
 
 	const totalScenarios = allScenarios.length;
@@ -149,7 +155,7 @@ const generateSummary = async (
 
 		const speedups: number[] = [];
 		for (const scenario of allScenarios) {
-			const ref = scenario.Reference;
+			const ref = scenario['Reference'];
 			const implTime = scenario[impl];
 			if (ref && implTime) {
 				speedups.push(ref / implTime);
@@ -203,8 +209,10 @@ const generateSection = (title: string, scenarios: string[]) => {
 
 	return `## ${title}\n\n` + scenarios.map((scenario) => {
 		const cleanName = scenario.replace(/^(write|read|mixed|query-only):\s*/, '');
+		const scenarioResults = results[scenario];
+		if (!scenarioResults) return ''; // Skip if no results
 		return `### ${cleanName}\n\n| Implementation | Time | Relative |\n| -------------- | ---- | -------- |\n${
-			formatResults(results[scenario])
+			formatResults(scenarioResults)
 		}`;
 	}).join('\n\n');
 };
@@ -232,7 +240,8 @@ const generateComparisonTable = (results: Record<string, Record<string, number>>
 	// Generate table rows dynamically
 	const rows: string[] = [];
 	for (const { label, key } of scenarios) {
-		const rstartreeTime = results[key]?.RStarTree || 1;
+		if (!key) continue; // Skip if scenario not found
+		const rstartreeTime = results[key]?.['RStarTree'] || 1;
 		const ratios = impls.map((impl) => {
 			const time = results[key]?.[impl];
 			return time ? (time / rstartreeTime).toFixed(1) + 'x' : 'N/A';

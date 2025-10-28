@@ -1,38 +1,35 @@
-# Spandex Testing Framework
+# Spandex Testing
 
-Modular testing utilities for spatial index implementations.
+Conformance axioms and test scenarios for `@jim/spandex` implementations.
 
-## Overview
+**Part of**: `@jim/spandex` monorepo (spandex-specific)
 
-This package provides:
+Provides: axioms (disjointness, LWW, fragmentation), regression scenarios, test utils.
 
-- **Axiom-based conformance testing** - Mathematical invariants all implementations must satisfy
-- **Fixture framework** - Markdown-based snapshot testing with automatic update mode
-- **ASCII rendering** - Human-readable grid visualization for debugging and documentation
+Uses: `@local/snapmark` for snapshots (general-purpose).
 
 ## Quick Start
 
 ### Testing an Implementation
 
 ```typescript
-import { MortonLinearScanImpl } from '@jim/spandex';
-import { createFixtureGroup } from '@local/snapmark';
-import { asciiStringCodec } from '@local/spandex-testing/ascii';
+import createMortonLinearScanIndex from '@jim/spandex/index/mortonlinearscan';
+import { asciiStringCodec, createFixtureGroup } from '@local/snapmark';
 import { testGeometryAxioms, testPropertyAxioms, testVisualAxioms } from '@local/spandex-testing/axiom';
 
 // Property axioms (no fixtures needed)
-Deno.test('NewImpl - Property Axioms', async (t) => {
-	await testPropertyAxioms(t, () => new NewImpl<string>());
+Deno.test('MyImpl - Property Axioms', async (t) => {
+	await testPropertyAxioms(t, createMortonLinearScanIndex<string>);
 });
 
 // Geometry axioms (with ASCII snapshot fixtures)
-Deno.test('NewImpl - Geometry Axioms', async (t) => {
+Deno.test('MyImpl - Geometry Axioms', async (t) => {
 	const { assertMatch, flush } = createFixtureGroup(asciiStringCodec(), {
 		context: t,
 		filePath: new URL('./fixtures/geometry-test.md', import.meta.url),
 	});
 
-	await testGeometryAxioms(t, () => new NewImpl<string>(), assertMatch);
+	await testGeometryAxioms(t, createMortonLinearScanIndex<string>, assertMatch);
 
 	await flush();
 });
@@ -61,7 +58,7 @@ src/
 └── utils.ts                   # Helper utilities
 ```
 
-This package uses `@local/snapmark` for the snapshot testing framework.
+This package uses `@local/snapmark` for snapshot testing. Snapmark is a general-purpose markdown-based fixture framework (not spandex-specific).
 
 ## Testing Axioms
 
@@ -114,10 +111,9 @@ This package uses `@local/snapmark` for markdown-based snapshot testing. Common 
 ### Basic Usage
 
 ```typescript
-import { MortonLinearScanImpl } from '@jim/spandex';
-import { createFixtureGroup } from '@local/snapmark';
-import { asciiStringCodec } from '@local/spandex-testing/ascii';
-import { renderToAscii } from '@local/spandex-testing/ascii';
+import createMortonLinearScanIndex from '@jim/spandex/index/mortonlinearscan';
+import { createRenderer } from '@jim/spandex-ascii';
+import { asciiStringCodec, createFixtureGroup } from '@local/snapmark';
 
 Deno.test('My Tests', async (t) => {
 	const { assertMatch, flush } = createFixtureGroup(asciiStringCodec(), {
@@ -126,9 +122,11 @@ Deno.test('My Tests', async (t) => {
 	});
 
 	await t.step('Single Cell', async (step) => {
-		const index = new MortonLinearScanImpl<string>();
+		const index = createMortonLinearScanIndex<string>();
 		index.insert([2, 2, 2, 2], 'X');
-		const actual = renderToAscii(index, { width: 5, height: 5 });
+
+		const { render } = createRenderer();
+		const actual = render(index, { legend: { 'X': 'X' } });
 
 		// Name auto-inferred from step
 		await assertMatch(actual, { context: step });
@@ -180,8 +178,7 @@ The framework automatically:
 Create custom codecs for different data formats:
 
 ```typescript
-import type { FixtureCodec } from '@local/spandex-testing';
-// or: import type { FixtureCodec } from '@local/snapmark';
+import type { FixtureCodec } from '@local/snapmark';
 
 const myCodec: FixtureCodec<MyType> = {
 	encode: (data) => {
@@ -201,15 +198,20 @@ const myCodec: FixtureCodec<MyType> = {
 Visualize spatial indexes as ASCII grids:
 
 ```typescript
-import { renderAscii } from '@local/spandex-testing';
+import { createRenderer } from '@jim/spandex-ascii';
 
-const grid = renderAscii(index, { width: 5, height: 5 });
+const { render } = createRenderer();
+const grid = render(index, { legend: { 'A': 'A', 'B': 'B' } });
 console.log(grid);
 // Output:
 // A A A . .
 // A A A . .
 // . . B B B
 // . . B B B
+//
+// Legend:
+// A = "A"
+// B = "B"
 ```
 
 This is useful for debugging and documentation.

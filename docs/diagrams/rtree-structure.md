@@ -173,11 +173,16 @@ interface GridRange {
 	endColumnIndex?: number; // Exclusive!
 }
 
-// Our library matches this exactly!
-const index = new MortonLinearScanImpl<string>();
+// Our library works with GridRange via adapter
+import { createGridRangeAdapter } from '@jim/spandex/adapter/gridrange';
+import createMortonLinearScanIndex from '@jim/spandex/index/mortonlinearscan';
+
+const index = createGridRangeAdapter(createMortonLinearScanIndex<string>());
 index.insert({
 	startRowIndex: 0,
 	endRowIndex: 5, // Means rows 0-4
+	startColumnIndex: 0,
+	endColumnIndex: 3,
 }, 'value');
 ```
 

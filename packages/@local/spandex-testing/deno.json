@@ -2,6 +2,8 @@
 	"name": "@local/spandex-testing",
 	"exports": {
 		"./axiom": "./src/axiom/mod.ts",
+		"./regression-scenarios": "./src/regression-scenarios.ts",
+		"./round-trip": "./src/round-trip.ts",
 		"./utils": "./src/utils.ts"
 	}
 }

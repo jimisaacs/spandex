@@ -59,7 +59,7 @@ export class TelemetryCollector {
 				}
 
 				if (prop === 'insert') {
-					return (bounds: Rectangle, value: T) => {
+					return (bounds: Readonly<Rectangle>, value: T) => {
 						const start = performance.now();
 
 						// Check if this insert will cause overlap
@@ -80,9 +80,8 @@ export class TelemetryCollector {
 							durationMs: duration,
 							n: nAfter,
 							hadOverlap,
-							overlapArea: hadOverlap ? overlapArea : undefined,
+							overlapArea,
 						});
-
 						return result;
 					};
 				}
@@ -173,8 +172,8 @@ export class TelemetryCollector {
 
 		const sorted = samples.slice().sort((a, b) => a - b);
 		return {
-			min: sorted[0],
-			max: sorted[sorted.length - 1],
+			min: sorted[0]!,
+			max: sorted[sorted.length - 1]!,
 			mean: samples.reduce((a, b) => a + b, 0) / samples.length,
 			median: this.percentile(sorted, 0.5),
 			p95: this.percentile(sorted, 0.95),
@@ -215,7 +214,7 @@ export class TelemetryCollector {
 	private percentile(sorted: number[], p: number): number {
 		if (!sorted.length) return 0;
 		const index = Math.ceil(sorted.length * p) - 1;
-		return sorted[Math.max(0, index)];
+		return sorted[Math.max(0, index)]!;
 	}
 
 	private calculateArea(bounds: Rectangle): number {
@@ -226,8 +225,8 @@ export class TelemetryCollector {
 	}
 
 	private calculateOverlapArea<T>(
-		newRange: Rectangle,
-		existingRanges: Array<{ bounds: Rectangle; value: T }>,
+		newRange: Readonly<Rectangle>,
+		existingRanges: Array<{ bounds: Readonly<Rectangle>; value: T }>,
 	): number {
 		let totalOverlap = 0;
 		for (const existing of existingRanges) {
@@ -236,7 +235,7 @@ export class TelemetryCollector {
 		return totalOverlap;
 	}
 
-	private calculateIntersectionArea(r1: Rectangle, r2: Rectangle): number {
+	private calculateIntersectionArea(r1: Readonly<Rectangle>, r2: Readonly<Rectangle>): number {
 		const [r1x, r1y, r1x2, r1y2] = r1;
 		const [r2x, r2y, r2x2, r2y2] = r2;
 

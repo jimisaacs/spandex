@@ -3,17 +3,20 @@
  *
  * Tests that demonstrate spatial index behavior through ASCII art.
  * These are primarily for documentation and visual understanding.
+ * Includes round-trip validation (render → parse → render).
  */
 
-import { SpatialIndex } from '@jim/spandex';
-import { render } from '@jim/spandex-ascii';
+import type { SpatialIndex } from '@jim/spandex';
+import { createRenderer } from '@jim/spandex-ascii';
 import { asciiStringCodec, createFixtureGroup } from '@local/snapmark';
+import { validateRoundTrip } from '../round-trip.ts';
 
 export async function testVisualAxioms(
 	t: Deno.TestContext,
 	filePath: string | URL,
 	implementation: () => SpatialIndex<string>,
 ): Promise<void> {
+	const { render } = createRenderer();
 	const { assertMatch, flush } = createFixtureGroup(asciiStringCodec(), {
 		header: '# Implementation Visual Axioms\n\nAutomatically generated fixture file.',
 		context: t,
@@ -29,18 +32,22 @@ export async function testVisualAxioms(
 		// Step 2: Color B0:D2 Blue (overlaps with red)
 		index.insert([1, 0, 3, 2], 'BLUE');
 
-		const actual = render(() => index.query(), { R: 'RED', B: 'BLUE' });
+		const legend = { R: 'RED', B: 'BLUE' };
+		const actual = render(index, { legend });
 
 		assertMatch(actual, { name: 'LWW Example' });
+		validateRoundTrip(actual, 1, { legend });
 	});
 
 	await t.step('Single rectangle', () => {
 		const index = implementation();
 		index.insert([1, 1, 3, 2], 'TEST');
 
-		const actual = render(() => index.query(), { T: 'TEST' });
+		const legend = { T: 'TEST' };
+		const actual = render(index, { legend });
 
 		assertMatch(actual, { name: 'Single Rectangle' });
+		validateRoundTrip(actual, 1, { legend });
 	});
 
 	await t.step('Vertical stripes', () => {
@@ -50,9 +57,11 @@ export async function testVisualAxioms(
 		index.insert([2, 0, 2, 3], 'B');
 		index.insert([4, 0, 4, 3], 'C');
 
-		const actual = render(() => index.query(), { A: 'A', B: 'B', C: 'C' });
+		const legend = { A: 'A', B: 'B', C: 'C' };
+		const actual = render(index, { legend });
 
 		assertMatch(actual, { name: 'Horizontal Stripes' });
+		validateRoundTrip(actual, 1, { legend });
 	});
 
 	await t.step('Complex fragmentation', () => {
@@ -62,9 +71,11 @@ export async function testVisualAxioms(
 		index.insert([2, 2, 2, 2], 'CENTER');
 		index.insert([3, 3, 4, 4], 'CORNER');
 
-		const actual = render(() => index.query(), { B: 'BASE', C: 'CENTER', O: 'CORNER' });
+		const legend = { B: 'BASE', C: 'CENTER', O: 'CORNER' };
+		const actual = render(index, { legend });
 
 		assertMatch(actual, { name: 'Complex Fragmentation (numeric values)' });
+		validateRoundTrip(actual, 1, { legend });
 	});
 
 	await t.step('Diagonal pattern', () => {
@@ -76,9 +87,11 @@ export async function testVisualAxioms(
 		index.insert([3, 3, 3, 3], 'four');
 		index.insert([4, 4, 4, 4], 'five');
 
-		const actual = render(() => index.query(), { '1': 'one', '2': 'two', '3': 'three', '4': 'four', '5': 'five' });
+		const legend = { '1': 'one', '2': 'two', '3': 'three', '4': 'four', '5': 'five' };
+		const actual = render(index, { legend });
 
 		assertMatch(actual, { name: 'Diagonal Pattern (numeric values)' });
+		validateRoundTrip(actual, 1, { legend });
 	});
 
 	await t.step('Progressive overlap', () => {
@@ -88,9 +101,11 @@ export async function testVisualAxioms(
 		index.insert([2, 1, 4, 3], 'second');
 		index.insert([1, 2, 3, 4], 'third');
 
-		const actual = render(() => index.query(), { f: 'first', s: 'second', t: 'third' });
+		const legend = { f: 'first', s: 'second', t: 'third' };
+		const actual = render(index, { legend });
 
 		assertMatch(actual, { name: 'Progressive Overlap (numeric values)' });
+		validateRoundTrip(actual, 1, { legend });
 	});
 
 	await flush();

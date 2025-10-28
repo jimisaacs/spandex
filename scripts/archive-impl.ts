@@ -31,7 +31,7 @@ if (!['superseded', 'failed-experiments'].includes(category)) {
 const filename = implName.toLowerCase().replace(/impl$/, '') + '.ts';
 const testFilename = filename.replace('.ts', '.test.ts');
 
-const srcPath = `packages/@jim/spandex/src/implementations/${filename}`;
+const srcPath = `packages/@jim/spandex/src/index/${filename}`;
 const testPath = `test/${testFilename}`;
 const archiveSrcPath = `archive/src/implementations/${category}/${filename}`;
 const archiveTestPath = `archive/test/${category}/${testFilename}`;
@@ -101,7 +101,7 @@ console.log(`\n🔧 Fixing import paths in archived implementation...`);
 let fixedContent = await Deno.readTextFile(archiveSrcPath);
 
 // Fix relative imports to workspace imports
-// From: '../types.ts' or '../rect.ts' → '@jim/spandex'
+// From: '../types.ts' or '../r.ts' → '@jim/spandex'
 fixedContent = fixedContent.replace(
 	/from ['"]\.\.\/[^'"]+['"]/g,
 	"from '@jim/spandex'",

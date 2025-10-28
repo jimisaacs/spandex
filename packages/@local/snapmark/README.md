@@ -1,10 +1,6 @@
 # @local/snapmark
 
-Snapshot testing with markdown storage and composable codecs.
-
-## What It Does
-
-Store test snapshots as readable markdown. Codecs control serialization, comparison, and rendering. Compose adapters for complex transformations like base64 or data URIs.
+Snapshot testing with markdown storage. General-purpose (not spandex-specific).
 
 ```typescript
 import { createFixtureGroup, jsonCodec } from '@local/snapmark';
@@ -28,21 +24,10 @@ Deno.test('Ancient civilizations', async (t) => {
 });
 ```
 
-First run captures snapshots. Subsequent runs compare. Update with `UPDATE_FIXTURES=1 deno test`.
+First run captures, subsequent runs compare. Update: `UPDATE_FIXTURES=1 deno test`.
 
-## Codecs
-
-- `jsonCodec<T>()` - Semantic comparison (ignores formatting)
-- `stringCodec<T>()` - Plain text
-- `binaryCodec()` - Uint8Array
-
-## Adapters
-
-- `base64Adapter(codec)` - Encode as base64
-- `dataUriAdapter(codec, mime)` - Wrap as data URI
-- `imageDataUriCodec(mime)` - Binary → data URI (renders inline)
-
-Chain them: `dataUriAdapter(base64Adapter(binaryCodec()), 'image/png')`
+**Codecs**: `jsonCodec`, `stringCodec`, `binaryCodec`, `imageDataUriCodec`
+**Adapters**: `base64Adapter`, `dataUriAdapter` (chain them)
 
 ## Two Modes
 

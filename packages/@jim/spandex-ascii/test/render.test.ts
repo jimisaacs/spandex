@@ -1,40 +1,36 @@
-/**
- * Render-Only Edge Cases
- *
- * Tests for rendering features that CANNOT be parsed (no round-trip).
- * - Grid-only mode (excludes legend/annotations)
- * - Legend validation and error handling
- *
- * Keep this file minimal - most tests belong in regression.test.ts.
- */
+/** Render-only edge cases (grid-only mode, legend validation) */
 
-import { MortonLinearScanImpl } from '@jim/spandex';
-import { render } from '@jim/spandex-ascii';
+import { createRenderer } from '@jim/spandex-ascii';
+import createMortonLinearScanIndex from '@jim/spandex/index/mortonlinearscan';
+import * as r from '@jim/spandex/r';
 import { assertEquals, assertStringIncludes, assertThrows } from '@std/assert';
 
 Deno.test('Render - Grid Only Mode', () => {
-	const index = new MortonLinearScanImpl<string>();
+	const { render } = createRenderer();
+	const index = createMortonLinearScanIndex<string>();
 	index.insert([0, 0, 1, 0], 'RED');
 	index.insert([2, 0, 2, 0], 'BLUE');
 
-	const gridOnly = render(() => index.query(), {
-		'R': 'RED',
-		'B': 'BLUE',
-	}, { gridOnly: true });
+	const gridOnly = render(index, {
+		legend: { 'R': 'RED', 'B': 'BLUE' },
+		gridOnly: true,
+	});
 
 	// Verify legend is excluded
 	assertEquals(gridOnly.includes('R = "RED"'), false);
 	assertEquals(gridOnly.includes('B = "BLUE"'), false);
 	// Grid content should still be present
-	assertStringIncludes(gridOnly, '| R |');
-	assertStringIncludes(gridOnly, '| B |');
+	assertStringIncludes(gridOnly, '┃ R ┃');
+	assertStringIncludes(gridOnly, '┃ B ┃');
 });
 
-Deno.test('Render - Grid Only Excludes Infinity Annotations', () => {
-	const index = new MortonLinearScanImpl<string>();
-	index.insert([-Infinity, 0, Infinity, 0], 'HORIZONTAL');
+Deno.test('Render - Grid Only Excludes infinity edge annotations', () => {
+	const { render } = createRenderer();
 
-	const gridOnly = render(() => index.query(), { 'H': 'HORIZONTAL' }, { gridOnly: true });
+	const index = createMortonLinearScanIndex<string>();
+	index.insert([r.negInf, 0, r.posInf, 0], 'HORIZONTAL');
+
+	const gridOnly = render(index, { legend: { 'H': 'HORIZONTAL' }, gridOnly: true });
 
 	// Verify infinity annotation is excluded
 	assertEquals(gridOnly.includes('∞ edges'), false);
@@ -42,64 +38,72 @@ Deno.test('Render - Grid Only Excludes Infinity Annotations', () => {
 	assertStringIncludes(gridOnly, 'H');
 });
 
-Deno.test('Render - Legend Validation: Unused Symbols Allowed', () => {
-	const index = new MortonLinearScanImpl<string>();
+Deno.test('Render - Legend Validation: Unused Legend Keys Allowed', () => {
+	const { render } = createRenderer();
+
+	const index = createMortonLinearScanIndex<string>();
 	index.insert([0, 0, 1, 0], 'RED');
 
-	// Should NOT throw (unused symbols allowed by default)
-	const result = render(() => index.query(), {
-		'R': 'RED',
-		'B': 'BLUE', // Unused but allowed
+	// Should NOT throw (unused legend keys allowed by default)
+	const result = render(index, {
+		legend: {
+			'R': 'RED',
+			'B': 'BLUE', // Unused but allowed
+		},
+		strict: false,
 	});
 
 	assertStringIncludes(result, 'R = "RED"');
 	assertStringIncludes(result, 'B = "BLUE"');
 });
 
-Deno.test('Render - Legend Validation: Missing Symbol Throws', () => {
-	const index = new MortonLinearScanImpl<string>();
+Deno.test('Render - Legend Validation: Missing Key Throws', () => {
+	const { render } = createRenderer();
+
+	const index = createMortonLinearScanIndex<string>();
 	index.insert([0, 0, 1, 0], 'RED');
 	index.insert([2, 0, 2, 0], 'BLUE');
 
 	assertThrows(
 		() => {
-			render(() => index.query(), {
-				'R': 'RED',
-				// Missing 'B' for BLUE
-			});
+			render(index, { legend: { 'R': 'RED' } });
 		},
 		Error,
-		'Render error: Legend missing symbol for value "BLUE"',
+		'Missing legend key for value "BLUE"',
 	);
 });
 
-Deno.test('Render - Strict Mode: Unused Symbols Throw', () => {
-	const index = new MortonLinearScanImpl<string>();
+Deno.test('Render - Strict Mode: Unused Legend Keys Throw', () => {
+	const { render } = createRenderer();
+
+	const index = createMortonLinearScanIndex<string>();
 	index.insert([0, 0, 1, 0], 'RED');
 
 	assertThrows(
 		() => {
-			render(() => index.query(), {
-				'R': 'RED',
-				'B': 'BLUE', // Unused
-			}, { strict: true });
+			render(index, {
+				legend: { 'R': 'RED', 'B': 'BLUE' },
+				strict: true,
+			});
 		},
 		Error,
-		'Render error (strict mode): Legend contains unused symbols: B',
+		'unused legend key',
 	);
 });
 
 Deno.test('Render - Strict Mode: All Used Passes', () => {
-	const index = new MortonLinearScanImpl<string>();
+	const { render } = createRenderer();
+
+	const index = createMortonLinearScanIndex<string>();
 	index.insert([0, 0, 1, 0], 'RED');
 	index.insert([2, 0, 2, 0], 'BLUE');
 
 	// Should not throw
-	const result = render(() => index.query(), {
-		'R': 'RED',
-		'B': 'BLUE',
-	}, { strict: true });
+	const result = render(index, {
+		legend: { 'R': 'RED', 'B': 'BLUE' },
+		strict: true,
+	});
 
-	assertStringIncludes(result, '| R |');
-	assertStringIncludes(result, '| B |');
+	assertStringIncludes(result, '┃ R ┃');
+	assertStringIncludes(result, '┃ B ┃');
 });

@@ -6,11 +6,13 @@ This file provides guidance to Claude Code (claude.ai/code) and Cursor IDE when 
 
 ## Project Overview
 
-Spatial indexing research for 2D range decomposition in spreadsheet systems. Maintains non-overlapping ranges with last-writer-wins semantics using closed intervals `[min, max]`.
+**Monorepo** for 2D spatial indexing research. Maintains non-overlapping rectangles with last-writer-wins semantics using closed intervals `[min, max]`.
 
 **Core Problem**: Insert overlapping 2D rectangles, automatically decompose into disjoint fragments (≤4 per overlap).
 
-**Target Environment**: Google Apps Script (limits: no WASM, no SharedArrayBuffer, TypedArrays OK)
+**Deployment Targets**: Pure JavaScript environments including browsers, Node.js, Deno, and constrained runtimes. Optimized for environments without WASM or SharedArrayBuffer (TypedArrays supported). One target deployment is Google Apps Script for spreadsheet property tracking.
+
+**Monorepo Structure**: Contains independent packages for spatial indexing (`@jim/spandex*`), general-purpose snapshot testing (`@local/snapmark`), and spandex-specific testing tools (`@local/spandex-testing`, `@local/spandex-telemetry`).
 
 **Project Philosophy**: Active research with rigorous documentation. Archive failed experiments (research asset), maintain reproducibility, distinguish empirical findings from hypotheses.
 
@@ -40,7 +42,7 @@ UPDATE_FIXTURES=1 deno test -A   # Regenerate all fixture files
 
 ```bash
 # After changing test behavior
-UPDATE_FIXTURES=1 deno test -A packages/@jim/spandex/test/adapters/
+UPDATE_FIXTURES=1 deno test -A packages/@jim/spandex/test/adapter/
 
 # Or update specific implementation tests
 UPDATE_FIXTURES=1 deno task test:morton
@@ -123,7 +125,7 @@ deno task bench:analyze 3 docs/analyses/quick-check.md
 
 **Benchmark Philosophy**: "Active by default, archived by choice"
 
-- Auto-discovers from `packages/@jim/spandex/src/implementations/` (no manual registration)
+- Auto-discovers from `packages/@jim/spandex/src/index/` (no manual registration)
 - Archived implementations require `--include-archived` flag
 - Use `--exclude=` for selective filtering during development
 
@@ -165,12 +167,12 @@ type Rectangle = readonly [xmin: number, ymin: number, xmax: number, ymax: numbe
 
 **External API**: `GridRange` (Google Sheets) uses half-open intervals `[start, end)` where end is excluded
 
-- Conversion happens at boundaries via `createGridRangeAdapter()` in `packages/@jim/spandex/src/adapters/gridrange.ts`
+- Conversion happens at boundaries via `createGridRangeAdapter()` in `packages/@jim/spandex/src/adapter/gridrange.ts`
 - Adapter handles transformation: half-open `[start, end)` ⟷ closed `[start, end-1]`
 
 ### Implementation Families
 
-**Active implementations**: See `packages/@jim/spandex/src/implementations/` directory for current production algorithms.
+**Active implementations**: See `packages/@jim/spandex/src/index/` directory for current production algorithms.
 
 **Two algorithm families**:
 
@@ -222,8 +224,8 @@ Validated by `assertInvariants()` in conformance tests.
 
 ### Adding a New Implementation
 
-1. Create `packages/@jim/spandex/src/implementations/newimpl.ts` implementing `SpatialIndex<T>`
-2. Create test files in `packages/@jim/spandex/test/implementations/newimpl/`:
+1. Create `packages/@jim/spandex/src/index/newimpl.ts` implementing `SpatialIndex<T>`
+2. Create test files in `packages/@jim/spandex/test/index/newimpl/`:
    ```typescript
    // property.test.ts
    import { NewImpl } from '@jim/spandex';
@@ -235,8 +237,7 @@ Validated by `assertInvariants()` in conformance tests.
 
    // geometry.test.ts
    import { NewImpl } from '@jim/spandex';
-   import { createFixtureGroup } from '@local/snapmark';
-   import { asciiStringCodec } from '@local/spandex-testing/ascii';
+   import { asciiStringCodec, createFixtureGroup } from '@local/snapmark';
    import { testGeometryAxioms } from '@local/spandex-testing/axiom';
 
    Deno.test('NewImpl - Geometry Axioms', async (t) => {
@@ -254,7 +255,7 @@ Validated by `assertInvariants()` in conformance tests.
    ```
 3. Generate fixtures on first run:
    ```bash
-   UPDATE_FIXTURES=1 deno test -A packages/@jim/spandex/test/implementations/newimpl/
+   UPDATE_FIXTURES=1 deno test -A packages/@jim/spandex/test/index/newimpl/
    # Or for existing implementations:
    UPDATE_FIXTURES=1 deno task test:morton
    UPDATE_FIXTURES=1 deno task test:rstartree
@@ -268,7 +269,7 @@ Validated by `assertInvariants()` in conformance tests.
    ```bash
    deno task bench:analyze 5 docs/analyses/benchmark-statistics.md  # Final stats (~30 min)
    ```
-6. Benchmarks auto-discover from `packages/@jim/spandex/src/implementations/`
+6. Benchmarks auto-discover from `packages/@jim/spandex/src/index/`
 
 See docs/IMPLEMENTATION-LIFECYCLE.md for details.
 
@@ -286,8 +287,8 @@ deno task bench:analyze 5 docs/analyses/benchmark-statistics.md  # (~30 min)
 
 This moves files, fixes imports, and verifies type-checking. Manual archiving:
 
-1. Move `packages/@jim/spandex/src/implementations/X.ts` → `archive/src/implementations/<category>/X.ts`
-2. Move `packages/@jim/spandex/test/implementations/X/` → `archive/test/X/`
+1. Move `packages/@jim/spandex/src/index/X.ts` → `archive/src/implementations/<category>/X.ts`
+2. Move `packages/@jim/spandex/test/index/X/` → `archive/test/X/`
 3. Add header comment explaining why archived
 4. Run `deno task bench:update` to regenerate BENCHMARKS.md
 5. Update archive README if needed
@@ -322,7 +323,7 @@ Benchmarks automatically exclude archived implementations (based on filesystem l
 **Full workflow**:
 
 1. **Start experiment**: Create `docs/active/experiments/[name]-experiment.md` with hypothesis
-2. **Implement**: Create `packages/@jim/spandex/src/implementations/[name].ts` + test files in `packages/@jim/spandex/test/implementations/[name]/` + add to benchmarks
+2. **Implement**: Create `packages/@jim/spandex/src/index/[name].ts` + test files in `packages/@jim/spandex/test/index/[name]/` + add to benchmarks
 3. **Iterate with quick benchmarks**:
    ```bash
    deno task bench:update  # Quick feedback during development (~2 min)
@@ -410,7 +411,7 @@ deno task bench:analyze 5 docs/analyses/benchmark-statistics.md  # Updates stats
 **Document process, not state**:
 
 - ❌ **BAD**: List all current implementations by name in structural docs
-- ✅ **GOOD**: Describe algorithm families and optimization strategies, point to `packages/@jim/spandex/src/implementations/`
+- ✅ **GOOD**: Describe algorithm families and optimization strategies, point to `packages/@jim/spandex/src/index/`
 - ❌ **BAD**: "MortonLinearScanImpl is the production implementation"
 - ✅ **GOOD**: "Spatial locality optimization is the production approach"
 
@@ -424,9 +425,9 @@ deno task bench:analyze 5 docs/analyses/benchmark-statistics.md  # Updates stats
 - ❌ **Structural docs** (README, summaries) - Use generic terms in prescriptive sections
 - ❌ **Decision tables** - Use algorithm approaches, not class names
 
-**Why this matters**: When implementations are added/removed/renamed, only `packages/@jim/spandex/src/implementations/` and generated files need updating. Documentation stays valid without edits.
+**Why this matters**: When implementations are added/removed/renamed, only `packages/@jim/spandex/src/index/` and generated files need updating. Documentation stays valid without edits.
 
-**Source of truth**: `packages/@jim/spandex/src/implementations/` directory = current active implementations
+**Source of truth**: `packages/@jim/spandex/src/index/` directory = current active implementations
 
 **After archiving implementations**: Run `deno task bench:update` to regenerate BENCHMARKS.md
 
@@ -549,7 +550,7 @@ See docs/analyses/benchmark-statistics.md for full methodology.
 **Imports**:
 
 ```typescript
-✅ import { MortonLinearScanImpl } from '@jim/spandex';
+✅ import createMortonLinearScanIndex from '@jim/spandex/index/mortonlinearscan';
 ✅ import HybridRTree from '../archive/src/implementations/failed-experiments/hybridrtree.ts';
 ```
 
@@ -619,11 +620,12 @@ The algorithm runs in O(n) time complexity, which means...
 ```markdown
 ✅ Good:
 // Concrete, runnable
-const index = new MortonLinearScanImpl<string>();
+import createMortonLinearScanIndex from '@jim/spandex/index/mortonlinearscan';
+const index = createMortonLinearScanIndex<string>();
 
 ❌ Bad:
 // Abstract, theoretical
-const index = new SomeImplementation<T>();
+const index = createSomeIndex<T>();
 ```
 
 ### Information Density
@@ -842,21 +844,21 @@ See archive/README.md for full archive philosophy and management.
 
 ### Common Scenarios
 
-| Task                        | Commands                                                                                                                                                                                        |
-| --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Add new implementation**  | 1. Create `packages/@jim/spandex/src/implementations/name.ts` + test dir `packages/@jim/spandex/test/implementations/name/`<br>2. `deno task test && deno task bench:update && deno task check` |
-| **Run experiment**          | 1. Create `docs/active/experiments/name-experiment.md`<br>2. Implement + test<br>3. `deno task bench:analyze 5 docs/active/experiments/name-results.md`<br>4. Resolve and clean `docs/active/`  |
-| **Archive implementation**  | `deno task archive:impl <name> <superseded\|failed-experiments>`                                                                                                                                |
-| **Compare vs archived**     | `deno task bench:archived`                                                                                                                                                                      |
-| **Focus on specific impls** | `deno task bench -- --exclude=X --exclude=Y`                                                                                                                                                    |
-| **Validate adversarial**    | `deno task test:adversarial`                                                                                                                                                                    |
-| **Statistical analysis**    | `deno task bench:analyze 5 output.md`                                                                                                                                                           |
+| Task                        | Commands                                                                                                                                                                                       |
+| --------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Add new implementation**  | 1. Create `packages/@jim/spandex/src/index/name.ts` + test dir `packages/@jim/spandex/test/index/name/`<br>2. `deno task test && deno task bench:update && deno task check`                    |
+| **Run experiment**          | 1. Create `docs/active/experiments/name-experiment.md`<br>2. Implement + test<br>3. `deno task bench:analyze 5 docs/active/experiments/name-results.md`<br>4. Resolve and clean `docs/active/` |
+| **Archive implementation**  | `deno task archive:impl <name> <superseded\|failed-experiments>`                                                                                                                               |
+| **Compare vs archived**     | `deno task bench:archived`                                                                                                                                                                     |
+| **Focus on specific impls** | `deno task bench -- --exclude=X --exclude=Y`                                                                                                                                                   |
+| **Validate adversarial**    | `deno task test:adversarial`                                                                                                                                                                   |
+| **Statistical analysis**    | `deno task bench:analyze 5 output.md`                                                                                                                                                          |
 
 ### Directory Structure
 
 ```
 packages/@jim/spandex/
-├── src/implementations/  # Active implementations (auto-discovered by benchmarks)
+├── src/index/            # Active implementations (auto-discovered by benchmarks)
 └── test/                 # Active tests (all passing)
 packages/@local/
 ├── snapmark/             # Snapshot testing framework
@@ -907,7 +909,7 @@ benchmarks/               # Benchmark suites (performance.ts)
 **Trigger patterns**:
 
 - Archived/unarchived implementation → `deno task sync-docs`
-- Modified `packages/@jim/spandex/src/implementations/*.ts` → `deno task sync-docs`
+- Modified `packages/@jim/spandex/src/index/*.ts` → `deno task sync-docs`
 - Added/removed test axioms in `packages/@local/spandex-testing/src/axiom/` → `deno task sync-docs`
 - Changed active implementation count → `deno task sync-docs`
 

@@ -1,100 +1,124 @@
 # Spatial Indexing Research
 
-> 2D range decomposition algorithms for spreadsheet systems
+> Fast 2D spatial indexing with last-writer-wins semantics
 
 [![Deno](https://img.shields.io/badge/deno-2.x+-green.svg)](https://deno.land/)
 [![Tests](https://img.shields.io/badge/tests-passing-brightgreen.svg)](#testing)
 [![TypeScript](https://img.shields.io/badge/typescript-5.0+-blue.svg)](https://www.typescriptlang.org/)
 
-## Problem
+## What is this?
 
-Maintain a spatial partition of 2D rectangles with last-writer-wins (LWW) conflict resolution. Given a sequence of insertions `(R_i, v_i)`, maintain a set of disjoint rectangles where each point maps to the value from its most recent covering rectangle.
+**Monorepo** for 2D spatial indexing with last-writer-wins semantics. Insert overlapping rectangles, library decomposes them into disjoint fragments (≤4 per overlap).
 
-**Formal definition**: After inserting `(R, v)`, decompose existing rectangles `R_i ∩ R` into `R_i \ R` (at most 4 fragments per overlap), then store `(R, v)`.
+**Performance**: O(n) for sparse (< 100), O(log n) for large (≥ 100). Validated across 35 scenarios.
 
-**Constraint**: All stored rectangles must be pairwise disjoint (`∀ i≠j: R_i ∩ R_j = ∅`).
+**Use cases**: Spreadsheet properties, GIS overlays, game collision, database indexing.
 
-## Coordinate Semantics
-
-**Core library**: Closed intervals `[min, max]` where both endpoints are included.
-
-- Rectangle: `[x_min, y_min, x_max, y_max]` represents `{(x,y) : x_min ≤ x ≤ x_max, y_min ≤ y ≤ y_max}`
-- Simplifies geometric operations (intersection, subtraction require no ±1 adjustments)
-
-**Adapter layer**: Half-open intervals `[start, end)` where end is excluded.
-
-- Matches Google Sheets API and standard library conventions
-- Conversion at boundaries: `[start, end)` ⟷ `[start, end-1]`
-
-See [coordinate-system.md](./docs/diagrams/coordinate-system.md) for detailed semantics.
-
-## Algorithms
-
-Two complexity classes (implementations in `packages/@jim/spandex/src/implementations/`):
-
-**O(n) Linear Scan**: Flat array storage with spatial locality optimization via space-filling curves (Morton Z-order). Constant-time encoding, cache-friendly iteration. Dominates for n < 100.
-
-**O(log n) R-tree**: Hierarchical bounding volume hierarchy with R* split algorithm (Beckmann et al. 1990). Query pruning via spatial indexing. Dominates for n ≥ 100.
-
-**Crossover analysis**: See `docs/analyses/transition-zone-analysis.md` for empirical validation of n=100 threshold.
-
-## Usage
+## Quick Start
 
 ```typescript
-import { MortonLinearScanImpl } from '@jim/spandex';
+import createMortonLinearScanIndex from '@jim/spandex/index/mortonlinearscan';
 
-const index = new MortonLinearScanImpl<string>();
-index.insert([0, 0, 4, 4], 'A'); // Rectangle [x_min, y_min, x_max, y_max]
-index.insert([2, 2, 6, 6], 'B'); // Overlapping insert
+const index = createMortonLinearScanIndex<string>();
+index.insert([0, 0, 4, 4], 'region-A'); // Insert rectangle [0,0] to [4,4]
+index.insert([2, 2, 6, 6], 'region-B'); // Overlapping rectangle (LWW: B wins in overlap)
 
-// Query returns disjoint fragments
+// Query returns non-overlapping fragments
 for (const [rect, value] of index.query()) {
 	console.log(rect, value);
 }
-// Output: [0,0,4,1],'A'  [0,2,1,4],'A'  [2,2,6,6],'B'
+// region-A fragments: [0,0,4,1], [0,2,1,4]
+// region-B covers: [2,2,6,6]
 ```
 
-**Adapter for external formats**:
+## Packages
+
+| Package                    | Purpose                             |
+| -------------------------- | ----------------------------------- |
+| `@jim/spandex`             | Core algorithms & types             |
+| `@jim/spandex-ascii`       | ASCII visualization (terminal)      |
+| `@jim/spandex-html`        | HTML visualization (browser)        |
+| `@local/snapmark`          | Snapshot testing (general-purpose)  |
+| `@local/spandex-testing`   | Conformance axioms & test scenarios |
+| `@local/spandex-telemetry` | Optional production metrics         |
+
+See each package's README for details.
+
+## Algorithm Selection
+
+| Rectangles | Use                           | Why             |
+| ---------- | ----------------------------- | --------------- |
+| < 100      | `createMortonLinearScanIndex` | Fastest O(n)    |
+| ≥ 100      | `createRStarTreeIndex`        | Scales O(log n) |
+
+See [PRODUCTION-GUIDE.md](./PRODUCTION-GUIDE.md) for decision tree.
+
+## Adapters
+
+Core uses `Rectangle = [xmin, ymin, xmax, ymax]`. Adapters convert external formats:
 
 ```typescript
-import { createGridRangeAdapter } from '@jim/spandex';
+// Google Sheets GridRange (half-open intervals)
+import { createGridRangeAdapter } from '@jim/spandex/adapter/gridrange';
+createGridRangeAdapter(index).insert({ startRowIndex: 0, endRowIndex: 5, ... }, value);
 
-const adapted = createGridRangeAdapter(index);
-adapted.insert({ startRowIndex: 0, endRowIndex: 5, ... }, value);
+// A1 notation ("A1:C3", "B:B")
+import { createA1Adapter } from '@jim/spandex/adapter/a1';
+createA1Adapter(index).insert('A1:C3', value);
+
+// ASCII visualization (terminal)
+import { createRenderer } from '@jim/spandex-ascii';
+console.log(createRenderer().render(index, { legend }));
+
+// HTML visualization (browser)
+import { createRenderer as createHTMLRenderer } from '@jim/spandex-html';
+const html = createHTMLRenderer().render(index, { legend, showCoordinates: true });
 ```
+
+### Implementation-Specific Methods
+
+**Core interface** (`SpatialIndex<T>`): `insert()`, `query()`, `extent()`
+
+**Diagnostic methods** (implementation-specific):
+
+```typescript
+// Morton and R-tree implementations
+import createMortonLinearScanIndex from '@jim/spandex/index/mortonlinearscan';
+import createRStarTreeIndex from '@jim/spandex/index/rstartree';
+
+const morton = createMortonLinearScanIndex<string>();
+const rtree = createRStarTreeIndex<string>();
+
+morton.size(); // Count of stored rectangles (O(1))
+rtree.size(); // Count of stored rectangles (O(1))
+rtree.getTreeQualityMetrics(); // { depth, overlapArea, deadSpace, nodeCount }
+
+// Partitioned index
+import createLazyPartitionedIndex from '@jim/spandex/index/lazypartitionedindex';
+
+const partitioned = createLazyPartitionedIndex<{ color: string; bold: boolean }>(
+	createMortonLinearScanIndex,
+);
+
+partitioned.keys(); // Iterator of partition keys
+partitioned.sizeOf('color'); // Count for specific partition
+partitioned.isEmpty; // True if no partitions (getter)
+partitioned.clear(); // Remove all partitions
+```
+
+**Why not on base interface?** Implementation details. Use concrete types when needed.
 
 ## Installation
 
-**Prerequisites**: Deno 2.x+ (TypeScript-native runtime with built-in testing)
-
 ```bash
-# Clone repository
-git clone <repository-url>
-cd spatial-indexing-research
+# Deno
+import createMortonLinearScanIndex from 'jsr:@jim/spandex@0.1/index/mortonlinearscan';
 
-# Run tests (verifies everything works)
-deno task test           # All tests passing
-deno task bench          # Performance benchmarks
-deno task bench:update   # Regenerate BENCHMARKS.md
-
-# Or import directly from URL (Deno only)
-import { MortonLinearScanImpl } from 'https://raw.githubusercontent.com/...';
+# Node.js
+npx jsr add @jim/spandex @jim/spandex-ascii @jim/spandex-html
 ```
 
-**Note**: Core library uses generic `Rectangle` type `[xmin, ymin, xmax, ymax]`. For Google Sheets `GridRange` compatibility, use `createGridRangeAdapter()` from `src/adapters/gridrange.ts`.
-
-## Development
-
-```bash
-deno task test               # All tests
-deno task test:adversarial   # Adversarial worst-case tests
-deno task bench              # Run benchmarks (~2 min)
-deno task bench:update       # Regenerate BENCHMARKS.md (~2 min)
-deno task bench:analyze 5 docs/analyses/benchmark-statistics.md  # Statistical analysis (~30 min)
-deno task fmt                # Format
-deno task lint               # Lint
-deno task check              # Type check
-```
+Development: See [docs/active/README.md](./docs/active/README.md) and [CLAUDE.md](./CLAUDE.md).
 
 ## Documentation
 
@@ -116,25 +140,72 @@ deno task check              # Type check
 
 ## Architecture
 
+This monorepo separates concerns into independent packages:
+
+**`@jim/spandex`** - Core spatial indexing library:
+
 ```
-packages/@jim/spandex/               # Core spatial indexing library
-├── src/
-│   ├── implementations/             # Active production algorithms
-│   ├── adapters/                    # External API adapters (GridRange, A1)
-│   └── types, utilities
-└── test/                            # Implementation tests
+src/
+├── index/          # Active production algorithms (Morton, R*-tree, LazyPartitioned)
+├── adapter/        # External format adapters (GridRange, A1 notation)
+├── render/         # Backend-agnostic render framework (strategy, layout)
+├── types.ts        # Core types (SpatialIndex, Rectangle, EdgeFlags)
+└── r.ts, extent.ts # Rectangle utilities, MBR computation
+```
 
-packages/@local/spandex-testing/     # Testing framework
-├── src/
-│   ├── axiom/                       # Conformance test axioms
-│   └── ascii/                       # Visual debugging utilities
-└── test/
+**`@jim/spandex-ascii`** - ASCII visualization backend:
 
-packages/@local/spandex-telemetry/   # Production metrics (opt-in)
+```
+src/
+├── backend.ts      # Implements RenderBackend for ASCII output
+├── parse.ts        # ASCII → rectangles parser (testing, round-trip validation)
+└── box-drawing.ts, coordinates.ts, sparse.ts  # ASCII grid utilities
+```
 
-archive/                             # Historical research
-├── src/implementations/             # Archived algorithms
-└── docs/experiments/                # Experiment analyses
+**`@jim/spandex-html`** - HTML table visualization backend:
+
+```
+src/
+├── backend.ts      # Implements RenderBackend for HTML tables
+├── types.ts        # HTML-specific render params (colors, gradients, tooltips)
+└── mod.ts          # Renderer factory
+```
+
+**`@local/snapmark`** - General-purpose snapshot testing:
+
+```
+src/
+├── codec.ts        # Pluggable encode/decode (JSON, binary, string, image)
+├── group.ts        # Test fixture grouping and auto-inference
+└── disk.ts, markdown.ts  # Markdown storage with fenced code blocks
+```
+
+_(Independent library - no spandex dependency. Happens to live in this monorepo.)_
+
+**`@local/spandex-testing`** - Spatial index conformance testing:
+
+```
+src/
+├── axiom/          # Mathematical invariants (disjointness, LWW, fragmentation bounds)
+├── regression-scenarios.ts  # Shared test scenarios for render backends
+└── utils.ts        # Seeded random, test data generation
+```
+
+**`@local/spandex-telemetry`** - Production metrics (opt-in):
+
+```
+src/
+├── collector.ts    # Metrics collection (insert/query timing, size tracking)
+└── types.ts        # Telemetry event types
+```
+
+**Research & Development**:
+
+```
+docs/               # Research documentation and analysis
+archive/            # Archived implementations and rejected experiments
+benchmarks/         # Performance measurement suites
+scripts/            # Automation (benchmarking, archiving, doc generation)
 ```
 
 ## Testing
@@ -156,10 +227,26 @@ Crossover at n≈100 validated across multiple workloads. See [BENCHMARKS.md](./
 
 ## Applications
 
-Spreadsheet property tracking (formatting, validation), GIS overlay analysis, game collision detection, database spatial indexing. Any domain requiring LWW conflict resolution over 2D regions.
+| Domain       | Use Case                                    |
+| ------------ | ------------------------------------------- |
+| Spreadsheets | Cell formatting across overlapping ranges   |
+| GIS          | Land parcels, zoning, administrative bounds |
+| Games        | Collision detection, area-of-effect         |
+| Databases    | 2D spatial queries (time + category, etc)   |
 
-## Research Process
+## Technical Details
 
-This project maintains production implementations in `packages/@jim/spandex/src/implementations/` and archives historical experiments in `archive/` for reproducibility.
+### Coordinate Semantics
 
-See `archive/` for completed experiments and `BENCHMARKS.md` for current implementation performance.
+**Closed intervals**: `[xmin, ymin, xmax, ymax]` includes all endpoints (simplifies geometry, no ±1).
+
+**Adapters**: Convert external formats (e.g., GridRange half-open `[start, end)`).
+
+See [coordinate-system.md](./docs/diagrams/coordinate-system.md).
+
+### Algorithms
+
+- **Morton Linear Scan** (O(n)): Spatial locality via Z-order. Wins n<100.
+- __R_-tree_* (O(log n)): Hierarchical with R* split (Beckmann 1990). Wins n≥100.
+
+See [docs/analyses/](./docs/analyses/) for empirical validation and [archive/](./archive/) for experiment history.

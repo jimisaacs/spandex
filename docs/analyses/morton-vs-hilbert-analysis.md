@@ -212,8 +212,8 @@ Estimated time per insert at n=50:
 
 **Archived**: `hilbertlinearscan.ts` (removed from repo, preserved in git history - see `archive/IMPLEMENTATION-HISTORY.md` for SHA)
 
-**Added**: `packages/@jim/spandex/src/implementations/mortonlinearscan.ts` (production)
-**Added**: `packages/@jim/spandex/test/implementations/mortonlinearscan/` (property, geometry, visual tests)
+**Added**: `packages/@jim/spandex/src/index/mortonlinearscan.ts` (production)
+**Added**: `packages/@jim/spandex/test/index/mortonlinearscan/` (property, geometry, visual tests)
 
 ### Documentation Updates
 
@@ -302,7 +302,7 @@ Current state is optimal for target use case (n<100 spreadsheet properties).
 
 **Benchmarks**: `archive/benchmarks/morton-vs-hilbert.ts` (head-to-head comparison)
 
-**Implementation**: `packages/@jim/spandex/src/implementations/mortonlinearscan.ts`
+**Implementation**: `packages/@jim/spandex/src/index/mortonlinearscan.ts`
 
 **Historical context**: `docs/analyses/hilbert-curve-analysis.md`
 

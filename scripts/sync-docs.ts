@@ -16,8 +16,11 @@
  */
 
 async function exec(cmd: string[]): Promise<{ success: boolean; output: string }> {
+	if (cmd.length === 0) {
+		throw new Error('Command array cannot be empty');
+	}
 	try {
-		const process = new Deno.Command(cmd[0], {
+		const process = new Deno.Command(cmd[0]!, {
 			args: cmd.slice(1),
 			stdout: 'piped',
 			stderr: 'piped',
@@ -48,7 +51,7 @@ async function main() {
 
 	// Check if implementations changed (including archived)
 	const implsChanged = changed.some((f) =>
-		(f.startsWith('packages/@jim/spandex/src/implementations/') || f.startsWith('archive/src/implementations/')) &&
+		(f.startsWith('packages/@jim/spandex/src/index/') || f.startsWith('archive/src/implementations/')) &&
 		f.endsWith('.ts')
 	);
 

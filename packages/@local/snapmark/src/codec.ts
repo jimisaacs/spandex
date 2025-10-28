@@ -198,12 +198,13 @@ export function binaryCodec(): FixtureCodec<Uint8Array> {
  * ```
  */
 export function base64Adapter<T>(innerCodec: FixtureCodec<T>): FixtureCodec<T> {
-	return {
+	const codec: FixtureCodec<T> = {
 		encode: (value: T) => btoa(innerCodec.encode(value)),
-		decode: innerCodec.decode ? (text: string) => innerCodec.decode!(atob(text.trim())) : undefined,
 		compare: defaultCompare,
 		languageTag: 'base64',
 	};
+	if (innerCodec.decode) codec.decode = (text: string) => innerCodec.decode!(atob(text.trim())) as T;
+	return codec;
 }
 
 /**
@@ -225,21 +226,22 @@ export function base64Adapter<T>(innerCodec: FixtureCodec<T>): FixtureCodec<T> {
  * ```
  */
 export function dataUriAdapter<T>(innerCodec: FixtureCodec<T>, mimeType: string): FixtureCodec<T> {
-	return {
+	const codec: FixtureCodec<T> = {
 		encode: (value: T) => {
 			const encoded = innerCodec.encode(value);
 			return `![Image](data:${mimeType};base64,${encoded})`;
 		},
-		decode: innerCodec.decode
-			? (text: string) => {
-				const match = text.match(/data:[^;]+;base64,([^)]+)/);
-				if (!match) throw new Error('Invalid data URI in fixture');
-				return innerCodec.decode!(match[1]);
-			}
-			: undefined,
 		compare: defaultCompare,
 		// No languageTag = raw markdown (so images display!)
 	};
+	if (innerCodec.decode) {
+		codec.decode = (text: string) => {
+			const match = text.match(/data:[^;]+;base64,([^)]+)/);
+			if (!match) throw new Error('Invalid data URI in fixture');
+			return innerCodec.decode!(match[1]!);
+		};
+	}
+	return codec;
 }
 
 /**
