@@ -43,70 +43,70 @@ export type Progression<T> = {
 export function createRegressionScenarios() {
 	return {
 		originInclusion: () => {
-			const index1 = createMortonLinearScanIndex<string>();
+			const index1 = createMortonLinearScanIndex<'DATA'>();
 			index1.insert([5, 7, 6, 7], 'DATA');
 
-			const index2 = createMortonLinearScanIndex<string>();
+			const index2 = createMortonLinearScanIndex<'DATA'>();
 			index2.insert([5, 7, 6, 7], 'DATA');
 
-			const index3 = createMortonLinearScanIndex<string>();
+			const index3 = createMortonLinearScanIndex<'DATA'>();
 			index3.insert([-5, -3, -2, -1], 'DATA');
 
 			return { index1, index2, index3 };
 		},
 
 		infinityEdges: () => {
-			const top = createMortonLinearScanIndex<string>();
+			const top = createMortonLinearScanIndex<'TOP'>();
 			top.insert([0, r.negInf, 0, 0], 'TOP');
 
-			const right = createMortonLinearScanIndex<string>();
+			const right = createMortonLinearScanIndex<'RIGHT'>();
 			right.insert([0, 0, r.posInf, 0], 'RIGHT');
 
-			const bottom = createMortonLinearScanIndex<string>();
+			const bottom = createMortonLinearScanIndex<'BOTTOM'>();
 			bottom.insert([0, 0, 0, r.posInf], 'BOTTOM');
 
-			const left = createMortonLinearScanIndex<string>();
+			const left = createMortonLinearScanIndex<'LEFT'>();
 			left.insert([r.negInf, 0, 0, 0], 'LEFT');
 
 			return { top, right, bottom, left };
 		},
 
 		infinityCorners: () => {
-			const topLeft = createMortonLinearScanIndex<string>();
+			const topLeft = createMortonLinearScanIndex<'TOP-LEFT'>();
 			topLeft.insert([r.negInf, r.negInf, 2, 2], 'TOP-LEFT');
 
-			const topRight = createMortonLinearScanIndex<string>();
+			const topRight = createMortonLinearScanIndex<'TOP-RIGHT'>();
 			topRight.insert([0, r.negInf, r.posInf, 2], 'TOP-RIGHT');
 
-			const bottomLeft = createMortonLinearScanIndex<string>();
+			const bottomLeft = createMortonLinearScanIndex<'BOTTOM-LEFT'>();
 			bottomLeft.insert([r.negInf, 0, 2, r.posInf], 'BOTTOM-LEFT');
 
-			const bottomRight = createMortonLinearScanIndex<string>();
+			const bottomRight = createMortonLinearScanIndex<'BOTTOM-RIGHT'>();
 			bottomRight.insert([0, 0, r.posInf, r.posInf], 'BOTTOM-RIGHT');
 
 			return { topLeft, topRight, bottomLeft, bottomRight };
 		},
 
 		infinityBands: () => {
-			const horizontal = createMortonLinearScanIndex<string>();
+			const horizontal = createMortonLinearScanIndex<'HBAND'>();
 			horizontal.insert([r.negInf, r.negInf, r.posInf, 2], 'HBAND');
 
-			const vertical = createMortonLinearScanIndex<string>();
+			const vertical = createMortonLinearScanIndex<'VBAND'>();
 			vertical.insert([r.negInf, r.negInf, 2, r.posInf], 'VBAND');
 
 			return { horizontal, vertical };
 		},
 
 		dataDensity: () => {
-			const singleCell = createMortonLinearScanIndex<string>();
+			const singleCell = createMortonLinearScanIndex<'X'>();
 			singleCell.insert([1, 1, 1, 1], 'X');
 
-			const sparse = createMortonLinearScanIndex<string>();
+			const sparse = createMortonLinearScanIndex<'A' | 'B' | 'C'>();
 			sparse.insert([0, 0, 0, 0], 'A');
 			sparse.insert([3, 3, 3, 3], 'B');
 			sparse.insert([6, 6, 6, 6], 'C');
 
-			const dense = createMortonLinearScanIndex<string>();
+			const dense = createMortonLinearScanIndex<'D'>();
 			for (let x = 0; x < 4; x++) {
 				for (let y = 0; y < 4; y++) {
 					dense.insert([x, y, x, y], 'D');
@@ -117,20 +117,20 @@ export function createRegressionScenarios() {
 		},
 
 		allInfinity: () => {
-			const viewport = createMortonLinearScanIndex<string>();
+			const viewport = createMortonLinearScanIndex<'EVERYWHERE'>();
 			viewport.insert(r.ALL, 'EVERYWHERE');
 
-			const absolute = createMortonLinearScanIndex<string>();
+			const absolute = createMortonLinearScanIndex<'EVERYWHERE'>();
 			absolute.insert(r.ALL, 'EVERYWHERE');
 
 			return { viewport, absolute };
 		},
 
 		independentStates: () => {
-			const index1 = createMortonLinearScanIndex<string>();
+			const index1 = createMortonLinearScanIndex<'RED'>();
 			index1.insert([0, 0, 1, 0], 'RED');
 
-			const index2 = createMortonLinearScanIndex<string>();
+			const index2 = createMortonLinearScanIndex<'BLUE'>();
 			index2.insert([0, 0, 1, 0], 'BLUE');
 
 			return { index1, index2 };
@@ -162,7 +162,7 @@ export function createRegressionScenarios() {
 
 			/** Cross formation showing LWW decomposition with infinity edges */
 			crossFormation: (): Progression<SpatialIndex<string>> => ({
-				factory: () => createMortonLinearScanIndex<string>(),
+				factory: () => createMortonLinearScanIndex<'H' | 'V'>(),
 				steps: [
 					{ name: 'Empty', action: () => {} },
 					{ name: 'Add Horizontal', action: (idx) => idx.insert([r.negInf, 1, r.posInf, 1], 'H') },
@@ -172,7 +172,7 @@ export function createRegressionScenarios() {
 
 			/** Global fill with local overrides */
 			globalOverride: (): Progression<SpatialIndex<string>> => ({
-				factory: () => createMortonLinearScanIndex<string>(),
+				factory: () => createMortonLinearScanIndex<'GLOBAL' | 'LOCAL+' | 'LOCAL-'>(),
 				steps: [
 					{ name: 'Global Fill', action: (idx) => idx.insert(r.ALL, 'GLOBAL') },
 					{ name: 'Positive Local Wins', action: (idx) => idx.insert([2, 2, 2, 2], 'LOCAL+') },
@@ -181,8 +181,8 @@ export function createRegressionScenarios() {
 			}),
 
 			/** Progressive overlap showing fragment decomposition */
-			overlapDecomposition: (): Progression<SpatialIndex<'A' | 'B' | 'C'>> => ({
-				factory: () => createMortonLinearScanIndex<'A' | 'B' | 'C'>(),
+			overlapDecomposition: (): Progression<SpatialIndex<'A' | 'B' | 'C' | 'D'>> => ({
+				factory: () => createMortonLinearScanIndex<'A' | 'B' | 'C' | 'D'>(),
 				steps: [
 					{ name: 'Shape A', action: (idx) => idx.insert([0, 0, 2, 2], 'A') },
 					{ name: 'Add B (decomposes A)', action: (idx) => idx.insert([1, 1, 3, 3], 'B') },

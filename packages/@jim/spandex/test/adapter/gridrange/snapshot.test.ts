@@ -36,7 +36,7 @@ Deno.test('GridRange Snapshot Tests', async (t) => {
 		const [bounds] = Array.from(adapter.query())[0]!;
 		assertEquals(bounds, [1, 1, 1, 1], 'Half-open [1,2)×[1,2) → closed [1,1,1,1]');
 
-		const legend = { C: 'CELL' };
+		const legend = { C: 'CELL' } as const;
 		const actual = render(adapter, { legend });
 		assertMatch(actual, { name: 'Single Cell Precision' });
 		validateRoundTrip(actual, 1, { legend });
@@ -84,7 +84,7 @@ Deno.test('GridRange Snapshot Tests', async (t) => {
 			'OVERLAP2',
 		);
 
-		const legend = { '1': 'BASE', '2': 'OVERLAP1', '3': 'OVERLAP2' };
+		const legend = { '1': 'BASE', '2': 'OVERLAP1', '3': 'OVERLAP2' } as const;
 		const actual = render(adapter, { legend });
 		assertMatch(actual, { name: 'Complex Fragmentation' });
 		validateRoundTrip(actual, 1, { legend });
@@ -97,7 +97,7 @@ Deno.test('GridRange Snapshot Tests', async (t) => {
 			'WIDE',
 		);
 
-		const legend = { W: 'WIDE' };
+		const legend = { W: 'WIDE' } as const;
 		const actual = render(adapter, { legend });
 		assertMatch(actual, { name: 'Wide Column Range' });
 		validateRoundTrip(actual, 1, { legend });

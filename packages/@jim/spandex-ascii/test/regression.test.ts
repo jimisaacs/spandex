@@ -32,7 +32,7 @@ Deno.test('ASCII Regression Scenarios', async (t) => {
 
 	await t.step('Overlap Decomposition (fragments)', async () => {
 		const { factory, steps } = scenarios.progressions.overlapDecomposition();
-		const legend = { 'A': 'A', 'B': 'B', 'C': 'C' };
+		const legend = { 'A': 'A', 'B': 'B', 'C': 'C' } as const;
 
 		const result = renderProgression(
 			factory,
@@ -46,7 +46,7 @@ Deno.test('ASCII Regression Scenarios', async (t) => {
 
 	await t.step('Cross Formation (LWW decomposition)', async () => {
 		const { factory, steps } = scenarios.progressions.crossFormation();
-		const legend = { 'H': 'H', 'V': 'V' };
+		const legend = { 'H': 'H', 'V': 'V' } as const;
 
 		const result = renderProgression(
 			factory,
@@ -60,7 +60,7 @@ Deno.test('ASCII Regression Scenarios', async (t) => {
 
 	await t.step('Data Density Variations', async () => {
 		const { singleCell, sparse, dense } = scenarios.dataDensity();
-		const legend = { 'X': 'X', 'A': 'A', 'B': 'B', 'C': 'C', 'D': 'D' };
+		const legend = { 'X': 'X', 'A': 'A', 'B': 'B', 'C': 'C', 'D': 'D' } as const;
 
 		const result = renderLayout(
 			[
@@ -87,7 +87,7 @@ Deno.test('ASCII Regression Scenarios', async (t) => {
 			'F': { fg: 'FORE' },
 			'X': { bg: 'BACK', fg: 'FORE' },
 			'D': { bg: 'DARK', fg: 'FORE' },
-		};
+		} as const;
 
 		const result = renderProgression(
 			factory,
@@ -102,7 +102,7 @@ Deno.test('ASCII Regression Scenarios', async (t) => {
 	await t.step('Partitioned Index - Attribute override', async () => {
 		type CellData = { color: string };
 		const { factory, steps } = scenarios.progressions.partitionedOverride<CellData>();
-		const legend = { 'R': { color: 'RED' }, 'B': { color: 'BLUE' } };
+		const legend = { 'R': { color: 'RED' }, 'B': { color: 'BLUE' } } as const;
 
 		const result = renderProgression(
 			factory,
@@ -134,7 +134,7 @@ Deno.test('ASCII Regression Scenarios', async (t) => {
 
 	await t.step('Origin Inclusion Modes', async () => {
 		const { index1, index2, index3 } = scenarios.originInclusion();
-		const legend = { 'D': 'DATA' };
+		const legend = { 'D': 'DATA' } as const;
 
 		const result = renderLayout(
 			[
@@ -164,7 +164,7 @@ Deno.test('ASCII Regression Scenarios', async (t) => {
 
 	await t.step('Infinity Edges (all directions)', async () => {
 		const { top, right, bottom, left } = scenarios.infinityEdges();
-		const legend = { 'T': 'TOP', 'R': 'RIGHT', 'B': 'BOTTOM', 'L': 'LEFT' };
+		const legend = { 'T': 'TOP', 'R': 'RIGHT', 'B': 'BOTTOM', 'L': 'LEFT' } as const;
 
 		const result = renderLayout(
 			[
@@ -182,7 +182,7 @@ Deno.test('ASCII Regression Scenarios', async (t) => {
 
 	await t.step('Infinity Corners', async () => {
 		const { topLeft, topRight, bottomLeft, bottomRight } = scenarios.infinityCorners();
-		const legend = { '1': 'TOP-LEFT', '2': 'TOP-RIGHT', '3': 'BOTTOM-LEFT', '4': 'BOTTOM-RIGHT' };
+		const legend = { '1': 'TOP-LEFT', '2': 'TOP-RIGHT', '3': 'BOTTOM-LEFT', '4': 'BOTTOM-RIGHT' } as const;
 
 		const result = renderLayout(
 			[
@@ -200,7 +200,7 @@ Deno.test('ASCII Regression Scenarios', async (t) => {
 
 	await t.step('Infinity Bands (3 edges)', async () => {
 		const { horizontal, vertical } = scenarios.infinityBands();
-		const legend = { 'H': 'HBAND', 'V': 'VBAND' };
+		const legend = { 'H': 'HBAND', 'V': 'VBAND' } as const;
 
 		const result = renderLayout(
 			[
@@ -232,7 +232,7 @@ Deno.test('ASCII Regression Scenarios', async (t) => {
 
 	await t.step('All Infinity (no finite data)', async () => {
 		const { viewport, absolute } = scenarios.allInfinity();
-		const legend = { '∞': 'EVERYWHERE' };
+		const legend = { '∞': 'EVERYWHERE' } as const;
 
 		const result = renderLayout(
 			[
@@ -252,7 +252,7 @@ Deno.test('ASCII Regression Scenarios', async (t) => {
 
 	await t.step('Two-state progression', async () => {
 		const { factory, steps } = scenarios.progressions.twoState();
-		const legend = { 'H': 'HORIZONTAL', 'V': 'VERTICAL' };
+		const legend = { 'H': 'HORIZONTAL', 'V': 'VERTICAL' } as const;
 
 		const result = renderProgression(
 			factory,
@@ -266,7 +266,7 @@ Deno.test('ASCII Regression Scenarios', async (t) => {
 
 	await t.step('Three-state progression with empty state', async () => {
 		const { factory, steps } = scenarios.progressions.threeState();
-		const legend = { 'H': 'HORIZONTAL', 'V': 'VERTICAL' };
+		const legend = { 'H': 'HORIZONTAL', 'V': 'VERTICAL' } as const;
 
 		const result = renderProgression(
 			factory,
@@ -280,7 +280,7 @@ Deno.test('ASCII Regression Scenarios', async (t) => {
 
 	await t.step('Custom spacing between grids', async () => {
 		const { factory, steps } = scenarios.progressions.customSpacing();
-		const legend = { 'X': 'X', 'Y': 'Y' };
+		const legend = { 'X': 'X', 'Y': 'Y' } as const;
 
 		const result = renderProgression(
 			factory,
@@ -294,7 +294,7 @@ Deno.test('ASCII Regression Scenarios', async (t) => {
 
 	await t.step('Independent states (non-cumulative)', async () => {
 		const { index1, index2 } = scenarios.independentStates();
-		const legend = { 'R': 'RED', 'B': 'BLUE' };
+		const legend = { 'R': 'RED', 'B': 'BLUE' } as const;
 
 		const result = renderLayout(
 			[

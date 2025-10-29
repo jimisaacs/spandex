@@ -58,7 +58,7 @@ Deno.test('HTML Regression Scenarios', async (t) => {
 	await t.step('Overlap Decomposition (fragments)', async () => {
 		const { factory, steps } = scenarios.progressions
 			.overlapDecomposition();
-		const legend = toHTMLLegend({ 'A': 'A', 'B': 'B', 'C': 'C' });
+		const legend = toHTMLLegend({ 'A': 'A', 'B': 'B', 'C': 'C' } as const);
 
 		const result = renderProgression(
 			factory,
@@ -73,7 +73,7 @@ Deno.test('HTML Regression Scenarios', async (t) => {
 
 	await t.step('Cross Formation (LWW decomposition)', async () => {
 		const { factory, steps } = scenarios.progressions.crossFormation();
-		const legend = toHTMLLegend({ 'H': 'H', 'V': 'V' });
+		const legend = toHTMLLegend({ 'H': 'H', 'V': 'V' } as const);
 
 		const result = renderProgression(
 			factory,
@@ -88,13 +88,15 @@ Deno.test('HTML Regression Scenarios', async (t) => {
 
 	await t.step('Data Density Variations', async () => {
 		const { singleCell, sparse, dense } = scenarios.dataDensity();
-		const legend = toHTMLLegend({
-			'X': 'X',
-			'A': 'A',
-			'B': 'B',
-			'C': 'C',
-			'D': 'D',
-		});
+		const legend = toHTMLLegend(
+			{
+				'X': 'X',
+				'A': 'A',
+				'B': 'B',
+				'C': 'C',
+				'D': 'D',
+			} as const,
+		);
 
 		const result = renderLayout(
 			[
@@ -179,7 +181,7 @@ Deno.test('HTML Regression Scenarios', async (t) => {
 
 	await t.step('Origin Inclusion Modes', async () => {
 		const { index1, index2, index3 } = scenarios.originInclusion();
-		const legend = toHTMLLegend({ D: 'DATA' });
+		const legend = toHTMLLegend({ D: 'DATA' } as const);
 
 		const noOrigin = renderLayout(
 			[
@@ -205,12 +207,14 @@ Deno.test('HTML Regression Scenarios', async (t) => {
 
 	await t.step('Infinity Edges (all directions)', async () => {
 		const { top, right, bottom, left } = scenarios.infinityEdges();
-		const legend = toHTMLLegend({
-			'T': 'TOP',
-			'R': 'RIGHT',
-			'B': 'BOTTOM',
-			'L': 'LEFT',
-		});
+		const legend = toHTMLLegend(
+			{
+				'T': 'TOP',
+				'R': 'RIGHT',
+				'B': 'BOTTOM',
+				'L': 'LEFT',
+			} as const,
+		);
 
 		const result = renderLayout(
 			[
@@ -228,12 +232,14 @@ Deno.test('HTML Regression Scenarios', async (t) => {
 	await t.step('Infinity Corners', async () => {
 		const { topLeft, topRight, bottomLeft, bottomRight } = scenarios
 			.infinityCorners();
-		const legend = toHTMLLegend({
-			'1': 'TOP-LEFT',
-			'2': 'TOP-RIGHT',
-			'3': 'BOTTOM-LEFT',
-			'4': 'BOTTOM-RIGHT',
-		});
+		const legend = toHTMLLegend(
+			{
+				'1': 'TOP-LEFT',
+				'2': 'TOP-RIGHT',
+				'3': 'BOTTOM-LEFT',
+				'4': 'BOTTOM-RIGHT',
+			} as const,
+		);
 
 		const result = renderLayout(
 			[
@@ -250,7 +256,7 @@ Deno.test('HTML Regression Scenarios', async (t) => {
 
 	await t.step('Infinity Bands (3 edges)', async () => {
 		const { horizontal, vertical } = scenarios.infinityBands();
-		const legend = toHTMLLegend({ 'H': 'HBAND', 'V': 'VBAND' });
+		const legend = toHTMLLegend({ 'H': 'HBAND', 'V': 'VBAND' } as const);
 
 		const result = renderLayout(
 			[
@@ -280,7 +286,7 @@ Deno.test('HTML Regression Scenarios', async (t) => {
 
 	await t.step('All Infinity (no finite data)', async () => {
 		const { viewport, absolute } = scenarios.allInfinity();
-		const legend = toHTMLLegend({ '∞': 'EVERYWHERE' });
+		const legend = toHTMLLegend({ '∞': 'EVERYWHERE' } as const);
 
 		const result = renderLayout(
 			[
@@ -305,7 +311,7 @@ Deno.test('HTML Regression Scenarios', async (t) => {
 
 	await t.step('Two-state progression', async () => {
 		const { factory, steps } = scenarios.progressions.twoState();
-		const legend = toHTMLLegend({ 'H': 'HORIZONTAL', 'V': 'VERTICAL' });
+		const legend = toHTMLLegend({ 'H': 'HORIZONTAL', 'V': 'VERTICAL' } as const);
 
 		const result = renderProgression(
 			factory,
@@ -318,7 +324,7 @@ Deno.test('HTML Regression Scenarios', async (t) => {
 
 	await t.step('Three-state progression with empty state', async () => {
 		const { factory, steps } = scenarios.progressions.threeState();
-		const legend = toHTMLLegend({ 'H': 'HORIZONTAL', 'V': 'VERTICAL' });
+		const legend = toHTMLLegend({ 'H': 'HORIZONTAL', 'V': 'VERTICAL' } as const);
 
 		const result = renderProgression(
 			factory,
@@ -333,7 +339,7 @@ Deno.test('HTML Regression Scenarios', async (t) => {
 
 	await t.step('Custom spacing between grids', async () => {
 		const { factory, steps } = scenarios.progressions.customSpacing();
-		const legend = toHTMLLegend({ 'X': 'X', 'Y': 'Y' });
+		const legend = toHTMLLegend({ 'X': 'X', 'Y': 'Y' } as const);
 
 		const result = renderProgression(
 			factory,
@@ -346,7 +352,7 @@ Deno.test('HTML Regression Scenarios', async (t) => {
 
 	await t.step('Independent states (non-cumulative)', async () => {
 		const { index1, index2 } = scenarios.independentStates();
-		const legend = toHTMLLegend({ 'R': 'RED', 'B': 'BLUE' });
+		const legend = toHTMLLegend({ 'R': 'RED', 'B': 'BLUE' } as const);
 
 		const result = renderLayout(
 			[

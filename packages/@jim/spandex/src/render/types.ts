@@ -85,6 +85,34 @@ export interface RenderBackend<
 	layoutContext<T>(params: LayoutParams): LayoutContext<T, Output, LayoutParams, PartialParams, IR>;
 }
 
+/**
+ * Extract value type T from a single layout item.
+ *
+ * Handles both `LayoutItem<T>` and inline `{ source: RenderSource<T>, params: ... }` objects.
+ */
+type ExtractItemValueType<Item> = Item extends LayoutItem<infer T, any> ? T
+	: Item extends { source: RenderSource<infer T> | RenderableIndex<infer T> } ? T
+	: never;
+
+/**
+ * Extract union of all value types from an array of layout items.
+ *
+ * Used to constrain `layoutParams` legend to accept union of all item value types.
+ *
+ * @example
+ * ```typescript
+ * type Items = [
+ *   LayoutItem<'A', Params>,
+ *   { source: RenderSource<'B'>, params: Params }
+ * ];
+ * type Union = LayoutItemsValueType<Items>; // 'A' | 'B'
+ * ```
+ */
+export type LayoutItemsValueType<Items extends readonly unknown[]> = Items extends readonly [infer Head, ...infer Tail]
+	? ExtractItemValueType<Head> | LayoutItemsValueType<Tail>
+	: Items[number] extends infer Item ? ExtractItemValueType<Item>
+	: never;
+
 /** Frontend API (render + layout + progression) */
 export interface Renderer<
 	Output,
@@ -96,7 +124,7 @@ export interface Renderer<
 	readonly render: <T>(source: RenderSource<T> | RenderableIndex<T>, renderParams: Params) => Output;
 	/** Render multiple items with individual params, compose into single output */
 	readonly renderLayout: <T>(
-		items: Array<
+		items: ReadonlyArray<
 			LayoutItem<T, PartialParams> | { source: RenderSource<T> | RenderableIndex<T>; params: PartialParams }
 		>,
 		layoutParams: LayoutParams,

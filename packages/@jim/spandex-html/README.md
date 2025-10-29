@@ -26,7 +26,7 @@ const adapter = createA1Adapter(index);
 adapter.insert('A1:C3', 'red');
 adapter.insert('B2:D4', 'blue');
 
-const { render } = createRenderer<'red' | 'blue'>();
+const { render } = createRenderer();
 const html = render(adapter, {
 	legend: {
 		red: { label: 'R', color: '#ff0000', value: 'red' },

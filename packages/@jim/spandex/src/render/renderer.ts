@@ -89,9 +89,15 @@ function render<T, Output, Params extends RenderParams>(
 	return context.render(applyStrategy(finalExtent.mbr, query, strategy), finalExtent, renderParams);
 }
 
-/** Render each item as partial IR, compose via layout */
+/**
+ * Render each item as partial IR, compose via layout.
+ *
+ * Type parameter `T` represents the union of all value types from all items.
+ * This is inferred by the wrapper interfaces (ASCIIRenderer, HTMLRenderer) using
+ * `LayoutItemsValueType<Items>` to compute the union and apply it to layoutParams.
+ */
 function renderLayout<T, Output, LayoutParams extends RenderParams, PartialParams extends RenderParams, IR>(
-	items: Array<
+	items: ReadonlyArray<
 		LayoutItem<T, PartialParams> | { source: RenderSource<T> | RenderableIndex<T>; params: PartialParams }
 	>,
 	context: LayoutContext<T, Output, LayoutParams, PartialParams, IR>,
