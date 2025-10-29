@@ -7,7 +7,7 @@ import { assertEquals, assertStringIncludes, assertThrows } from '@std/assert';
 
 Deno.test('Render - Grid Only Mode', () => {
 	const { render } = createRenderer();
-	const index = createMortonLinearScanIndex<string>();
+	const index = createMortonLinearScanIndex<'RED' | 'BLUE'>();
 	index.insert([0, 0, 1, 0], 'RED');
 	index.insert([2, 0, 2, 0], 'BLUE');
 
@@ -27,7 +27,7 @@ Deno.test('Render - Grid Only Mode', () => {
 Deno.test('Render - Grid Only Excludes infinity edge annotations', () => {
 	const { render } = createRenderer();
 
-	const index = createMortonLinearScanIndex<string>();
+	const index = createMortonLinearScanIndex<'HORIZONTAL'>();
 	index.insert([r.negInf, 0, r.posInf, 0], 'HORIZONTAL');
 
 	const gridOnly = render(index, { legend: { 'H': 'HORIZONTAL' }, gridOnly: true });
@@ -41,7 +41,7 @@ Deno.test('Render - Grid Only Excludes infinity edge annotations', () => {
 Deno.test('Render - Legend Validation: Unused Legend Keys Allowed', () => {
 	const { render } = createRenderer();
 
-	const index = createMortonLinearScanIndex<string>();
+	const index = createMortonLinearScanIndex<'RED' | 'BLUE'>();
 	index.insert([0, 0, 1, 0], 'RED');
 
 	// Should NOT throw (unused legend keys allowed by default)
@@ -60,7 +60,7 @@ Deno.test('Render - Legend Validation: Unused Legend Keys Allowed', () => {
 Deno.test('Render - Legend Validation: Missing Key Throws', () => {
 	const { render } = createRenderer();
 
-	const index = createMortonLinearScanIndex<string>();
+	const index = createMortonLinearScanIndex<'RED' | 'BLUE'>();
 	index.insert([0, 0, 1, 0], 'RED');
 	index.insert([2, 0, 2, 0], 'BLUE');
 
@@ -76,7 +76,7 @@ Deno.test('Render - Legend Validation: Missing Key Throws', () => {
 Deno.test('Render - Strict Mode: Unused Legend Keys Throw', () => {
 	const { render } = createRenderer();
 
-	const index = createMortonLinearScanIndex<string>();
+	const index = createMortonLinearScanIndex<'RED' | 'BLUE'>();
 	index.insert([0, 0, 1, 0], 'RED');
 
 	assertThrows(
@@ -94,7 +94,7 @@ Deno.test('Render - Strict Mode: Unused Legend Keys Throw', () => {
 Deno.test('Render - Strict Mode: All Used Passes', () => {
 	const { render } = createRenderer();
 
-	const index = createMortonLinearScanIndex<string>();
+	const index = createMortonLinearScanIndex<'RED' | 'BLUE'>();
 	index.insert([0, 0, 1, 0], 'RED');
 	index.insert([2, 0, 2, 0], 'BLUE');
 

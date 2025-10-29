@@ -20,13 +20,13 @@ import createMortonLinearScanIndex from '@jim/spandex/index/mortonlinearscan';
 import { createA1Adapter } from '@jim/spandex/adapter/a1';
 import { createRenderer } from '@jim/spandex-html';
 
-const index = createMortonLinearScanIndex<string>();
+const index = createMortonLinearScanIndex<'red' | 'blue'>();
 const adapter = createA1Adapter(index);
 
 adapter.insert('A1:C3', 'red');
 adapter.insert('B2:D4', 'blue');
 
-const { render } = createRenderer<string>();
+const { render } = createRenderer<'red' | 'blue'>();
 const html = render(index, {
 	legend: {
 		red: { label: 'R', color: '#ff0000', value: 'red' },
@@ -58,10 +58,10 @@ const html = render(index, { legend, gridOnly: true });
 Visualize how an index changes over time:
 
 ```typescript
-const { renderProgression } = createRenderer<string>();
+const { renderProgression } = createRenderer<'horizontal' | 'vertical'>();
 
 const html = renderProgression(
-	createMortonLinearScanIndex<string>,
+	createMortonLinearScanIndex<'horizontal' | 'vertical'>,
 	[
 		{ params: {}, action: (idx) => idx.insert([-Infinity, 1, Infinity, 1], 'horizontal') },
 		{ params: {}, action: (idx) => idx.insert([1, -Infinity, 1, Infinity], 'vertical') },

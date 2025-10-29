@@ -7,7 +7,7 @@ import { assertEquals } from '@std/assert';
  */
 
 Deno.test('MortonLinearScan - MAX_COORD boundary (65536)', () => {
-	const index = createMortonLinearScanIndex<string>();
+	const index = createMortonLinearScanIndex<'max' | 'exceeded' | 'after' | 'large1' | 'large2'>();
 
 	// Insert with coordinates at MAX_COORD (65535 - within range)
 	index.insert([65535, 65535, 65535, 65535], 'max');
@@ -59,7 +59,7 @@ Deno.test('RStarTree - Large coordinates', () => {
 });
 
 Deno.test('MortonLinearScan - Negative coordinates wrap', () => {
-	const index = createMortonLinearScanIndex<string>();
+	const index = createMortonLinearScanIndex<'negative'>();
 
 	// Negative coordinates also wrap via bitwise AND
 	// -1 & 0xFFFF = 65535
@@ -74,8 +74,8 @@ Deno.test('MortonLinearScan - Negative coordinates wrap', () => {
 });
 
 Deno.test('Degenerate rectangles - zero area', () => {
-	const mortonIndex = createMortonLinearScanIndex<string>();
-	const rtreeIndex = createRStarTreeIndex<string>();
+	const mortonIndex = createMortonLinearScanIndex<'point'>();
+	const rtreeIndex = createRStarTreeIndex<'point'>();
 
 	// Point rectangle (zero area)
 	mortonIndex.insert([5, 5, 5, 5], 'point');
@@ -91,8 +91,8 @@ Deno.test('Degenerate rectangles - zero area', () => {
 });
 
 Deno.test('Degenerate rectangles - 1-pixel wide', () => {
-	const mortonIndex = createMortonLinearScanIndex<string>();
-	const rtreeIndex = createRStarTreeIndex<string>();
+	const mortonIndex = createMortonLinearScanIndex<'vertical-line' | 'horizontal-line'>();
+	const rtreeIndex = createRStarTreeIndex<'vertical-line' | 'horizontal-line'>();
 
 	// 1-pixel wide horizontally
 	mortonIndex.insert([0, 0, 0, 10], 'vertical-line');
@@ -111,8 +111,8 @@ Deno.test('Degenerate rectangles - 1-pixel wide', () => {
 });
 
 Deno.test('Invalid rectangles - min > max', () => {
-	const mortonIndex = createMortonLinearScanIndex<string>();
-	const rtreeIndex = createRStarTreeIndex<string>();
+	const mortonIndex = createMortonLinearScanIndex<'backwards' | 'invalid'>();
+	const rtreeIndex = createRStarTreeIndex<'backwards' | 'invalid'>();
 
 	// Invalid: xmin > xmax, ymin > ymax
 	// Currently validated by r.validated() and throws an error

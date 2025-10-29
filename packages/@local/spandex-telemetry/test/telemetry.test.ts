@@ -6,7 +6,7 @@ import { assertEquals, assertExists } from '@std/assert';
 Deno.test('Telemetry', async (t) => {
 	await t.step('Disabled telemetry has no overhead', () => {
 		const telemetry = new TelemetryCollector({ enabled: false });
-		const index = createMortonLinearScanIndex<string>();
+		const index = createMortonLinearScanIndex<`val-${number}`>();
 		const wrapped = telemetry.wrap(index, 'test');
 
 		// Should return same index (no-op wrapper)
@@ -24,7 +24,7 @@ Deno.test('Telemetry', async (t) => {
 			},
 		});
 
-		const index = createMortonLinearScanIndex<string>();
+		const index = createMortonLinearScanIndex<'red' | 'blue' | 'green' | 'yellow'>();
 		const wrapped = telemetry.wrap(index, 'backgroundColor');
 
 		// Perform operations
@@ -52,15 +52,15 @@ Deno.test('Telemetry', async (t) => {
 			},
 		});
 
-		const index = createMortonLinearScanIndex<string>();
+		const index = createMortonLinearScanIndex<`val-${number}`>();
 		const wrapped = telemetry.wrap(index, 'test');
 
 		// Non-overlapping
-		wrapped.insert(r.make(0, 0, 4, 4), 'a');
-		wrapped.insert(r.make(0, 5, 4, 9), 'b');
+		wrapped.insert(r.make(0, 0, 4, 4), 'val-1');
+		wrapped.insert(r.make(0, 5, 4, 9), 'val-2');
 
 		// Overlapping
-		wrapped.insert(r.make(2, 2, 6, 6), 'c');
+		wrapped.insert(r.make(2, 2, 6, 6), 'val-3');
 
 		wrapped.query(); // Trigger (4 ops total)
 
@@ -80,15 +80,15 @@ Deno.test('Telemetry', async (t) => {
 			},
 		});
 
-		const index = createMortonLinearScanIndex<string>();
+		const index = createMortonLinearScanIndex<`val-${number}`>();
 		const wrapped = telemetry.wrap(index, 'test');
 
 		// Build up from n=1 to n=5
-		wrapped.insert(r.make(0, 0, 4, 4), 'a');
-		wrapped.insert(r.make(0, 5, 4, 9), 'b');
-		wrapped.insert(r.make(0, 10, 4, 14), 'c');
-		wrapped.insert(r.make(0, 15, 4, 19), 'd');
-		wrapped.insert(r.make(0, 20, 4, 24), 'e');
+		wrapped.insert(r.make(0, 0, 4, 4), 'val-1');
+		wrapped.insert(r.make(0, 5, 4, 9), 'val-2');
+		wrapped.insert(r.make(0, 10, 4, 14), 'val-3');
+		wrapped.insert(r.make(0, 15, 4, 19), 'val-4');
+		wrapped.insert(r.make(0, 20, 4, 24), 'val-5');
 
 		wrapped.query(); // Trigger (6 ops total)
 
@@ -108,11 +108,11 @@ Deno.test('Telemetry', async (t) => {
 			},
 		});
 
-		const index = createMortonLinearScanIndex<string>();
+		const index = createMortonLinearScanIndex<`val-${number}`>();
 		const wrapped = telemetry.wrap(index, 'test');
 
-		wrapped.insert(r.make(0, 0, 4, 4), 'a');
-		wrapped.insert(r.make(0, 5, 4, 9), 'b');
+		wrapped.insert(r.make(0, 0, 4, 4), 'val-1');
+		wrapped.insert(r.make(0, 5, 4, 9), 'val-2');
 
 		// Small viewport query
 		wrapped.query(r.make(0, 0, 1, 1));
@@ -137,12 +137,12 @@ Deno.test('Telemetry', async (t) => {
 			},
 		});
 
-		const index = createMortonLinearScanIndex<string>();
+		const index = createMortonLinearScanIndex<`val-${number}`>();
 		const wrapped = telemetry.wrap(index, 'test');
 
 		// Generate some operations
 		for (let i = 0; i < 10; i++) {
-			wrapped.insert(r.make(0, i * 5, 4, (i + 1) * 5 - 1), `value_${i}`);
+			wrapped.insert(r.make(0, i * 5, 4, (i + 1) * 5 - 1), `val-${i}`);
 		}
 
 		wrapped.query(); // Trigger
@@ -164,10 +164,10 @@ Deno.test('Telemetry', async (t) => {
 			},
 		});
 
-		const index = createMortonLinearScanIndex<string>();
+		const index = createMortonLinearScanIndex<`val-${number}`>();
 		const wrapped = telemetry.wrap(index, 'test');
 
-		wrapped.insert(r.make(0, 0, 4, 4), 'a');
+		wrapped.insert(r.make(0, 0, 4, 4), 'val-1');
 
 		// Force report before threshold
 		const snapshot = telemetry.forceReport('MortonLinearScanImpl', 'test');
@@ -188,10 +188,10 @@ Deno.test('Telemetry', async (t) => {
 			},
 		});
 
-		const index = createMortonLinearScanIndex<string>();
+		const index = createMortonLinearScanIndex<`val-${number}`>();
 		const wrapped = telemetry.wrap(index, 'test');
 
-		wrapped.insert(r.make(0, 0, 4, 4), 'a');
+		wrapped.insert(r.make(0, 0, 4, 4), 'val-1');
 		wrapped.query(); // Trigger (2 ops total)
 
 		assertExists(reported, 'telemetry should generate report');

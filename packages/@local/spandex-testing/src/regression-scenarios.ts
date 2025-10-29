@@ -181,8 +181,8 @@ export function createRegressionScenarios() {
 			}),
 
 			/** Progressive overlap showing fragment decomposition */
-			overlapDecomposition: (): Progression<SpatialIndex<string>> => ({
-				factory: () => createMortonLinearScanIndex<string>(),
+			overlapDecomposition: (): Progression<SpatialIndex<'A' | 'B' | 'C'>> => ({
+				factory: () => createMortonLinearScanIndex<'A' | 'B' | 'C'>(),
 				steps: [
 					{ name: 'Shape A', action: (idx) => idx.insert([0, 0, 2, 2], 'A') },
 					{ name: 'Add B (decomposes A)', action: (idx) => idx.insert([1, 1, 3, 3], 'B') },
@@ -191,14 +191,14 @@ export function createRegressionScenarios() {
 			}),
 
 			/** Empty index state */
-			empty: (): Progression<SpatialIndex<string>> => ({
-				factory: () => createMortonLinearScanIndex<string>(),
+			empty: (): Progression<SpatialIndex<never>> => ({
+				factory: () => createMortonLinearScanIndex<never>(),
 				steps: [{ name: 'Empty', action: () => {} }],
 			}),
 
 			/** Two-state progression */
-			twoState: (): Progression<SpatialIndex<string>> => ({
-				factory: () => createMortonLinearScanIndex<string>(),
+			twoState: (): Progression<SpatialIndex<'HORIZONTAL' | 'VERTICAL'>> => ({
+				factory: () => createMortonLinearScanIndex<'HORIZONTAL' | 'VERTICAL'>(),
 				steps: [
 					{ name: 'After H', action: (idx) => idx.insert([r.negInf, 1, r.posInf, 1], 'HORIZONTAL') },
 					{ name: 'After V', action: (idx) => idx.insert([1, r.negInf, 1, r.posInf], 'VERTICAL') },
@@ -206,8 +206,8 @@ export function createRegressionScenarios() {
 			}),
 
 			/** Three-state progression with empty initial state */
-			threeState: (): Progression<SpatialIndex<string>> => ({
-				factory: () => createMortonLinearScanIndex<string>(),
+			threeState: (): Progression<SpatialIndex<'HORIZONTAL' | 'VERTICAL'>> => ({
+				factory: () => createMortonLinearScanIndex<'HORIZONTAL' | 'VERTICAL'>(),
 				steps: [
 					{ name: 'Empty', action: () => {} },
 					{ name: 'After H', action: (idx) => idx.insert([r.negInf, 1, r.posInf, 1], 'HORIZONTAL') },
@@ -216,8 +216,8 @@ export function createRegressionScenarios() {
 			}),
 
 			/** Custom spacing between progression states */
-			customSpacing: (): Progression<SpatialIndex<string>> => ({
-				factory: () => createMortonLinearScanIndex<string>(),
+			customSpacing: (): Progression<SpatialIndex<'X' | 'Y'>> => ({
+				factory: () => createMortonLinearScanIndex<'X' | 'Y'>(),
 				steps: [
 					{ name: 'A', action: (idx) => idx.insert([0, 0, 0, 0], 'X') },
 					{ name: 'B', action: (idx) => idx.insert([1, 0, 1, 0], 'Y') },

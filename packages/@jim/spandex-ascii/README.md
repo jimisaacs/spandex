@@ -20,7 +20,7 @@ import createMortonLinearScanIndex from '@jim/spandex/index/mortonlinearscan';
 import { createA1Adapter } from '@jim/spandex/adapter/a1';
 import { createRenderer } from '@jim/spandex-ascii';
 
-const index = createMortonLinearScanIndex<string>();
+const index = createMortonLinearScanIndex<'red' | 'blue'>();
 const adapter = createA1Adapter(index);
 
 adapter.insert('A1:C3', 'red');
@@ -92,7 +92,7 @@ Visualize how an index changes over time:
 const { renderProgression } = createRenderer();
 
 const output = renderProgression(
-	createMortonLinearScanIndex<string>,
+	createMortonLinearScanIndex<'horizontal' | 'vertical'>,
 	[
 		{ params: {}, action: (idx) => idx.insert([-Infinity, 1, Infinity, 1], 'horizontal') },
 		{ params: {}, action: (idx) => idx.insert([1, -Infinity, 1, Infinity], 'vertical') },

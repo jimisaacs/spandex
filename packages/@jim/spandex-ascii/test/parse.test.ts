@@ -7,7 +7,7 @@ import { assertEquals, assertExists } from '@std/assert';
 Deno.test('Parse - Negative Coordinates', () => {
 	const { render } = createRenderer();
 
-	const index = createMortonLinearScanIndex<string>();
+	const index = createMortonLinearScanIndex<'NEG'>();
 	index.insert([-5, -3, -2, -1], 'NEG');
 
 	const ascii = render(index, { legend: { 'N': 'NEG' } });
@@ -48,13 +48,13 @@ Deno.test('Parse - Negative Coordinates', () => {
 Deno.test('Parse - Grid Names (multi-grid layout)', () => {
 	const { renderLayout } = createRenderer();
 
-	const index1 = createMortonLinearScanIndex<string>();
+	const index1 = createMortonLinearScanIndex<'A'>();
 	index1.insert([0, 0, 1, 0], 'A');
 
-	const index2 = createMortonLinearScanIndex<string>();
+	const index2 = createMortonLinearScanIndex<'B'>();
 	index2.insert([0, 0, 1, 0], 'B');
 
-	const index3 = createMortonLinearScanIndex<string>();
+	const index3 = createMortonLinearScanIndex<'C'>();
 	index3.insert([0, 0, 1, 0], 'C');
 
 	const ascii = renderLayout(
@@ -97,7 +97,7 @@ Deno.test('Parse - Grid Names (multi-grid layout)', () => {
 Deno.test('Parse - Single Grid Without Name', () => {
 	const { render } = createRenderer();
 
-	const index = createMortonLinearScanIndex<string>();
+	const index = createMortonLinearScanIndex<'DATA'>();
 	index.insert([0, 0, 1, 0], 'DATA');
 
 	const ascii = render(index, { legend: { 'D': 'DATA' } });

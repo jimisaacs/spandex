@@ -14,7 +14,7 @@ import { assertLess } from '@std/assert';
 
 Deno.test('Adversarial - All patterns', async (t) => {
 	await t.step('Concentric rectangles (maximize overlaps)', () => {
-		const index = createMortonLinearScanIndex<string>();
+		const index = createMortonLinearScanIndex<`rect-${number}`>();
 		const fragmentCounts: number[] = [];
 
 		// Pathological pattern: Each insert fully contains all previous
@@ -22,7 +22,7 @@ Deno.test('Adversarial - All patterns', async (t) => {
 		for (let i = 0; i < 50; i++) {
 			// Concentric rectangles shrinking inward: (0,0,99,99), (1,1,98,98), ..., (49,49,50,50)
 			const size = 99 - i; // Shrinking from outside-in, stops when size = i (valid range)
-			index.insert(r.make(i, i, size, size), `value${i}`);
+			index.insert(r.make(i, i, size, size), `rect-${i}`);
 
 			fragmentCounts.push(index.size());
 		}
@@ -42,12 +42,12 @@ Deno.test('Adversarial - All patterns', async (t) => {
 	});
 
 	await t.step('Diagonal sweep (maximize edge cases)', () => {
-		const index = createMortonLinearScanIndex<string>();
+		const index = createMortonLinearScanIndex<`val-${number}`>();
 		const fragmentCounts: number[] = [];
 
 		// Pattern: Diagonal sweep that partially overlaps many previous ranges
 		for (let i = 0; i < 100; i++) {
-			index.insert(r.make(i, i, i + 19, i + 19), `value${i}`);
+			index.insert(r.make(i, i, i + 19, i + 19), `val-${i}`);
 
 			fragmentCounts.push(index.size());
 		}
@@ -63,21 +63,21 @@ Deno.test('Adversarial - All patterns', async (t) => {
 	});
 
 	await t.step('Checkerboard (maximize decomposition)', () => {
-		const index = createMortonLinearScanIndex<string>();
+		const index = createMortonLinearScanIndex<`block-${number}` | `hole-${number}`>();
 		const random = seededRandom(42); // Deterministic seed
 
 		// Pattern: Insert large blocks, then small blocks that punch holes
 		// This creates maximum decomposition complexity
 		for (let i = 0; i < 10; i++) {
 			// Large block
-			index.insert(r.make(0, i * 20, 99, (i + 1) * 20 - 1), `block${i}`);
+			index.insert(r.make(0, i * 20, 99, (i + 1) * 20 - 1), `block-${i}`);
 		}
 
 		// Punch holes (small rectangles that decompose each large block)
 		for (let i = 0; i < 50; i++) {
 			const col = Math.floor(random() * 100);
 			const row = Math.floor(random() * 200);
-			index.insert(r.make(col, row, col + 2, row + 2), `hole${i}`);
+			index.insert(r.make(col, row, col + 2, row + 2), `hole-${i}`);
 		}
 
 		const finalCount = index.size();
@@ -96,7 +96,7 @@ Deno.test('Adversarial - All patterns', async (t) => {
 			const size = 100 - (i * 2); // Ensure size > 0
 			if (size <= i * 2) break;
 
-			index.insert(r.make(i, i, size - 1, size - 1), `value${i}`);
+			index.insert(r.make(i, i, size - 1, size - 1), `val-${i}`);
 
 			fragmentCounts.push(index.size());
 		}
@@ -119,13 +119,13 @@ Deno.test('Adversarial - All patterns', async (t) => {
 
 		// Measure fragmentation at different scales
 		for (let n = 10; n <= 100; n += 10) {
-			const testIndex = createMortonLinearScanIndex<string>();
+			const testIndex = createMortonLinearScanIndex<`val-${number}`>();
 
 			for (let i = 0; i < n; i++) {
 				// Ensure valid rectangles: xmax >= xmin, ymax >= ymin
 				// Start from large (200) and shrink, ensuring size always > i
 				const size = 200 - Math.floor((i / n) * 50);
-				testIndex.insert(r.make(i, i, size - 1, size - 1), `v${i}`);
+				testIndex.insert(r.make(i, i, size - 1, size - 1), `val-${i}`);
 			}
 
 			const ranges = testIndex.size();
@@ -145,7 +145,7 @@ Deno.test('Adversarial - All patterns', async (t) => {
 	});
 
 	await t.step('Stress test with random overlaps', () => {
-		const index = createMortonLinearScanIndex<string>();
+		const index = createMortonLinearScanIndex<`rand-${number}`>();
 		const random = seededRandom(123); // Deterministic seed
 
 		// Random insertion pattern (realistic worst-case)
@@ -155,7 +155,7 @@ Deno.test('Adversarial - All patterns', async (t) => {
 			const height = 5 + Math.floor(random() * 20);
 			const width = 5 + Math.floor(random() * 20);
 
-			index.insert(r.make(xmin, ymin, xmin + width - 1, ymin + height - 1), `random${i}`);
+			index.insert(r.make(xmin, ymin, xmin + width - 1, ymin + height - 1), `rand-${i}`);
 		}
 
 		const finalCount = index.size();

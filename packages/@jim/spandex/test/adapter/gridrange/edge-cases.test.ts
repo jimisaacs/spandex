@@ -17,7 +17,7 @@ import { assertEquals } from '@std/assert';
 
 Deno.test('GridRange Edge Cases', async (t) => {
 	await t.step('Partial Unbounded (start only)', () => {
-		const adapter = createGridRangeAdapter(createMortonLinearScanIndex<string>());
+		const adapter = createGridRangeAdapter(createMortonLinearScanIndex<'PARTIAL'>());
 		adapter.insert({ startRowIndex: 1, endRowIndex: 3, startColumnIndex: 2 }, 'PARTIAL');
 
 		const [bounds] = Array.from(adapter.query())[0]!;
@@ -28,7 +28,7 @@ Deno.test('GridRange Edge Cases', async (t) => {
 	});
 
 	await t.step('Partial Unbounded (end only)', () => {
-		const adapter = createGridRangeAdapter(createMortonLinearScanIndex<string>());
+		const adapter = createGridRangeAdapter(createMortonLinearScanIndex<'PARTIAL'>());
 		adapter.insert({ startRowIndex: 1, endRowIndex: 3, endColumnIndex: 3 }, 'PARTIAL');
 
 		const [bounds] = Array.from(adapter.query())[0]!;

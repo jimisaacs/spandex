@@ -5,7 +5,7 @@ import { assertEquals, assertStringIncludes, assertThrows } from '@std/assert';
 import { createRenderer } from '../src/mod.ts';
 
 Deno.test('HTML renderer - custom cell size', () => {
-	const index = createMortonLinearScanIndex<string>();
+	const index = createMortonLinearScanIndex<'test'>();
 	index.insert([0, 0, 0, 0], 'test');
 
 	const { render } = createRenderer();
@@ -20,7 +20,7 @@ Deno.test('HTML renderer - custom cell size', () => {
 });
 
 Deno.test('HTML renderer - no coordinates', () => {
-	const index = createMortonLinearScanIndex<string>();
+	const index = createMortonLinearScanIndex<'test'>();
 	index.insert([0, 0, 0, 0], 'test');
 
 	const { render } = createRenderer();
@@ -33,10 +33,10 @@ Deno.test('HTML renderer - no coordinates', () => {
 });
 
 Deno.test('HTML renderer - layout horizontal', () => {
-	const index1 = createMortonLinearScanIndex<string>();
+	const index1 = createMortonLinearScanIndex<'red'>();
 	index1.insert([0, 0, 0, 0], 'red');
 
-	const index2 = createMortonLinearScanIndex<string>();
+	const index2 = createMortonLinearScanIndex<'blue'>();
 	index2.insert([0, 0, 0, 0], 'blue');
 
 	const { renderLayout } = createRenderer();
@@ -58,7 +58,7 @@ Deno.test('HTML renderer - layout horizontal', () => {
 });
 
 Deno.test('HTML renderer - HTML escaping', () => {
-	const index = createMortonLinearScanIndex<string>();
+	const index = createMortonLinearScanIndex<'<script>alert("xss")</script>'>();
 	index.insert([0, 0, 0, 0], '<script>alert("xss")</script>');
 
 	const { render } = createRenderer();
@@ -74,7 +74,7 @@ Deno.test('HTML renderer - HTML escaping', () => {
 Deno.test('HTML renderer - Legend validation: Unused keys allowed by default', () => {
 	const { render } = createRenderer();
 
-	const index = createMortonLinearScanIndex<string>();
+	const index = createMortonLinearScanIndex<'red' | 'blue'>();
 	index.insert([0, 0, 1, 0], 'red');
 
 	// Should NOT throw (unused legend keys allowed by default)
@@ -92,7 +92,7 @@ Deno.test('HTML renderer - Legend validation: Unused keys allowed by default', (
 Deno.test('HTML renderer - Legend validation: Missing key throws', () => {
 	const { render } = createRenderer();
 
-	const index = createMortonLinearScanIndex<string>();
+	const index = createMortonLinearScanIndex<'red' | 'blue'>();
 	index.insert([0, 0, 1, 0], 'red');
 	index.insert([2, 0, 2, 0], 'blue');
 
@@ -108,7 +108,7 @@ Deno.test('HTML renderer - Legend validation: Missing key throws', () => {
 Deno.test('HTML renderer - Strict mode: Unused keys throw', () => {
 	const { render } = createRenderer();
 
-	const index = createMortonLinearScanIndex<string>();
+	const index = createMortonLinearScanIndex<'red' | 'blue'>();
 	index.insert([0, 0, 1, 0], 'red');
 
 	assertThrows(
@@ -129,7 +129,7 @@ Deno.test('HTML renderer - Strict mode: Unused keys throw', () => {
 Deno.test('HTML renderer - Strict mode: All used passes', () => {
 	const { render } = createRenderer();
 
-	const index = createMortonLinearScanIndex<string>();
+	const index = createMortonLinearScanIndex<'red' | 'blue'>();
 	index.insert([0, 0, 1, 0], 'red');
 	index.insert([2, 0, 2, 0], 'blue');
 

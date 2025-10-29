@@ -22,7 +22,7 @@ Deno.test('A1 Snapshot Tests', async (t) => {
 
 	// #region Bounded Ranges
 	await t.step('Single Cell Precision', () => {
-		const adapter = createA1Adapter(createMortonLinearScanIndex<string>());
+		const adapter = createA1Adapter(createMortonLinearScanIndex<'CELL'>());
 		adapter.insert('B2', 'CELL');
 
 		const [bounds] = Array.from(adapter.query())[0]!;
@@ -35,7 +35,7 @@ Deno.test('A1 Snapshot Tests', async (t) => {
 	});
 
 	await t.step('Boundary Touching Ranges', () => {
-		const adapter = createA1Adapter(createMortonLinearScanIndex<string>());
+		const adapter = createA1Adapter(createMortonLinearScanIndex<'quad-1' | 'quad-2' | 'quad-3' | 'quad-4'>());
 
 		// Four 2×2 quadrants
 		adapter.insert('A1:B2', 'quad-1');
@@ -58,7 +58,7 @@ Deno.test('A1 Snapshot Tests', async (t) => {
 	});
 
 	await t.step('Complex Fragmentation', () => {
-		const adapter = createA1Adapter(createMortonLinearScanIndex<string>());
+		const adapter = createA1Adapter(createMortonLinearScanIndex<'BASE' | 'OVERLAP1' | 'OVERLAP2'>());
 
 		// Three overlapping ranges → automatic decomposition
 		adapter.insert('A1:E3', 'BASE');
@@ -72,7 +72,7 @@ Deno.test('A1 Snapshot Tests', async (t) => {
 	});
 
 	await t.step('Wide Column Range', () => {
-		const adapter = createA1Adapter(createMortonLinearScanIndex<string>());
+		const adapter = createA1Adapter(createMortonLinearScanIndex<'WIDE'>());
 		adapter.insert('C1:F8', 'WIDE');
 
 		const legend = { W: 'WIDE' };
@@ -84,7 +84,7 @@ Deno.test('A1 Snapshot Tests', async (t) => {
 
 	// #region Infinite Extents
 	await t.step('Full Column Extent', () => {
-		const adapter = createA1Adapter(createMortonLinearScanIndex<string>());
+		const adapter = createA1Adapter(createMortonLinearScanIndex<'COL_B' | 'COL_DE'>());
 
 		// "B:B" = column B, all rows → infinite row extent
 		adapter.insert('B:B', 'COL_B');
@@ -95,7 +95,7 @@ Deno.test('A1 Snapshot Tests', async (t) => {
 	});
 
 	await t.step('Full Row Extent', () => {
-		const adapter = createA1Adapter(createMortonLinearScanIndex<string>());
+		const adapter = createA1Adapter(createMortonLinearScanIndex<'ROW_2' | 'ROW_45'>());
 
 		// "2:2" = row 2, all columns → infinite column extent
 		adapter.insert('2:2', 'ROW_2');
@@ -106,7 +106,7 @@ Deno.test('A1 Snapshot Tests', async (t) => {
 	});
 
 	await t.step('Unbounded Columns', () => {
-		const adapter = createA1Adapter(createMortonLinearScanIndex<string>());
+		const adapter = createA1Adapter(createMortonLinearScanIndex<'UNBOUND_COLS'>());
 		adapter.insert('3:5', 'UNBOUND_COLS');
 
 		const [bounds] = Array.from(adapter.query())[0]!;
@@ -120,7 +120,7 @@ Deno.test('A1 Snapshot Tests', async (t) => {
 	});
 
 	await t.step('Unbounded Rows', () => {
-		const adapter = createA1Adapter(createMortonLinearScanIndex<string>());
+		const adapter = createA1Adapter(createMortonLinearScanIndex<'UNBOUND_ROWS'>());
 		adapter.insert('B:D', 'UNBOUND_ROWS');
 
 		const [bounds] = Array.from(adapter.query())[0]!;
@@ -134,7 +134,7 @@ Deno.test('A1 Snapshot Tests', async (t) => {
 	});
 
 	await t.step('Unbounded Cross Pattern', () => {
-		const adapter = createA1Adapter(createMortonLinearScanIndex<string>());
+		const adapter = createA1Adapter(createMortonLinearScanIndex<'COL' | 'ROW'>());
 
 		adapter.insert('C:C', 'COL'); // Full column C
 		adapter.insert('3:3', 'ROW'); // Full row 3 (wins at intersection)

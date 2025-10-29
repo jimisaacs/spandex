@@ -21,7 +21,7 @@ import createMortonLinearScanIndex from '@jim/spandex/index/mortonlinearscan';
 import { createA1Adapter } from '@jim/spandex/adapter/a1';
 import { createRenderer } from '@jim/spandex-ascii';
 
-const index = createMortonLinearScanIndex<string>();
+const index = createMortonLinearScanIndex<'red' | 'blue'>();
 const adapter = createA1Adapter(index);
 
 // Insert first region (A1:C3 in spreadsheet notation)

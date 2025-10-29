@@ -13,7 +13,7 @@ import { assertEquals } from '@std/assert';
 Deno.test('A1 Edge Cases', async (t) => {
 	await t.step('Column Z Boundary', () => {
 		// Test the last single-letter column
-		const adapter = createA1Adapter(createMortonLinearScanIndex<string>());
+		const adapter = createA1Adapter(createMortonLinearScanIndex<'z_col' | 'yz_range'>());
 
 		adapter.insert('Z1', 'z_col');
 		const [zBounds] = Array.from(adapter.query('Z1'))[0]!;
@@ -27,7 +27,7 @@ Deno.test('A1 Edge Cases', async (t) => {
 	});
 
 	await t.step('Single Cell as Range', () => {
-		const adapter = createA1Adapter(createMortonLinearScanIndex<string>());
+		const adapter = createA1Adapter(createMortonLinearScanIndex<'single'>());
 
 		// "B2:B2" should equal "B2"
 		adapter.insert('B2:B2', 'single');
@@ -36,7 +36,7 @@ Deno.test('A1 Edge Cases', async (t) => {
 	});
 
 	await t.step('Single Row Strip', () => {
-		const adapter = createA1Adapter(createMortonLinearScanIndex<string>());
+		const adapter = createA1Adapter(createMortonLinearScanIndex<'strip'>());
 
 		// Horizontal strip: row 3 from columns A to F
 		adapter.insert('A3:F3', 'strip');
@@ -48,7 +48,7 @@ Deno.test('A1 Edge Cases', async (t) => {
 	});
 
 	await t.step('Single Column Strip', () => {
-		const adapter = createA1Adapter(createMortonLinearScanIndex<string>());
+		const adapter = createA1Adapter(createMortonLinearScanIndex<'strip'>());
 
 		// Vertical strip: column B from rows 1 to 10
 		adapter.insert('B1:B10', 'strip');
@@ -60,7 +60,7 @@ Deno.test('A1 Edge Cases', async (t) => {
 	});
 
 	await t.step('Large Row Numbers', () => {
-		const adapter = createA1Adapter(createMortonLinearScanIndex<string>());
+		const adapter = createA1Adapter(createMortonLinearScanIndex<'large'>());
 
 		// Google Sheets supports up to row 1048576, but we should handle large numbers
 		adapter.insert('A1000:B2000', 'large');
@@ -70,7 +70,7 @@ Deno.test('A1 Edge Cases', async (t) => {
 	});
 
 	await t.step('Range Normalization', () => {
-		const adapter = createA1Adapter(createMortonLinearScanIndex<string>());
+		const adapter = createA1Adapter(createMortonLinearScanIndex<'normal'>());
 
 		// Verify the adapter handles ranges correctly regardless of order
 		adapter.insert('A1:C3', 'normal');
@@ -82,7 +82,7 @@ Deno.test('A1 Edge Cases', async (t) => {
 	});
 
 	await t.step('Mixed Column and Row Ranges', () => {
-		const adapter = createA1Adapter(createMortonLinearScanIndex<string>());
+		const adapter = createA1Adapter(createMortonLinearScanIndex<'rect' | 'cell' | 'col'>());
 
 		// Test that adapter handles all range types correctly
 		// Note: Don't mix infinite extents in same test as they always intersect
@@ -108,7 +108,7 @@ Deno.test('A1 Edge Cases', async (t) => {
 	});
 
 	await t.step('Query with A1 Range', () => {
-		const adapter = createA1Adapter(createMortonLinearScanIndex<string>());
+		const adapter = createA1Adapter(createMortonLinearScanIndex<'top_left' | 'bottom_right' | 'middle'>());
 
 		// Insert multiple ranges
 		adapter.insert('A1:C3', 'top_left');
@@ -126,7 +126,7 @@ Deno.test('A1 Edge Cases', async (t) => {
 	});
 
 	await t.step('Round-trip Conversion', () => {
-		const adapter = createA1Adapter(createMortonLinearScanIndex<string>());
+		const adapter = createA1Adapter(createMortonLinearScanIndex<'single' | 'rect' | 'vert'>());
 
 		adapter.insert('A1', 'single');
 		adapter.insert('B2:D4', 'rect');

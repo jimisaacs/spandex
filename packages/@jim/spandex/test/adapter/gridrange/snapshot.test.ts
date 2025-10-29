@@ -27,7 +27,7 @@ Deno.test('GridRange Snapshot Tests', async (t) => {
 
 	//#region Bounded Ranges
 	await t.step('Single Cell Precision', () => {
-		const adapter = createGridRangeAdapter(createMortonLinearScanIndex<string>());
+		const adapter = createGridRangeAdapter(createMortonLinearScanIndex<'CELL'>());
 		adapter.insert(
 			{ startRowIndex: 1, endRowIndex: 2, startColumnIndex: 1, endColumnIndex: 2 },
 			'CELL',
@@ -43,7 +43,9 @@ Deno.test('GridRange Snapshot Tests', async (t) => {
 	});
 
 	await t.step('Boundary Touching Ranges', () => {
-		const adapter = createGridRangeAdapter(createMortonLinearScanIndex<string>());
+		const adapter = createGridRangeAdapter(
+			createMortonLinearScanIndex<'quad-1' | 'quad-2' | 'quad-3' | 'quad-4'>(),
+		);
 
 		// Four 2×2 quadrants using half-open intervals
 		adapter.insert({ startRowIndex: 0, endRowIndex: 2, startColumnIndex: 0, endColumnIndex: 2 }, 'quad-1');
@@ -66,7 +68,7 @@ Deno.test('GridRange Snapshot Tests', async (t) => {
 	});
 
 	await t.step('Complex Fragmentation', () => {
-		const adapter = createGridRangeAdapter(createMortonLinearScanIndex<string>());
+		const adapter = createGridRangeAdapter(createMortonLinearScanIndex<'BASE' | 'OVERLAP1' | 'OVERLAP2'>());
 
 		// Three overlapping ranges → automatic decomposition
 		adapter.insert(
@@ -89,7 +91,7 @@ Deno.test('GridRange Snapshot Tests', async (t) => {
 	});
 
 	await t.step('Wide Column Range', () => {
-		const adapter = createGridRangeAdapter(createMortonLinearScanIndex<string>());
+		const adapter = createGridRangeAdapter(createMortonLinearScanIndex<'WIDE'>());
 		adapter.insert(
 			{ startRowIndex: 0, endRowIndex: 8, startColumnIndex: 2, endColumnIndex: 6 },
 			'WIDE',
@@ -104,7 +106,7 @@ Deno.test('GridRange Snapshot Tests', async (t) => {
 
 	//#region Infinite Extents
 	await t.step('Full Column Extent', () => {
-		const adapter = createGridRangeAdapter(createMortonLinearScanIndex<string>());
+		const adapter = createGridRangeAdapter(createMortonLinearScanIndex<'COL_B' | 'COL_DE'>());
 
 		// Omit row indices → infinite row extent
 		adapter.insert({ startColumnIndex: 1, endColumnIndex: 2 }, 'COL_B');
@@ -115,7 +117,7 @@ Deno.test('GridRange Snapshot Tests', async (t) => {
 	});
 
 	await t.step('Full Row Extent', () => {
-		const adapter = createGridRangeAdapter(createMortonLinearScanIndex<string>());
+		const adapter = createGridRangeAdapter(createMortonLinearScanIndex<'ROW_2' | 'ROW_45'>());
 
 		// Omit column indices → infinite column extent
 		adapter.insert({ startRowIndex: 1, endRowIndex: 2 }, 'ROW_2');
@@ -126,7 +128,7 @@ Deno.test('GridRange Snapshot Tests', async (t) => {
 	});
 
 	await t.step('Unbounded Columns', () => {
-		const adapter = createGridRangeAdapter(createMortonLinearScanIndex<string>());
+		const adapter = createGridRangeAdapter(createMortonLinearScanIndex<'UNBOUND_COLS'>());
 		adapter.insert({ startRowIndex: 2, endRowIndex: 5 }, 'UNBOUND_COLS');
 
 		const [bounds] = Array.from(adapter.query())[0]!;
@@ -140,7 +142,7 @@ Deno.test('GridRange Snapshot Tests', async (t) => {
 	});
 
 	await t.step('Unbounded Rows', () => {
-		const adapter = createGridRangeAdapter(createMortonLinearScanIndex<string>());
+		const adapter = createGridRangeAdapter(createMortonLinearScanIndex<'UNBOUND_ROWS'>());
 		adapter.insert({ startColumnIndex: 1, endColumnIndex: 4 }, 'UNBOUND_ROWS');
 
 		const [bounds] = Array.from(adapter.query())[0]!;
@@ -154,7 +156,7 @@ Deno.test('GridRange Snapshot Tests', async (t) => {
 	});
 
 	await t.step('Unbounded Cross Pattern', () => {
-		const adapter = createGridRangeAdapter(createMortonLinearScanIndex<string>());
+		const adapter = createGridRangeAdapter(createMortonLinearScanIndex<'COL' | 'ROW'>());
 
 		adapter.insert({ startColumnIndex: 2, endColumnIndex: 3 }, 'COL'); // Full column 2
 		adapter.insert({ startRowIndex: 2, endRowIndex: 3 }, 'ROW'); // Full row 2 (wins at intersection)
@@ -180,7 +182,7 @@ Deno.test('GridRange Snapshot Tests', async (t) => {
 	//#endregion Infinite Extents
 
 	await t.step('Completely Unbounded', () => {
-		const adapter = createGridRangeAdapter(createMortonLinearScanIndex<string>());
+		const adapter = createGridRangeAdapter(createMortonLinearScanIndex<'EVERYWHERE'>());
 		adapter.insert({}, 'EVERYWHERE');
 
 		const [bounds] = Array.from(adapter.query())[0]!;

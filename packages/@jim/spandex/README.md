@@ -33,7 +33,7 @@ import createMortonLinearScanIndex from '@jim/spandex/index/mortonlinearscan';
 import createMortonLinearScanIndex from '@jim/spandex/index/mortonlinearscan';
 import { createA1Adapter } from '@jim/spandex/adapter/a1';
 
-const index = createMortonLinearScanIndex<string>();
+const index = createMortonLinearScanIndex<'red' | 'blue'>();
 const adapter = createA1Adapter(index);
 
 // Insert regions using A1 notation (spreadsheet style)
@@ -64,13 +64,13 @@ import createRStarTreeIndex from '@jim/spandex/index/rstartree';
 import createLazyPartitionedIndex from '@jim/spandex/index/lazypartitionedindex';
 
 // Sparse data (< 100 rectangles)
-const sparse = createMortonLinearScanIndex<string>();
+const sparse = createMortonLinearScanIndex<'red' | 'blue' | 'green'>();
 
 // Large datasets (≥ 100 rectangles)
-const large = createRStarTreeIndex<string>();
+const large = createRStarTreeIndex<'header' | 'data' | 'footer'>();
 
 // Partitioned by attribute
-const partitioned = createLazyPartitionedIndex<{ color: string; bold: boolean }>(
+const partitioned = createLazyPartitionedIndex<{ color?: 'red' | 'blue'; bold?: boolean }>(
 	createMortonLinearScanIndex,
 );
 ```
@@ -149,14 +149,14 @@ import createMortonLinearScanIndex, { type MortonLinearScanIndex } from '@jim/sp
 import createRStarTreeIndex, { type RStarTreeIndex } from '@jim/spandex/index/rstartree';
 import createLazyPartitionedIndex, { type LazyPartitionedIndex } from '@jim/spandex/index/lazypartitionedindex';
 
-const morton = createMortonLinearScanIndex<string>();
+const morton = createMortonLinearScanIndex<'red' | 'blue'>();
 morton.size(); // Count of stored rectangles (O(1))
 
-const rtree = createRStarTreeIndex<string>();
+const rtree = createRStarTreeIndex<'header' | 'data'>();
 rtree.size(); // Count of stored rectangles (O(1))
 rtree.getTreeQualityMetrics(); // { depth, overlapArea, deadSpace, nodeCount }
 
-const partitioned = createLazyPartitionedIndex<{ color: string }>(createMortonLinearScanIndex);
+const partitioned = createLazyPartitionedIndex<{ color?: 'red' | 'blue' }>(createMortonLinearScanIndex);
 partitioned.keys(); // Iterator of partition keys
 partitioned.sizeOf('color'); // Count for specific partition
 partitioned.isEmpty; // True if no partitions (getter)
