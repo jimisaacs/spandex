@@ -142,24 +142,19 @@ Crossover n≈100. See [BENCHMARKS.md](https://github.com/jimisaacs/spandex/blob
 
 ## Implementation-Specific Methods
 
-**Diagnostic methods** available on concrete types (not on `SpatialIndex<T>` interface):
+Diagnostic methods available on concrete types (not on `SpatialIndex<T>` interface):
 
 ```typescript
-// MortonLinearScanIndex
 import createMortonLinearScanIndex, { type MortonLinearScanIndex } from '@jim/spandex/index/mortonlinearscan';
+import createRStarTreeIndex, { type RStarTreeIndex } from '@jim/spandex/index/rstartree';
+import createLazyPartitionedIndex, { type LazyPartitionedIndex } from '@jim/spandex/index/lazypartitionedindex';
 
 const morton = createMortonLinearScanIndex<string>();
 morton.size(); // Count of stored rectangles (O(1))
 
-// RStarTreeIndex
-import createRStarTreeIndex, { type RStarTreeIndex } from '@jim/spandex/index/rstartree';
-
 const rtree = createRStarTreeIndex<string>();
 rtree.size(); // Count of stored rectangles (O(1))
 rtree.getTreeQualityMetrics(); // { depth, overlapArea, deadSpace, nodeCount }
-
-// LazyPartitionedIndex
-import createLazyPartitionedIndex, { type LazyPartitionedIndex } from '@jim/spandex/index/lazypartitionedindex';
 
 const partitioned = createLazyPartitionedIndex<{ color: string }>(createMortonLinearScanIndex);
 partitioned.keys(); // Iterator of partition keys
@@ -168,48 +163,20 @@ partitioned.isEmpty; // True if no partitions (getter)
 partitioned.clear(); // Remove all partitions
 ```
 
-**Why not on base interface?** These expose internal implementation details. Use the concrete type when needed:
-
-```typescript
-import type { MortonLinearScanIndex } from '@jim/spandex/index/mortonlinearscan';
-
-function analyzeFragmentation(index: MortonLinearScanIndex<string>) {
-	return index.size(); // Type-safe access to implementation-specific method
-}
-```
-
 ## Common Patterns
 
-**"Deleting" regions** (use Last-Writer-Wins):
-
 ```typescript
-// Clear data in region
+// "Deleting" regions (use Last-Writer-Wins)
 index.insert([0, 0, 10, 10], null); // LWW overwrites previous values
+
+// Resetting entire index
+index = createMortonLinearScanIndex<T>(); // Create new instead of clear()
 ```
 
-**Resetting entire index**:
-
-```typescript
-// Create new index instead of clear()
-index = createMortonLinearScanIndex<T>();
-```
-
-**No `delete()`/`clear()`**: Insert `null` (LWW) or create new index.
-
-## Related Packages
-
-### Rendering Backends
+## Related
 
 - **[@jim/spandex-ascii](https://jsr.io/@jim/spandex-ascii)** - ASCII visualization for terminal/logs
 - **[@jim/spandex-html](https://jsr.io/@jim/spandex-html)** - HTML visualization for browser debugging
-
-### Testing & Development
-
-- **[@local/spandex-testing](https://github.com/jimisaacs/spandex/tree/main/packages/%40local/spandex-testing)** - Conformance axioms
-- **[@local/snapmark](https://github.com/jimisaacs/spandex/tree/main/packages/%40local/snapmark)** - Snapshot testing framework
-
-### Documentation
-
 - **[Production Guide](https://github.com/jimisaacs/spandex/blob/main/PRODUCTION-GUIDE.md)** - Algorithm selection guide
 - **[Benchmarks](https://github.com/jimisaacs/spandex/blob/main/BENCHMARKS.md)** - Performance data
 - **[GitHub Repository](https://github.com/jimisaacs/spandex)** - Full repository

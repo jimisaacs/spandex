@@ -64,6 +64,7 @@ Deno.test('HTML renderer - HTML escaping', () => {
 	const { render } = createRenderer();
 	const html = render(index, {
 		legend: { xss: { label: '<b>test</b>', color: '#ff0000', value: '<script>alert("xss")</script>' } },
+		strict: false, // Allow unused legend key
 	});
 
 	assertStringIncludes(html, '&lt;b&gt;test&lt;/b&gt;');

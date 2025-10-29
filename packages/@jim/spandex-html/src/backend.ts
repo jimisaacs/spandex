@@ -693,7 +693,7 @@ const RENDER_DEFAULTS = {
 	showGrid: true,
 	gridOnly: false,
 	includeOrigin: false,
-	strict: false,
+	strict: true,
 	usedLegendKeys: null,
 } as const;
 

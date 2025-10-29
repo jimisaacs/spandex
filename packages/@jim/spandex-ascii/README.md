@@ -52,9 +52,9 @@ R = "red"
 
 **Options**:
 
-- `includeOrigin`: `false` (default) - When true, shows absolute origin (0,0) even if outside viewport
-- `strict`: `false` (default) - Validate all legend symbols are used in the index
 - `gridOnly`: `false` (default) - Render only the grid (no legend or infinity annotations)
+- `includeOrigin`: `false` (default) - When true, shows absolute origin (0,0) even if outside viewport
+- `strict`: `true` (default) - Validate all legend symbols are used in the index
 
 ```typescript
 // Grid only mode (useful for progression rendering)
@@ -90,14 +90,17 @@ Visualize how an index changes over time:
 
 ```typescript
 const { renderProgression } = createRenderer();
+
 const output = renderProgression(
 	createMortonLinearScanIndex<string>,
 	[
-		{ params: {}, action: (idx) => idx.insert([-Infinity, 1, Infinity, 1], 'H') },
-		{ params: {}, action: (idx) => idx.insert([1, -Infinity, 1, Infinity], 'V') },
+		{ params: {}, action: (idx) => idx.insert([-Infinity, 1, Infinity, 1], 'horizontal') },
+		{ params: {}, action: (idx) => idx.insert([1, -Infinity, 1, Infinity], 'vertical') },
 	],
-	{ legend: { 'H': 'HORIZONTAL', 'V': 'VERTICAL' } },
+	{ legend: { H: 'horizontal', V: 'vertical' } },
 );
+
+console.log(output);
 ```
 
 Great for test documentation and debugging insertion sequences.
@@ -115,8 +118,30 @@ Great for test documentation and debugging insertion sequences.
 
 **Comparison**: For browser debugging with colors and large grids, use [@jim/spandex-html](https://jsr.io/@jim/spandex-html).
 
+## Layout API
+
+Compose multiple grids side-by-side:
+
+```typescript
+const { renderLayout } = createRenderer();
+
+const output = renderLayout(
+	[
+		{ source: index1, params: { legend: legend1 } },
+		{ source: index2, params: { legend: legend2 } },
+	],
+	{
+		spacing: 5, // Characters between grids
+	},
+);
+```
+
 ## Related
 
 - **[@jim/spandex](https://jsr.io/@jim/spandex)** - Core library (required)
 - **[@jim/spandex-html](https://jsr.io/@jim/spandex-html)** - HTML rendering backend
 - **[GitHub Repository](https://github.com/jimisaacs/spandex)** - Full repository
+
+## License
+
+MIT

@@ -13,7 +13,7 @@ HTML rendering for spatial indexes. Rich browser visualization with colors, grad
 deno add jsr:@jim/spandex jsr:@jim/spandex-html
 ```
 
-## Usage
+## Quick Example
 
 ```typescript
 import createMortonLinearScanIndex from '@jim/spandex/index/mortonlinearscan';
@@ -32,54 +32,56 @@ const html = render(index, {
 		red: { label: 'R', color: '#ff0000', value: 'red' },
 		blue: { label: 'B', color: '#0000ff', value: 'blue' },
 	},
-	showCoordinates: true,
-	cellWidth: 50,
-	cellHeight: 50,
 });
 
-// Output HTML with styled table, gradients, and legend
+document.body.innerHTML = html;
+// Renders styled table with colors, gradients, and legend
+```
+
+**Options**:
+
+- `showCoordinates`: `true` (default) - Show axis labels
+- `cellWidth`/`cellHeight`: `40` (default) - Cell size in pixels
+- `showGrid`: `true` (default) - Show border lines
+- `gridOnly`: `false` (default) - Omit legend (grid only)
+- `includeOrigin`: `false` (default) - Show absolute origin (0,0) even if outside viewport
+- `strict`: `true` (default) - Validate all legend keys are used
+
+```typescript
+// Grid only mode (useful for progression rendering)
+const html = render(index, { legend, gridOnly: true });
+// Output has no legend
+```
+
+## Progression Rendering
+
+Visualize how an index changes over time:
+
+```typescript
+const { renderProgression } = createRenderer<string>();
+
+const html = renderProgression(
+	createMortonLinearScanIndex<string>,
+	[
+		{ params: {}, action: (idx) => idx.insert([-Infinity, 1, Infinity, 1], 'horizontal') },
+		{ params: {}, action: (idx) => idx.insert([1, -Infinity, 1, Infinity], 'vertical') },
+	],
+	{
+		legend: {
+			horizontal: { label: 'H', color: '#ff0000', value: 'horizontal' },
+			vertical: { label: 'V', color: '#0000ff', value: 'vertical' },
+		},
+	},
+);
+
 document.body.innerHTML = html;
 ```
 
-## Features
-
-- **Inline styles** - No external CSS required
-- **Customizable** - Cell size, colors, grid lines, coordinates
-- **Automatic contrast** - Text color adjusts to background
-- **Infinite edge visualization** - Gradients, directional arrows, and infinity symbols
-- **Escape-safe** - All user data is HTML-escaped
-- **Composable** - Layout multiple renders side-by-side
-
-## Options
-
-```typescript
-interface HTMLRenderParams<T> {
-	className?: string; // CSS class (default: 'spatial-index-grid')
-	legend?: Record<string, { label: string; color: string; value: T }>;
-	showCoordinates?: boolean; // Show axis labels (default: true)
-	cellWidth?: number; // Pixels (default: 40)
-	cellHeight?: number; // Pixels (default: 40)
-	showGrid?: boolean; // Border lines (default: true)
-	gridOnly?: boolean; // Omit legend (default: false)
-	includeOrigin?: boolean; // Show absolute origin (0,0) even if outside viewport (default: false)
-}
-```
-
-## Infinite Edges
-
-Rectangles with infinite bounds get special treatment: gradients fade toward infinity, directional arrows (⇡⇣⇠⇢) show direction, ∞ symbols appear in axis headers, and tooltips explain the bounds.
-
-## Use Cases
-
-**Browser debugging** - Rich visualization with colors and interactive hover states
-
-**Documentation** - Generate visual examples for markdown, HTML docs, or static sites
-
-**Regression testing** - Snapshot test HTML output for visual consistency
+Great for test documentation and debugging insertion sequences.
 
 ## Layout API
 
-Compose multiple renders:
+Compose multiple grids side-by-side:
 
 ```typescript
 const { renderLayout } = createRenderer<string>();
@@ -97,23 +99,19 @@ const html = renderLayout(
 );
 ```
 
-## When to Use
+## Why HTML?
 
-**Use HTML when**: Browser debugging, rich documentation, interactive demos, large grids
+**Use when**: Browser debugging, rich documentation, interactive demos, large grids
 
-**Use ASCII when**: Terminal output, CI/CD logs, text-only environments
+**Trade-offs**:
 
-| Feature        | [@jim/spandex-ascii](https://jsr.io/@jim/spandex-ascii) | @jim/spandex-html               |
-| -------------- | ------------------------------------------------------- | ------------------------------- |
-| Environment    | Terminal, logs, markdown                                | Browser, docs, tests            |
-| Colors         | No                                                      | Yes (inline styles)             |
-| Interactive    | No                                                      | Yes (hover states)              |
-| Infinite edges | Text symbols (∞, →)                                     | Gradients + directional arrows  |
-| Scalability    | Small grids (<50×50)                                    | Any size                        |
-| Copy/paste     | Perfect                                                 | Requires rendering              |
-| Best for       | CLI debugging, CI/CD                                    | Web debugging, rich docs, demos |
+- ✅ Colors and gradients
+- ✅ Scales to any size
+- ✅ Interactive hover states
+- ❌ Requires rendering/browser
+- ❌ Not copy/paste friendly
 
-Both implement the same `RenderBackend` interface.
+**Comparison**: For terminal output and CI/CD logs, use [@jim/spandex-ascii](https://jsr.io/@jim/spandex-ascii).
 
 ## Related
 
