@@ -8,12 +8,12 @@
 			name="description"
 			content="{{ if description }}{{ description }}{{ else }}Fast 2D spatial indexing with last-writer-wins semantics for JavaScript/TypeScript{{ /if }}"
 		>
-		<link rel="stylesheet" href="/styles.css">
+		<link rel="stylesheet" href="{{ '/styles.css' |> url }}">
 	</head>
 	<body>
 		<nav class="sidebar">
 			<div class="sidebar-header">
-				<a href="/" class="logo">
+				<a href="{{ '/' |> url }}" class="logo">
 					<strong>Spandex</strong>
 				</a>
 				<p class="tagline">2D Spatial Indexing</p>
@@ -22,7 +22,7 @@
 			<div class="nav-section">
 				<h3>Learn</h3>
 				<ul>
-					<li><a href="/">Overview</a></li>
+					<li><a href="{{ '/' |> url }}">Overview</a></li>
 					<li><a href="/docs/RECTANGLE-DECOMPOSITION-PRIMER.md">Primer</a></li>
 					<li><a href="/packages/@jim/spandex-html/test/fixtures/regression.md">🎨 HTML Examples</a></li>
 					<li><a href="/packages/@jim/spandex-ascii/test/fixtures/regression.md">📟 ASCII Examples</a></li>

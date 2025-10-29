@@ -1,49 +1,33 @@
-# Research Archive
+# Archived Experiments
 
-**Purpose**: Historical record of rejected experiments
+Detailed writeups for 9 experiments that were tried between 2025-10-07 and 2025-10-08. Some failed completely, others worked but got replaced by better ideas.
 
-**Philosophy**: Negative results are scientifically valuable. We preserve them for transparency and to prevent repeating failed approaches.
+## The Big Three Failures
 
----
+| Experiment   | The Idea                                | What Happened      | The Problem                             |
+| ------------ | --------------------------------------- | ------------------ | --------------------------------------- |
+| HybridRTree  | Adaptive: linear scan → R-tree at n=100 | ❌ 1.9-27x slower  | Maintaining two structures, indirection |
+| Fast R-tree  | R* axis selection + midpoint splits     | ❌ 1.29x slower    | Axis selection cost > savings           |
+| CompactRTree | R-tree using TypedArrays                | ❌ Can't even work | TypedArrays can't handle dynamic splits |
 
-## Contents
+These looked reasonable on paper but turned out to be dead ends. Read [RESEARCH-ARCHIVE-SUMMARY.md](./RESEARCH-ARCHIVE-SUMMARY.md) for the full story.
 
-- **[RESEARCH-ARCHIVE-SUMMARY.md](./RESEARCH-ARCHIVE-SUMMARY.md)** - Overview of all archived experiments
-- **[experiments/](./experiments/)** - Individual experiment documents (9 files)
-- **[benchmarks/](../benchmarks/)** - Archived benchmark scripts (5 files)
-- **[test/](../test/)** - Archived test files (1 file)
+## What's Valuable Here
 
----
+The `experiments/` directory has the full methodology and data for each attempt. This is useful when:
 
-## Quick Reference
+1. **You have a similar idea** - Check if it's already been tried. "What about combining X and Y?" → HybridRTree already tried that.
 
-| Experiment    | Hypothesis                                | Result             | Key Learning                  |
-| ------------- | ----------------------------------------- | ------------------ | ----------------------------- |
-| Fast R-tree   | R* axis + midpoint = quality without cost | ❌ 1.29x slower    | Half-measures don't work      |
-| Tree Quality  | R* split improves query performance       | ❌ Midpoint faster | Theory ≠ practice             |
-| Hybrid R-tree | TypedArray + R-tree = best of both        | ❌ 1.9-27x slower  | Indirection kills performance |
+2. **Conditions changed** - HybridRTree failed due to JavaScript indirection overhead. In WASM with direct memory access, it might work differently.
 
-**Full details**: See [RESEARCH-ARCHIVE-SUMMARY.md](./RESEARCH-ARCHIVE-SUMMARY.md)
+3. **You want to understand the evolution** - Linear scan went through 4 iterations (basic → optimized → TypedArray → Hilbert) before landing on the current approach.
 
----
+## Navigation
 
-## Archive Criteria
+**One-line summaries**: [../IMPLEMENTATION-HISTORY.md](../IMPLEMENTATION-HISTORY.md) table with performance numbers
 
-Experiments archived when:
+**Detailed writeups**: [RESEARCH-ARCHIVE-SUMMARY.md](./RESEARCH-ARCHIVE-SUMMARY.md) narrative with findings
 
-- Hypothesis definitively rejected
-- Full analysis completed
-- Implementation removed
+**Raw experiments**: [experiments/](./experiments/) individual documents with full data
 
----
-
-## Research Philosophy
-
-Negative results are scientifically valuable. These experiments represent rigorous process:
-
-1. Hypothesis
-2. Implementation
-3. Statistical analysis
-4. Honest reporting
-
-Each rejection narrows the search space. Ask "What did we learn?" not "Why did it fail?"
+**Current research**: `../../docs/core/RESEARCH-SUMMARY.md` validated findings

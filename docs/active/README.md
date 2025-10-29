@@ -1,55 +1,32 @@
 # Active Research Workspace
 
-**Purpose**: Temporary workspace for experiments in progress
+This directory is for experiments currently in progress. Right now it's empty - all planned experiments have been completed.
 
-**Rule**: When experiment concludes (validated or rejected), work moves out of `active/`.
+## How Experiments Work
 
----
+When testing a new idea:
 
-## Current Experiments
+1. Create a document in `experiments/` describing the hypothesis
+2. Implement the algorithm in `packages/@jim/spandex/src/index/[name].ts`
+3. Write tests and run benchmarks with statistical analysis
+4. Document the outcome (success, failure, or "needs more work")
 
-_None currently active_
+When the experiment concludes:
 
----
+**Successful** → Findings go to `docs/analyses/`, implementation stays active, delete experiment doc
 
-## Workflow
+**Failed** → Everything moves to `archive/docs/experiments/` with full writeup
 
-### Starting New Experiment
+**Inconclusive** → Leave here with notes for future investigation
 
-1. Create `active/experiments/[name]-experiment.md` with hypothesis
-2. Implement in `packages/@jim/spandex/src/index/[name].ts` + tests + benchmarks
-3. Run analysis: `./scripts/analyze-benchmarks.ts 5 active/experiments/[name]-analysis-results.md`
-4. Update experiment doc with status (⚙️ → ✅ or ❌)
+## Why Keep It Empty?
 
-### Completing Experiment
+An empty `active/` directory means all research questions have been answered (for now). It's a sign of completion, not inactivity.
 
-**If ✅ VALIDATED**:
+New experiments will be added when:
 
-- Create `analyses/[name]-analysis.md` with findings
-- Update `core/RESEARCH-SUMMARY.md`
-- Keep implementation in codebase
-- **Delete** `active/experiments/[name]-*.md` (findings now in `analyses/`)
+- New use cases emerge that existing implementations don't handle well
+- Technology changes (e.g., WASM becomes practical, new JS engine optimizations)
+- Someone has a promising idea that hasn't been tried yet (check `archive/` first!)
 
-**If ❌ REJECTED and moving on**:
-
-- **Move** `active/experiments/[name]-*.md` → `../../archive/docs/experiments/`
-- Remove implementation, tests, benchmarks
-- Update exports, regenerate BENCHMARKS.md
-
-**If ❌ REJECTED but might revisit**:
-
-- Leave in `active/experiments/` with notes
-- Keep implementation for future reference
-
----
-
-## Why "active/"?
-
-**Mental model**: This is your scratch pad. Everything else is permanent record.
-
-- `core/` = Immutable reference (textbook knowledge)
-- `analyses/` = Validated findings (success stories)
-- `active/` = Work in progress (messy, evolving)
-- `archive/` = Rejected experiments (learn from failures)
-
-**Graduate student tip**: Clean workspace = clear thinking. When experiment is done, move it out. Keep `active/` focused on current work only.
+For the current state of implementations and validated findings, see `docs/core/RESEARCH-SUMMARY.md`.

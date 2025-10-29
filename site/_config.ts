@@ -16,24 +16,20 @@ const site = lume({
 	prettyUrls: false, // .html extensions preserve relative link semantics
 });
 
-// Apply default layout to all markdown files
-site.preprocess(['.md'], (pages) => {
-	for (const page of pages) {
-		page.data.layout ||= 'layout.vto';
-		// Use README.md as homepage
-		if (page.src.path === '/README') {
-			page.data.url = '/';
-		}
-	}
-});
-
-// Convert absolute GitHub URLs to relative paths for JSR package READMEs
 site.preprocess(['.md'], (pages) => {
 	const githubBase = 'https://github.com/jimisaacs/spandex';
 	for (const page of pages) {
+		// Convert absolute GitHub URLs to site-relative paths for the built site
+		// (source files keep GitHub URLs for JSR, but built site needs full paths)
 		const content = page.data.content as string | undefined;
 		if (typeof content === 'string') {
 			page.data.content = content.replaceAll(`${githubBase}/blob/main/`, '/');
+		}
+		// Apply default layout to all markdown files
+		page.data.layout ||= 'layout.vto';
+		// Use README.md as homepage (but keep at root of _site/)
+		if (page.src.path === '/README') {
+			page.data.url = '/';
 		}
 	}
 });
@@ -43,7 +39,7 @@ site.copy('.nojekyll');
 site.copy('./site/_includes/styles.css', 'styles.css');
 
 // Ignore non-documentation directories
-site.ignore('archive');
+site.ignore('archive/docs/experiments');
 site.ignore('benchmarks');
 site.ignore('scripts');
 site.ignore('site');

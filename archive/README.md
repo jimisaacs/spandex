@@ -1,69 +1,49 @@
 # Archive
 
-Archived documentation and research findings. **Code removed** (available in git history).
+The code for archived implementations has been removed, but documentation and git history preserve everything. This keeps the repository maintainable while preserving the research record.
 
-## Quick Reference
+## What's Archived
 
-- **`IMPLEMENTATION-HISTORY.md`** - One-line index of all archived implementations (git SHAs, performance, why archived)
-- **`docs/`** - Full experiment writeups and analysis
+**7 superseded implementations** - Worked but were replaced by better alternatives (e.g., HilbertLinearScan → MortonLinearScan was 25% faster)
 
-## Purpose
+**2 failed experiments** - Didn't work at all (e.g., HybridRTree had 1.9-27x overhead from indirection)
 
-Preserve research findings without maintaining legacy code:
+**4 analysis docs** - Early findings later refined in main documentation
 
-- ✅ **Findings documented** - Full analysis in `docs/experiments/`
-- ✅ **Code retrievable** - Git history preserves everything
-- ✅ **Performance data** - Benchmark results in `IMPLEMENTATION-HISTORY.md`
-- ✅ **Lessons learned** - What worked, what didn't, why
+See [IMPLEMENTATION-HISTORY.md](./IMPLEMENTATION-HISTORY.md) for the complete table with performance numbers and git SHAs.
 
-## Structure
+## Why This Matters
 
-```
-archive/
-├── IMPLEMENTATION-HISTORY.md  # Ultra-compact index (one line per impl)
-└── docs/                      # Full experiment documentation
-    └── experiments/           # Detailed analysis and writeups
-```
+Three implementations seemed reasonable but failed spectacularly:
 
-## Retrieving Archived Code
+1. **HybridRTree** (1.9-27x slower) - Tried to adaptively switch between linear scan and R-tree. Indirection overhead killed it.
 
-Code was removed to simplify maintenance. Use git to retrieve:
+2. **Fast R-tree** (1.29x slower) - Used R* axis selection with midpoint splits to get quality cheaply. Axis selection cost more than it saved.
+
+3. **CompactRTree** - Couldn't handle dynamic splits with TypedArrays. Fundamentally incompatible with how R-trees work.
+
+If you're thinking "what if we combine X and Y?" or "what if we optimize Z?", check here first. Chances are it's been tried.
+
+## Getting Archived Code
+
+Each entry in IMPLEMENTATION-HISTORY.md has a git SHA. Use it to retrieve the code:
 
 ```bash
-# View file at specific commit (SHA from IMPLEMENTATION-HISTORY.md)
-git show 454e5c9:src/implementations/hilbertlinearscan.ts
+# View the implementation
+git show 454e5c9:archive/src/implementations/hilbertlinearscan.ts
 
-# Checkout entire implementation
-git show 454e5c9:src/implementations/hilbertlinearscan.ts > /tmp/hilbert.ts
-
-# See what existed at that commit
-git ls-tree -r --name-only 454e5c9 archive/
+# Run benchmarks from that point
+git checkout 454e5c9 -- archive/
+deno bench archive/benchmarks/
+git restore archive/  # Clean up
 ```
 
-## Why Remove Code?
+The code is fully runnable from git history - tests, benchmarks, everything.
 
-**Problem**: Maintaining archived code requires:
+## What to Read
 
-- Keeping imports in sync with active code
-- Type-checking old implementations
-- Running tests for superseded code
+**Quick lookup**: [IMPLEMENTATION-HISTORY.md](./IMPLEMENTATION-HISTORY.md) has a one-line summary of each archived implementation
 
-**Solution**: Archive docs + git history
+**Experiment details**: [docs/RESEARCH-ARCHIVE-SUMMARY.md](./docs/RESEARCH-ARCHIVE-SUMMARY.md) explains what was tried and why it failed
 
-- Documentation preserves findings
-- Git preserves actual code
-- No maintenance burden
-- Still fully reproducible
-
-## Research Integrity
-
-Archives demonstrate:
-
-- **Honesty**: Failures documented alongside successes
-- **Reproducibility**: Git SHAs + docs let you recreate experiments
-- **Context**: Future work can learn from past attempts
-- **Progress**: Clear evolution of ideas
-
----
-
-For current research status, see `docs/core/RESEARCH-SUMMARY.md`.
+**Current state**: `../docs/core/RESEARCH-SUMMARY.md` documents validated findings and active implementations
