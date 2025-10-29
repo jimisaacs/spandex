@@ -76,7 +76,7 @@ Range A: [0, 4] = rows 0-4
 Range B: [5, 9] = rows 5-9
 
         GAP at row 4.5? NO!
-        
+
 OR:
 
 Range A: [0, 5] = rows 0-5

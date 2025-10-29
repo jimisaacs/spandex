@@ -41,6 +41,8 @@ import type { HTMLLayoutParams, HTMLPartialParams, HTMLRenderParams } from './ty
 interface HTMLBackendIR {
 	/** Rendered HTML string */
 	html: string;
+	/** Legend entries for deferred rendering in layouts */
+	legend?: [string, { label: string; color: string; value: unknown }][];
 }
 
 /**
@@ -65,16 +67,17 @@ interface CellData {
 /** CSS style constants for consistent visual appearance */
 const STYLES = {
 	border: {
-		data: '1px solid #ffffff', // Pure white (fully bounded/finite)
+		data: '1px solid light-dark(#000000, #ffffff)', // Adaptive (fully bounded/finite - black in light, white in dark)
 		transparent: '1px dotted rgba(180, 180, 180, 0.1)', // Transparent dotted (empty cells or fully unbounded)
-		semiInfinite: '1px dotted rgba(255, 255, 255, 0.6)', // Gray dotted (semi-infinite - some edges infinite)
+		semiInfinite: '1px dotted light-dark(rgba(0, 0, 0, 0.6), rgba(255, 255, 255, 0.6))', // Adaptive dotted (semi-infinite)
 		header: 'none',
 		none: 'none',
 	},
 	colors: {
-		empty: '#d8dce0',
-		headerText: '#999',
-		arrowOverlay: 'black',
+		empty: 'light-dark(#d8dce0, #2a2a2a)', // Adaptive empty cell background
+		headerText: 'light-dark(#999, #888)', // Adaptive header text
+		arrowOverlay: 'light-dark(black, white)', // Adaptive directional arrows
+		legendText: 'light-dark(#666, #999)', // Adaptive legend text
 		transparent: 'transparent',
 	},
 	sizes: {
@@ -86,6 +89,7 @@ const STYLES = {
 	spacing: {
 		headerPadding: '4px',
 		arrowOffset: '2px',
+		verticalArrowOffset: '-1px',
 		tableMargin: '10px',
 		messageMargin: '0 10px 10px 10px',
 		messagePadding: '20px',
@@ -255,9 +259,7 @@ function buildGrid<T>(
  */
 function formatCoordinateLabel(coord: number, isInfinite: boolean): string {
 	if (!isInfinite) return String(coord);
-
-	const { infinityFont } = STYLES.sizes;
-	return `<span style="font-size: ${infinityFont};">∞</span>`;
+	return `<span style="font-size: ${STYLES.sizes.infinityFont};">∞</span>`;
 }
 
 /**
@@ -301,46 +303,39 @@ function detectInfiniteEdges(
 }
 
 /**
- * Check if a cell extends to infinity in any direction.
- * Used for border style determination.
+ * Check if adjacent cell is unbounded (has any infinite edges).
  */
-function isUnboundedCell(cell: CellData | undefined): boolean {
-	if (!cell) return false;
-	return cell.infiniteTop || cell.infiniteBottom || cell.infiniteLeft || cell.infiniteRight;
+function isAdjacentUnbounded(adjacentCell: CellData | undefined): boolean {
+	if (!adjacentCell) return false;
+	return adjacentCell.infiniteTop || adjacentCell.infiniteBottom ||
+		adjacentCell.infiniteLeft || adjacentCell.infiniteRight;
 }
 
 /**
- * Determine border style based on edge relationships between cells.
+ * Determine border style based on edge relationships.
  *
- * Border logic:
- * - Bounded edge + bounded adjacent → solid white (finite container)
- * - Bounded edge + unbounded adjacent → dotted gray (semi border - transition zone)
- * - Infinite edge at viewport boundary → transparent (extends to infinity)
- * - Infinite edge + unbounded adjacent → transparent (both infinite)
- * - Infinite edge + bounded adjacent → dotted gray (semi border - transition zone)
- *
- * @param thisEdgeInfinite - Whether the current cell's edge is infinite
- * @param isAtViewportBoundary - Whether this edge is at the viewport boundary
- * @param adjacentCell - The adjacent cell (if any)
- * @returns CSS border style string
+ * Logic:
+ * - Bounded edge: solid if fully bounded, dotted if cell has mixed edges
+ * - Infinite edge at viewport: transparent (extends to infinity)
+ * - Infinite edge with unbounded neighbor: transparent (both infinite)
+ * - Infinite edge with bounded neighbor: dotted (transition zone)
  */
 function getBorderStyle(
 	thisEdgeInfinite: boolean,
 	isAtViewportBoundary: boolean,
+	thisCellUnbounded: boolean,
 	adjacentCell: CellData | undefined,
 ): string {
-	const adjacentCellUnbounded = isUnboundedCell(adjacentCell);
-
 	if (!thisEdgeInfinite) {
-		// Bounded edge: use semi border if adjacent cell is unbounded
-		return adjacentCellUnbounded ? STYLES.border.semiInfinite : STYLES.border.data;
+		// Bounded edge: use semi border only if THIS cell has mixed edges (some infinite, some bounded)
+		return thisCellUnbounded ? STYLES.border.semiInfinite : STYLES.border.data;
 	}
 
 	// Infinite edge at viewport boundary: transparent (extends to infinity)
 	if (isAtViewportBoundary) return STYLES.border.transparent;
 
 	// Inner infinite edge: transparent if adjacent is unbounded, dotted if bounded
-	return adjacentCellUnbounded ? STYLES.border.transparent : STYLES.border.semiInfinite;
+	return isAdjacentUnbounded(adjacentCell) ? STYLES.border.transparent : STYLES.border.semiInfinite;
 }
 
 /**
@@ -390,23 +385,13 @@ function buildInfiniteGradient(edges: InfiniteEdges, bgColor: string): string {
 
 /**
  * Build cell styling for infinite edges using smart gradient combinations.
- * Creates optimized gradients based on edge patterns (single, corner, opposite, etc.).
  *
- * Border system based on edge relationships (checks both this cell and adjacent cells):
- * - **Outer boundaries** (viewport edge + infinite): transparent (extends to ∞)
- * - **Semi borders** (bounded ↔ unbounded): dotted gray (transition zone)
- * - **Unbounded ↔ Unbounded**: transparent (both sides infinite)
- * - **Bounded ↔ Bounded**: solid white (finite container)
- * - **Empty cells**: cool gray dotted on all sides
- *
- * Examples:
- * - Unbounded cell at viewport edge → transparent border (extends to ∞)
- * - Unbounded cell next to bounded cell → dotted border (semi border)
- * - Bounded cell next to unbounded cell → dotted border (semi border)
- * - Unbounded cell next to unbounded cell → transparent border
- * - Bounded cell next to bounded cell → white border
- *
- * @returns Object with border style, background gradient, and detected edges
+ * Border system (checks both this cell and adjacent cells):
+ * - Infinite edge at viewport → transparent (extends to ∞)
+ * - Bounded ↔ unbounded → dotted gray (transition zone)
+ * - Unbounded ↔ unbounded → transparent
+ * - Bounded ↔ bounded → solid white
+ * - Empty cells → cool gray dotted
  */
 function buildCellInfiniteStyle(
 	cell: CellData | undefined,
@@ -429,23 +414,22 @@ function buildCellInfiniteStyle(
 	if (!showGrid) {
 		border = `border: ${STYLES.border.none}`;
 	} else if (!cell) {
-		// Empty cells: all sides transparent dotted
 		border = `border: ${STYLES.border.transparent}`;
 	} else {
-		// Data cells: Apply per-side border logic by checking both this cell and adjacent cells
-		// Semi borders appear whenever bounded meets unbounded (regardless of which side is which)
+		// Semi borders appear whenever a border touches an unbounded region
+		// A cell is "unbounded" if it has any infinite edges
+		const thisCellUnbounded = edges.count > 0;
 
-		// Get adjacent cells
 		const topCell = grid.get(`${x},${y - 1}`);
 		const bottomCell = grid.get(`${x},${y + 1}`);
 		const leftCell = grid.get(`${x - 1},${y}`);
 		const rightCell = grid.get(`${x + 1},${y}`);
 
-		// Apply borders per-side based on infinite edge relationships
-		const topBorder = getBorderStyle(edges.top, isTopRow, topCell);
-		const bottomBorder = getBorderStyle(edges.bottom, isBottomRow, bottomCell);
-		const leftBorder = getBorderStyle(edges.left, isLeftCol, leftCell);
-		const rightBorder = getBorderStyle(edges.right, isRightCol, rightCell);
+		// Each border checks: am I infinite? Is THIS cell unbounded? Is ADJACENT cell unbounded?
+		const topBorder = getBorderStyle(edges.top, isTopRow, thisCellUnbounded, topCell);
+		const bottomBorder = getBorderStyle(edges.bottom, isBottomRow, thisCellUnbounded, bottomCell);
+		const leftBorder = getBorderStyle(edges.left, isLeftCol, thisCellUnbounded, leftCell);
+		const rightBorder = getBorderStyle(edges.right, isRightCol, thisCellUnbounded, rightCell);
 
 		border = [
 			`border-top: ${topBorder}`,
@@ -459,13 +443,10 @@ function buildCellInfiniteStyle(
 }
 
 /**
- * Build single arrow indicator HTML.
+ * Build positioned arrow indicator (⇡⇣⇠⇢).
  */
 function buildArrow(symbol: string, position: string): string {
-	const { arrowOverlay } = STYLES.colors;
-	const { arrowFont } = STYLES.sizes;
-	const baseStyle = `position: absolute; color: ${arrowOverlay}; font-size: ${arrowFont}; font-weight: bold;`;
-	return `<span style="${baseStyle} ${position}">${symbol}</span>`;
+	return `<span style="position: absolute; color: ${STYLES.colors.arrowOverlay}; font-size: ${STYLES.sizes.arrowFont}; font-weight: bold; ${position}">${symbol}</span>`;
 }
 
 /**
@@ -476,13 +457,13 @@ function buildInfiniteIndicator(edges: InfiniteEdges): string {
 	if (edges.count === 0) return '';
 
 	const arrows: string[] = [];
-	const { arrowOffset } = STYLES.spacing;
+	const { arrowOffset, verticalArrowOffset } = STYLES.spacing;
 
 	if (edges.top) {
-		arrows.push(buildArrow('⇡', `top: ${arrowOffset}; left: 50%; transform: translateX(-50%);`));
+		arrows.push(buildArrow('⇡', `top: ${verticalArrowOffset}; left: 50%; transform: translateX(-50%);`));
 	}
 	if (edges.bottom) {
-		arrows.push(buildArrow('⇣', `bottom: ${arrowOffset}; left: 50%; transform: translateX(-50%);`));
+		arrows.push(buildArrow('⇣', `bottom: ${verticalArrowOffset}; left: 50%; transform: translateX(-50%);`));
 	}
 	if (edges.left) {
 		arrows.push(buildArrow('⇠', `left: ${arrowOffset}; top: 50%; transform: translateY(-50%);`));
@@ -537,7 +518,6 @@ function buildHeader(
 	return `<th style="${styleParts.join('; ')}"${titleAttr}>${label}</th>`;
 }
 
-/** Build column header (th) element with optional infinity indicator */
 function buildColumnHeader(
 	x: number,
 	leftInf: boolean,
@@ -552,17 +532,17 @@ function buildColumnHeader(
 		x === maxX && rightInf,
 		'left',
 		'right',
-		`min-width: ${cellWidth}px`,
+		`width: ${cellWidth}px; min-width: ${cellWidth}px; max-width: ${cellWidth}px`,
 	);
 }
 
-/** Build row header (th) element with optional infinity indicator */
 function buildRowHeader(
 	y: number,
 	topInf: boolean,
 	bottomInf: boolean,
 	minY: number,
 	maxY: number,
+	cellHeight: number,
 ): string {
 	return buildHeader(
 		y,
@@ -570,13 +550,12 @@ function buildRowHeader(
 		y === maxY && bottomInf,
 		'top',
 		'bottom',
+		`height: ${cellHeight}px; min-height: ${cellHeight}px; max-height: ${cellHeight}px`,
 	);
 }
 
 /**
- * Build a single table cell (td) with styling and infinite edge indicators.
- *
- * @returns HTML string for the cell element
+ * Build table cell (td) with styling and infinite edge indicators.
  */
 function buildCell(
 	x: number,
@@ -614,9 +593,7 @@ function buildCell(
 	);
 
 	const indicators = buildInfiniteIndicator(edges);
-	const { cellFont } = STYLES.sizes;
 
-	// Assemble cell styles
 	const cellStyle = [
 		'position: relative',
 		border,
@@ -626,7 +603,11 @@ function buildCell(
 		'vertical-align: middle',
 		`width: ${cellWidth}px`,
 		`height: ${cellHeight}px`,
-		`font-size: ${cellFont}`,
+		`min-width: ${cellWidth}px`,
+		`min-height: ${cellHeight}px`,
+		`max-width: ${cellWidth}px`,
+		`max-height: ${cellHeight}px`,
+		`font-size: ${STYLES.sizes.cellFont}`,
 	].join('; ');
 
 	return `<td style="${cellStyle}">${indicators}<span style="position: relative; z-index: 1;">${
@@ -635,13 +616,40 @@ function buildCell(
 }
 
 /**
+ * Render visual legend with color swatches and code-formatted values.
+ */
+function renderLegend(entries: [string, { label: string; color: string; value: unknown }][]): string {
+	const { messageMargin } = STYLES.spacing;
+	const { headerFont } = STYLES.sizes;
+
+	const items = entries
+		.map(([_key, { label, color, value }]) => {
+			const valueStr = typeof value === 'object' && value !== null ? JSON.stringify(value) : String(value);
+
+			const swatch = `<span style="display: inline-block; width: 12px; height: 12px; background: ${
+				escapeHtml(color)
+			}; border: 1px solid rgba(0,0,0,0.2); margin-right: 6px; vertical-align: middle;"></span>`;
+
+			const labelCode = `<code style="background: none; padding: 0; color: inherit;">${escapeHtml(label)}</code>`;
+			const valueCode = `<code style="background: none; padding: 0; color: inherit;">${
+				escapeHtml(valueStr)
+			}</code>`;
+
+			return `${swatch}${labelCode} = ${valueCode}`;
+		})
+		.join('<br>');
+
+	return `<div style="margin: ${messageMargin}; font-size: ${headerFont}; color: ${STYLES.colors.legendText}; font-family: monospace; line-height: 1.8; color-scheme: light dark;">${items}</div>`;
+}
+
+/**
  * Render complete HTML table from spatial fragments.
- * Main entry point for table generation.
  */
 function renderHTMLTable<T>(
 	fragments: Iterable<QueryResult<T>>,
 	extent: ExtentResult,
 	params: Partial<HTMLRenderParams<T>> = {},
+	gridOnly = false,
 ): string {
 	const {
 		className = 'spatial-index-grid',
@@ -650,7 +658,10 @@ function renderHTMLTable<T>(
 		cellWidth = 40,
 		cellHeight = 40,
 		showGrid = true,
+		gridOnly: gridOnlyParam = false,
 	} = params;
+
+	const omitLegend = gridOnly || gridOnlyParam;
 
 	// Handle empty index
 	const fragmentsArray = Array.from(fragments);
@@ -669,33 +680,28 @@ function renderHTMLTable<T>(
 	const parts: string[] = [];
 	const { tableMargin } = STYLES.spacing;
 
-	// Table opening tag
 	parts.push(
 		`<table class="${
 			escapeHtml(className)
-		}" style="border-collapse: collapse; font-family: monospace; margin: ${tableMargin};">`,
+		}" style="border-collapse: collapse; font-family: monospace; margin: ${tableMargin}; width: auto; table-layout: fixed; color-scheme: light dark;">`,
 	);
 
-	// Column headers
 	if (showCoordinates) {
-		parts.push('<thead><tr><th style="border: none;"></th>');
+		parts.push(`<thead><tr><th style="border: none; width: auto; min-width: 0;"></th>`);
 		for (let x = minX; x <= maxX; x++) {
 			parts.push(buildColumnHeader(x, leftInf, rightInf, minX, maxX, cellWidth));
 		}
 		parts.push('</tr></thead>');
 	}
 
-	// Table body
 	parts.push('<tbody>');
 	for (let y = minY; y <= maxY; y++) {
 		parts.push('<tr>');
 
-		// Row header
 		if (showCoordinates) {
-			parts.push(buildRowHeader(y, topInf, bottomInf, minY, maxY));
+			parts.push(buildRowHeader(y, topInf, bottomInf, minY, maxY, cellHeight));
 		}
 
-		// Data cells
 		for (let x = minX; x <= maxX; x++) {
 			parts.push(buildCell(x, y, grid, minX, maxX, minY, maxY, cellWidth, cellHeight, showGrid));
 		}
@@ -704,14 +710,9 @@ function renderHTMLTable<T>(
 	}
 	parts.push('</tbody></table>');
 
-	// Optional annotation for fully unbounded case
-	const allEdgesInfinite = leftInf && topInf && rightInf && bottomInf;
-	if (allEdgesInfinite) {
-		const { messageMargin } = STYLES.spacing;
-		const { headerFont } = STYLES.sizes;
-		parts.push(
-			`<div style="margin: ${messageMargin}; font-size: ${headerFont}; color: #999; font-family: sans-serif; font-style: italic;">Unbounded in all directions</div>`,
-		);
+	const legendEntries = Object.entries(legend);
+	if (!omitLegend && legendEntries.length > 0) {
+		parts.push(renderLegend(legendEntries));
 	}
 
 	return parts.join('');
@@ -721,7 +722,7 @@ function renderHTMLTable<T>(
 // Parameter Defaults
 // ============================================================================
 
-/** Common render parameter defaults shared across contexts */
+/** Render parameter defaults */
 const RENDER_DEFAULTS = {
 	className: 'spatial-index-grid',
 	legend: {},
@@ -729,6 +730,7 @@ const RENDER_DEFAULTS = {
 	cellWidth: 40,
 	cellHeight: 40,
 	showGrid: true,
+	gridOnly: false,
 	includeOrigin: false,
 } as const;
 
@@ -800,8 +802,14 @@ class HTMLLayoutContext<T> implements
 			...params,
 			legend: params.legend ?? this.params.legend,
 		};
-		const html = renderHTMLTable(fragments, extent, mergedParams);
-		return { html };
+
+		const html = renderHTMLTable(fragments, extent, mergedParams, true);
+		const legendEntries = Object.entries(mergedParams.legend);
+		const result: HTMLBackendIR = { html };
+		if (legendEntries.length > 0) {
+			result.legend = legendEntries;
+		}
+		return result;
 	}
 	layout(
 		irs: Iterable<HTMLBackendIR>,
@@ -823,10 +831,20 @@ class HTMLLayoutContext<T> implements
 			: `display: flex; flex-direction: column; gap: ${spacing}px;`;
 
 		parts.push(`<div style="${wrapperStyle}">`);
+
+		let legendEntries: [string, { label: string; color: string; value: unknown }][] | undefined;
 		for (const ir of irs) {
 			parts.push(ir.html);
+			if (!legendEntries && ir.legend) {
+				legendEntries = ir.legend;
+			}
 		}
+
 		parts.push('</div>');
+
+		if (legendEntries && legendEntries.length > 0) {
+			parts.push(renderLegend(legendEntries));
+		}
 
 		return parts.join('');
 	}

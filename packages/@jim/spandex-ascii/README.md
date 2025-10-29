@@ -20,8 +20,8 @@ import createMortonLinearScanIndex from '@jim/spandex/index/mortonlinearscan';
 import { createRenderer } from '@jim/spandex-ascii';
 
 const index = createMortonLinearScanIndex<string>();
-index.insert([0, 0, 2, 1], 'RED');
-index.insert([1, 0, 3, 1], 'BLUE');
+index.insert([0, 0, 2, 2], 'RED');
+index.insert([1, 1, 3, 3], 'BLUE');
 
 const { render } = createRenderer();
 console.log(render(index, {
@@ -33,11 +33,15 @@ console.log(render(index, {
 
 ```
     A   B   C   D
-  +---+---+---+---+
-0 | R | R | B | B |
-  +---+---+---+---+
-1 | R | R | B | B |
-  +---+---+---+---+
+  ┏━━━┳━━━┳━━━┳━━━┓
+0 ┃ R ┃ R ┃ R ┃   ┃
+  ┣━━━╋━━━╋━━━╋━━━┫
+1 ┃ R ┃ B ┃ B ┃ B ┃
+  ┣━━━╋━━━╋━━━╋━━━┫
+2 ┃ R ┃ B ┃ B ┃ B ┃
+  ┣━━━╋━━━╋━━━╋━━━┫
+3 ┃   ┃ B ┃ B ┃ B ┃
+  ┗━━━┻━━━┻━━━┻━━━┛
 
 B = "BLUE"
 R = "RED"
@@ -112,4 +116,4 @@ Great for test documentation and debugging insertion sequences.
 
 - **[@jim/spandex](https://jsr.io/@jim/spandex)** - Core library (required)
 - **[@jim/spandex-html](https://jsr.io/@jim/spandex-html)** - HTML rendering backend
-- **[GitHub](https://github.com/jimisaacs/spandex)** - Full monorepo with research docs
+- **[GitHub Repository](https://github.com/jimisaacs/spandex)** - Full repository

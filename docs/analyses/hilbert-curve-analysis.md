@@ -1,10 +1,12 @@
 # Hilbert Curve Analysis
 
+> **⚠️ Superseded**: This documents the original Hilbert curve optimization (2x speedup). **Morton curves have since replaced Hilbert** with an additional 25% performance improvement (simpler encoding). See [morton-vs-hilbert-analysis.md](./morton-vs-hilbert-analysis.md) for the comparison. This document is preserved for historical context and to document the spatial locality breakthrough.
+
 **Finding**: Hilbert curve spatial ordering provides 2x speedup over naive linear scan (ArrayBufferLinearScanImpl)
 
-**Impact**: Replaces ArrayBufferLinearScanImpl as optimal sparse data implementation
+**Impact**: Replaces ArrayBufferLinearScanImpl as optimal sparse data implementation (later superseded by Morton)
 
-__vs R_-tree_ _: Hilbert is 2x faster than R_-tree for n<100 (write-heavy workload), but R*-tree is 4x faster for n≥1000
+**vs R-tree**: Hilbert is 2x faster than R-tree for n<100 (write-heavy workload), but R*-tree is 4x faster for n≥1000
 
 ---
 

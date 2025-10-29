@@ -1,4 +1,143 @@
-# Regression - Round-trip Scenarios
+# ASCII Regression Scenarios
+
+## Test: Overlap Decomposition (fragments)
+
+```ascii
+    Shape A       Add B (decomposes A)   Add C (further decomp)
+
+    A   B   C         A   B   C   D          A   B   C   D
+  ┏━━━┳━━━┳━━━┓     ┏━━━┳━━━┳━━━┓   ·      ┏━━━┳━━━┳━━━┓   ·
+1 ┃ A ┃ A ┃ A ┃   1 ┃ A ┃ A ┃ A ┃        1 ┃ A ┃ A ┃ C ┃
+  ┣━━━╋━━━╋━━━┫     ┣━━━╋━━━╋━━━╋━━━┓      ┣━━━╋━━━╋━━━╋━━━┓
+2 ┃ A ┃ A ┃ A ┃   2 ┃ A ┃ B ┃ B ┃ B ┃    2 ┃ A ┃ B ┃ C ┃ B ┃
+  ┣━━━╋━━━╋━━━┫     ┣━━━╋━━━╋━━━╋━━━┫      ┣━━━╋━━━╋━━━╋━━━┫
+3 ┃ A ┃ A ┃ A ┃   3 ┃ A ┃ B ┃ B ┃ B ┃    3 ┃ A ┃ B ┃ C ┃ B ┃
+  ┗━━━┻━━━┻━━━┛     ┗━━━╋━━━╋━━━╋━━━┫      ┗━━━╋━━━╋━━━╋━━━┫
+                  4     ┃ B ┃ B ┃ B ┃    4     ┃ B ┃ C ┃ B ┃
+                    ·   ┗━━━┻━━━┻━━━┛      ·   ┗━━━┻━━━┻━━━┛
+
+A = "A"
+B = "B"
+C = "C"
+```
+
+---
+
+## Test: Cross Formation (LWW decomposition)
+
+```ascii
+ Empty    Add Horizontal   Add Vertical (LWW)
+
+    ∅         ∞                ∞   B   ∞
+  ·   ·     +───+            +───┓   ┏───+
+∅         2   H            2   H ┃ V ┃ H
+  ·   ·     +───+            +───┛   ┗───+
+
+H = "H"
+V = "V"
+```
+
+---
+
+## Test: Data Density Variations
+
+```ascii
+Single Cell               Sparse                     Dense 4×4
+
+    B             A   B   C   D   E   F   G         A   B   C   D
+  ┏━━━┓         ┏━━━┓   ·   ·   ·   ·   ·   ·     ┏━━━┳━━━┳━━━┳━━━┓
+2 ┃ X ┃       1 ┃ A ┃                           1 ┃ D ┃ D ┃ D ┃ D ┃
+  ┗━━━┛         ┗━━━┛   ·   ·   ·   ·   ·   ·     ┣━━━╋━━━╋━━━╋━━━┫
+              2                                 2 ┃ D ┃ D ┃ D ┃ D ┃
+                ·   ·   ·   ·   ·   ·   ·   ·     ┣━━━╋━━━╋━━━╋━━━┫
+              3                                 3 ┃ D ┃ D ┃ D ┃ D ┃
+                ·   ·   ·   ┏━━━┓   ·   ·   ·     ┣━━━╋━━━╋━━━╋━━━┫
+              4             ┃ B ┃               4 ┃ D ┃ D ┃ D ┃ D ┃
+                ·   ·   ·   ┗━━━┛   ·   ·   ·     ┗━━━┻━━━┻━━━┻━━━┛
+              5
+                ·   ·   ·   ·   ·   ·   ·   ·
+              6
+                ·   ·   ·   ·   ·   ·   ┏━━━┓
+              7                         ┃ C ┃
+                ·   ·   ·   ·   ·   ·   ┗━━━┛
+
+A = "A"
+B = "B"
+C = "C"
+D = "D"
+X = "X"
+```
+
+---
+
+## Test: Partitioned Index - Multiple attributes
+
+```ascii
+    Add BG              Add FG              Override BG
+
+    A   B   C         A   B   C   D         A   B   C   D
+  ┏━━━┳━━━┳━━━┓     ┏━━━┳━━━┳━━━┓   ·     ┏━━━┳━━━┳━━━┓   ·
+1 ┃ B ┃ B ┃ B ┃   1 ┃ B ┃ B ┃ B ┃       1 ┃ B ┃ B ┃ B ┃
+  ┣━━━╋━━━╋━━━┫     ┣━━━╋━━━╋━━━╋━━━┓     ┣━━━╋━━━╋━━━╋━━━┓
+2 ┃ B ┃ B ┃ B ┃   2 ┃ B ┃ X ┃ X ┃ F ┃   2 ┃ B ┃ D ┃ D ┃ F ┃
+  ┣━━━╋━━━╋━━━┫     ┣━━━╋━━━╋━━━╋━━━┫     ┣━━━╋━━━╋━━━╋━━━┫
+3 ┃ B ┃ B ┃ B ┃   3 ┃ B ┃ X ┃ X ┃ F ┃   3 ┃ B ┃ D ┃ D ┃ F ┃
+  ┗━━━┻━━━┻━━━┛     ┗━━━╋━━━╋━━━╋━━━┫     ┗━━━╋━━━╋━━━╋━━━┫
+                  4     ┃ F ┃ F ┃ F ┃   4     ┃ F ┃ F ┃ F ┃
+                    ·   ┗━━━┻━━━┻━━━┛     ·   ┗━━━┻━━━┻━━━┛
+
+B = { "bg": "BACK" }
+D = { "bg": "DARK", "fg": "FORE" }
+F = { "fg": "FORE" }
+X = { "bg": "BACK", "fg": "FORE" }
+```
+
+---
+
+## Test: Partitioned Index - Attribute override
+
+```ascii
+          Set RED                    Override BLUE
+
+    A   B   C   D   E   F         A   B   C   D   E   F
+  ┏━━━┳━━━┳━━━┳━━━┳━━━┳━━━┓     ┏━━━┳━━━┳━━━┳━━━┳━━━┳━━━┓
+1 ┃ R ┃ R ┃ R ┃ R ┃ R ┃ R ┃   1 ┃ R ┃ R ┃ B ┃ B ┃ R ┃ R ┃
+  ┗━━━┻━━━┻━━━┻━━━┻━━━┻━━━┛     ┗━━━┻━━━┻━━━┻━━━┻━━━┻━━━┛
+
+B = { "color": "BLUE" }
+R = { "color": "RED" }
+```
+
+---
+
+## Test: Global Override Evolution
+
+```ascii
+Global Fill   Positive Local Wins         Negative Local Wins
+
+    ∞             ∞   C   ∞              ∞  -B  -A   A   B   C   ∞
+  ·   ·         ·   +   +   ·          ·   +   +   +   +   +   +   ·
+∞   G         ∞   G │ G │ G          ∞   G │ G │ G │ G │ G │ G │ G
+  ·   ·         +───╋━━━╋───+          +───╋━━━╋━━━╋━━━╋━━━╋━━━╋───+
+              3   G ┃ + ┃ G         -2   G ┃ - ┃ G ┃ G ┃ G ┃ G ┃ G
+                +───╋━━━╋───+          +───╋━━━╋━━━╋━━━╋━━━╋━━━╋───+
+              ∞   G │ G │ G         -1   G ┃ G ┃ G ┃ G ┃ G ┃ G ┃ G
+                ·   +   +   ·          +───╋━━━╋━━━╋━━━╋━━━╋━━━╋───+
+                                     1   G ┃ G ┃ G ┃ G ┃ G ┃ G ┃ G
+                                       +───╋━━━╋━━━╋━━━╋━━━╋━━━╋───+
+                                     2   G ┃ G ┃ G ┃ G ┃ G ┃ G ┃ G
+                                       +───╋━━━╋━━━╋━━━╋━━━╋━━━╋───+
+                                     3   G ┃ G ┃ G ┃ G ┃ G ┃ + ┃ G
+                                       +───╋━━━╋━━━╋━━━╋━━━╋━━━╋───+
+                                     ∞   G │ G │ G │ G │ G │ G │ G
+                                       ·   +   +   +   +   +   +   ·
+
+- = "LOCAL-"
++ = "LOCAL+"
+G = "GLOBAL"
+```
+
+---
 
 ## Test: Origin Excluded
 
@@ -96,145 +235,6 @@ Horizontal Band   Vertical Band
 
 H = "HBAND"
 V = "VBAND"
-```
-
----
-
-## Test: Data Density Variations
-
-```ascii
-Single Cell               Sparse                     Dense 4×4
-
-    B             A   B   C   D   E   F   G         A   B   C   D
-  ┏━━━┓         ┏━━━┓   ·   ·   ·   ·   ·   ·     ┏━━━┳━━━┳━━━┳━━━┓
-2 ┃ X ┃       1 ┃ A ┃                           1 ┃ D ┃ D ┃ D ┃ D ┃
-  ┗━━━┛         ┗━━━┛   ·   ·   ·   ·   ·   ·     ┣━━━╋━━━╋━━━╋━━━┫
-              2                                 2 ┃ D ┃ D ┃ D ┃ D ┃
-                ·   ·   ·   ·   ·   ·   ·   ·     ┣━━━╋━━━╋━━━╋━━━┫
-              3                                 3 ┃ D ┃ D ┃ D ┃ D ┃
-                ·   ·   ·   ┏━━━┓   ·   ·   ·     ┣━━━╋━━━╋━━━╋━━━┫
-              4             ┃ B ┃               4 ┃ D ┃ D ┃ D ┃ D ┃
-                ·   ·   ·   ┗━━━┛   ·   ·   ·     ┗━━━┻━━━┻━━━┻━━━┛
-              5
-                ·   ·   ·   ·   ·   ·   ·   ·
-              6
-                ·   ·   ·   ·   ·   ·   ┏━━━┓
-              7                         ┃ C ┃
-                ·   ·   ·   ·   ·   ·   ┗━━━┛
-
-A = "A"
-B = "B"
-C = "C"
-D = "D"
-X = "X"
-```
-
----
-
-## Test: Partitioned Index - Multiple attributes
-
-```ascii
-    Add BG              Add FG              Override BG
-
-    A   B   C         A   B   C   D         A   B   C   D
-  ┏━━━┳━━━┳━━━┓     ┏━━━┳━━━┳━━━┓   ·     ┏━━━┳━━━┳━━━┓   ·
-1 ┃ B ┃ B ┃ B ┃   1 ┃ B ┃ B ┃ B ┃       1 ┃ B ┃ B ┃ B ┃
-  ┣━━━╋━━━╋━━━┫     ┣━━━╋━━━╋━━━╋━━━┓     ┣━━━╋━━━╋━━━╋━━━┓
-2 ┃ B ┃ B ┃ B ┃   2 ┃ B ┃ X ┃ X ┃ F ┃   2 ┃ B ┃ D ┃ D ┃ F ┃
-  ┣━━━╋━━━╋━━━┫     ┣━━━╋━━━╋━━━╋━━━┫     ┣━━━╋━━━╋━━━╋━━━┫
-3 ┃ B ┃ B ┃ B ┃   3 ┃ B ┃ X ┃ X ┃ F ┃   3 ┃ B ┃ D ┃ D ┃ F ┃
-  ┗━━━┻━━━┻━━━┛     ┗━━━╋━━━╋━━━╋━━━┫     ┗━━━╋━━━╋━━━╋━━━┫
-                  4     ┃ F ┃ F ┃ F ┃   4     ┃ F ┃ F ┃ F ┃
-                    ·   ┗━━━┻━━━┻━━━┛     ·   ┗━━━┻━━━┻━━━┛
-
-B = { "bg": "BACK" }
-D = { "bg": "DARK", "fg": "FORE" }
-F = { "fg": "FORE" }
-X = { "bg": "BACK", "fg": "FORE" }
-```
-
----
-
-## Test: Partitioned Index - Attribute override
-
-```ascii
-          Set RED                    Override BLUE
-
-    A   B   C   D   E   F         A   B   C   D   E   F
-  ┏━━━┳━━━┳━━━┳━━━┳━━━┳━━━┓     ┏━━━┳━━━┳━━━┳━━━┳━━━┳━━━┓
-1 ┃ R ┃ R ┃ R ┃ R ┃ R ┃ R ┃   1 ┃ R ┃ R ┃ B ┃ B ┃ R ┃ R ┃
-  ┗━━━┻━━━┻━━━┻━━━┻━━━┻━━━┛     ┗━━━┻━━━┻━━━┻━━━┻━━━┻━━━┛
-
-B = { "color": "BLUE" }
-R = { "color": "RED" }
-```
-
----
-
-## Test: Cross Formation (LWW decomposition)
-
-```ascii
- Empty    Add Horizontal   Add Vertical (LWW)
-
-    ∅         ∞                ∞   B   ∞
-  ·   ·     +───+            +───┓   ┏───+
-∅         2   H            2   H ┃ V ┃ H
-  ·   ·     +───+            +───┛   ┗───+
-
-H = "H"
-V = "V"
-```
-
----
-
-## Test: Global Override Evolution
-
-```ascii
-Global Fill   Positive Local Wins         Negative Local Wins
-
-    ∞             ∞   C   ∞              ∞  -B  -A   A   B   C   ∞
-  ·   ·         ·   +   +   ·          ·   +   +   +   +   +   +   ·
-∞   G         ∞   G │ G │ G          ∞   G │ G │ G │ G │ G │ G │ G
-  ·   ·         +───╋━━━╋───+          +───╋━━━╋━━━╋━━━╋━━━╋━━━╋───+
-              3   G ┃ + ┃ G         -2   G ┃ - ┃ G ┃ G ┃ G ┃ G ┃ G
-                +───╋━━━╋───+          +───╋━━━╋━━━╋━━━╋━━━╋━━━╋───+
-              ∞   G │ G │ G         -1   G ┃ G ┃ G ┃ G ┃ G ┃ G ┃ G
-                ·   +   +   ·          +───╋━━━╋━━━╋━━━╋━━━╋━━━╋───+
-                                     1   G ┃ G ┃ G ┃ G ┃ G ┃ G ┃ G
-                                       +───╋━━━╋━━━╋━━━╋━━━╋━━━╋───+
-                                     2   G ┃ G ┃ G ┃ G ┃ G ┃ G ┃ G
-                                       +───╋━━━╋━━━╋━━━╋━━━╋━━━╋───+
-                                     3   G ┃ G ┃ G ┃ G ┃ G ┃ + ┃ G
-                                       +───╋━━━╋━━━╋━━━╋━━━╋━━━╋───+
-                                     ∞   G │ G │ G │ G │ G │ G │ G
-                                       ·   +   +   +   +   +   +   ·
-
-- = "LOCAL-"
-+ = "LOCAL+"
-G = "GLOBAL"
-```
-
----
-
-## Test: Overlap Decomposition (fragments)
-
-```ascii
-    Shape A       Add B (decomposes A)   Add C (further decomp)
-
-    A   B   C         A   B   C   D          A   B   C   D
-  ┏━━━┳━━━┳━━━┓     ┏━━━┳━━━┳━━━┓   ·      ┏━━━┳━━━┳━━━┓   ·
-1 ┃ A ┃ A ┃ A ┃   1 ┃ A ┃ A ┃ A ┃        1 ┃ A ┃ A ┃ C ┃
-  ┣━━━╋━━━╋━━━┫     ┣━━━╋━━━╋━━━╋━━━┓      ┣━━━╋━━━╋━━━╋━━━┓
-2 ┃ A ┃ A ┃ A ┃   2 ┃ A ┃ B ┃ B ┃ B ┃    2 ┃ A ┃ B ┃ C ┃ B ┃
-  ┣━━━╋━━━╋━━━┫     ┣━━━╋━━━╋━━━╋━━━┫      ┣━━━╋━━━╋━━━╋━━━┫
-3 ┃ A ┃ A ┃ A ┃   3 ┃ A ┃ B ┃ B ┃ B ┃    3 ┃ A ┃ B ┃ C ┃ B ┃
-  ┗━━━┻━━━┻━━━┛     ┗━━━╋━━━╋━━━╋━━━┫      ┗━━━╋━━━╋━━━╋━━━┫
-                  4     ┃ B ┃ B ┃ B ┃    4     ┃ B ┃ C ┃ B ┃
-                    ·   ┗━━━┻━━━┻━━━┛      ·   ┗━━━┻━━━┻━━━┛
-
-A = "A"
-B = "B"
-C = "C"
 ```
 
 ---

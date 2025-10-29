@@ -1,8 +1,6 @@
 # @local/snapmark
 
-**Dev-only**: General-purpose snapshot testing with markdown fixture storage.
-
-Not published to JSR. Used internally by [@jim/spandex](https://jsr.io/@jim/spandex) tests.
+Snapshot testing with markdown fixture storage.
 
 ```typescript
 import { createFixtureGroup, jsonCodec } from '@local/snapmark';
@@ -12,39 +10,15 @@ Deno.test('My test', async (t) => {
 
 	await assertMatchStep(t, 'Snapshot name', myData);
 
-	await flush(); // Write on UPDATE_FIXTURES=1
+	await flush();
 });
 ```
 
-**Built-in codecs**: JSON, string, binary, image (data URIs)\
-**Built-in adapters**: Base64, data URI (chainable)
+**Codecs**: `jsonCodec`, `stringCodec`, `asciiStringCodec`, `binaryCodec`, `imageDataUriCodec`\
+**Adapters**: `base64Adapter`, `dataUriAdapter` (chainable)
 
-## Usage
+**Path convention**: `test/foo.test.ts` → `test/fixtures/foo.md`
 
-**Auto-inferred path** (default):
+**Update mode**: `UPDATE_FIXTURES=1 deno test`
 
-```typescript
-const { assertMatchStep, flush } = createFixtureGroup(codec, { context: t });
-// Path: test/foo.test.ts → test/fixtures/foo.md
-```
-
-**Explicit path**:
-
-```typescript
-const { assertMatch, flush } = createFixtureGroup(codec, {
-	context: t,
-	filePath: new URL('./fixtures/shared.md', import.meta.url),
-});
-```
-
-**Update fixtures**: `UPDATE_FIXTURES=1 deno test`
-
-## Related
-
-- [@jim/spandex-ascii](https://jsr.io/@jim/spandex-ascii) - Uses this for ASCII snapshot tests
-- `@local/spandex-testing` - Uses this for conformance tests
-- [Examples](./test/fixtures/) - Real fixture files
-
-## License
-
-MIT
+**License**: MIT

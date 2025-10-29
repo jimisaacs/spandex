@@ -1,4 +1,15 @@
 {
 	"name": "@local/spandex-telemetry",
-	"exports": "./src/mod.ts"
+	"version": "0.1.0",
+	"description": "Opt-in telemetry collection for @jim/spandex implementations",
+	"license": "MIT",
+	"exports": "./src/mod.ts",
+	"tasks": {
+		"test": "deno test -A",
+		"test:watch": "deno test -A --watch",
+		"fmt": "deno fmt",
+		"fmt:check": "deno fmt --check",
+		"lint": "deno lint",
+		"check": "deno check src/mod.ts"
+	}
 }

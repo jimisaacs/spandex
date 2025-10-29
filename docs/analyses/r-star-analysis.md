@@ -1,5 +1,7 @@
 # R* Split Algorithm Analysis
 
+> **Historical Note**: This analysis documents the R* split algorithm evaluation experiment. Absolute timings cited reflect the experimental conditions at the time. **Core findings remain valid**: R* provides best construction performance and workload-dependent query advantages. For current measurements, see [BENCHMARKS.md](../../BENCHMARKS.md).
+
 **Finding**: R* split (Beckmann 1990) achieves fastest construction. Query performance is workload-dependent.
 
 ## Result

@@ -33,6 +33,8 @@ export interface HTMLRenderParams<T> extends RenderParams {
 	cellHeight?: number;
 	/** Show grid lines (default: true) */
 	showGrid?: boolean;
+	/** If true, omit legend (grid only, default: false) */
+	gridOnly?: boolean;
 }
 
 /**

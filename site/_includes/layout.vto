@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1.0">
+		<title>{{ if title }}{{ title }}{{ else }}Spandex - 2D Spatial Indexing{{ /if }}</title>
+		<meta
+			name="description"
+			content="{{ if description }}{{ description }}{{ else }}Fast 2D spatial indexing with last-writer-wins semantics for JavaScript/TypeScript{{ /if }}"
+		>
+		<link rel="stylesheet" href="/styles.css">
+	</head>
+	<body>
+		<nav class="sidebar">
+			<div class="sidebar-header">
+				<a href="/" class="logo">
+					<strong>Spandex</strong>
+				</a>
+				<p class="tagline">2D Spatial Indexing</p>
+			</div>
+			
+			<div class="nav-section">
+				<h3>Learn</h3>
+				<ul>
+					<li><a href="/">Overview</a></li>
+					<li><a href="/docs/RECTANGLE-DECOMPOSITION-PRIMER.md">Primer</a></li>
+					<li><a href="/packages/@jim/spandex-html/test/fixtures/regression.md">🎨 HTML Examples</a></li>
+					<li><a href="/packages/@jim/spandex-ascii/test/fixtures/regression.md">📟 ASCII Examples</a></li>
+					<li><a href="/PRODUCTION-GUIDE.md">Production Guide</a></li>
+					<li><a href="/BENCHMARKS.md">Benchmarks</a></li>
+					<li><a href="/docs/core/RESEARCH-SUMMARY.md">Research</a></li>
+				</ul>
+			</div>
+			
+			<div class="nav-section">
+				<h3>Use</h3>
+				<ul>
+					<li><a href="/packages/@jim/spandex/README.md">@jim/spandex</a></li>
+					<li><a href="/packages/@jim/spandex-html/README.md">@jim/spandex-html</a></li>
+					<li><a href="/packages/@jim/spandex-ascii/README.md">@jim/spandex-ascii</a></li>
+				</ul>
+			</div>
+			
+			<div class="nav-section">
+				<h3>Develop</h3>
+				<ul>
+					<li><a href="/docs/IMPLEMENTATION-LIFECYCLE.md">Implementation</a></li>
+					<li><a href="/docs/BENCHMARK-FRAMEWORK.md">Benchmarking</a></li>
+				</ul>
+			</div>
+			
+			<div class="nav-section nav-section-links">
+				<ul>
+					<li><a href="https://jsr.io/@jim/spandex" target="_blank">JSR</a></li>
+				</ul>
+			</div>
+		</nav>
+
+		<main class="content">
+			<article>
+				{{ content }}
+			</article>
+
+			<footer>
+				<p>
+					<a href="https://github.com/jimisaacs/spandex">View on GitHub</a> •
+					<a href="https://jsr.io/@jim/spandex">JSR Packages</a>
+				</p>
+			</footer>
+		</main>
+	</body>
+</html>

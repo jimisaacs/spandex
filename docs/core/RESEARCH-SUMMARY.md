@@ -1,14 +1,12 @@
-# Spatial Indexing Research Summary
+# Research Summary
 
 **Problem**: Maintain non-overlapping 2D rectangles with last-writer-wins semantics\
-**Algorithm**: Rectangle decomposition (A \ B → ≤4 fragments)\
-**Deployment Targets**: Pure JavaScript environments (browsers, Node.js, Deno, constrained runtimes). Optimized for environments without WASM/SharedArrayBuffer. Includes Google Apps Script for spreadsheet applications.
-
----
+**Solution**: Rectangle decomposition (A \ B → ≤4 fragments)\
+**Target**: Pure JavaScript environments (browsers, Node.js, Deno, constrained runtimes like Google Apps Script)
 
 ## Production Recommendations
 
-| n (size)    | Workload     | Algorithm Approach      | Why                              |
+| n (size)    | Workload     | Use                     | Why                              |
 | ----------- | ------------ | ----------------------- | -------------------------------- |
 | **< 100**   | All          | Morton spatial locality | O(n) ≈ O(1), faster via locality |
 | **100-200** | Write-heavy  | Context-dependent       | See transition zone analysis     |
@@ -16,295 +14,118 @@
 | **> 200**   | Read-heavy   | R-tree (R* split)       | O(log n) query pruning wins      |
 | **> 600**   | All          | R-tree (R* split)       | O(log n) hierarchical indexing   |
 
----
+See [PRODUCTION-GUIDE](../../PRODUCTION-GUIDE.md) for implementation details.
 
 ## Key Findings
 
-### 1. Morton Optimization: Pure Functions + Micro-optimizations
+This section summarizes research outcomes. For detailed methodology and data, see individual analysis documents linked below.
 
-**Result**: Optimized Morton dominates sparse data (n<100).
+### 1. Morton Curve Optimization (25% speedup)
 
-**Key Insight**: Micro-optimizations compound. Eliminating `this` lookups, caching `entries` reference, and using indexed `for` loops saved ~5-10% per operation.
+**Finding**: Morton curve (Z-order) via bit interleaving provides 25% average speedup over Hilbert curve at small n, while being simpler to implement.
 
-**Optimizations applied**: Pure functions (no `this` overhead), cached `this.entries`, tight `for` loops, pre-allocated arrays
+**Impact**: Production algorithm for n<100. Constant-time encoding vs iterative Hilbert.
 
-**Impact**: Algorithm structure matters more than encoding complexity. Single-pass insertion + spatial ordering wins.
+See [morton-vs-hilbert-analysis.md](../analyses/morton-vs-hilbert-analysis.md) for detailed comparison.
 
-### 2. Space-Filling Curves: Speedup via Spatial Locality
+### 2. Linear Scan Wins for Sparse Data (n < 100)
 
-**Result**: Morton curve (Z-order) dominates at small n via spatial ordering.
+**Finding**: O(n) linear scan with spatial locality is 5-10x faster than O(log n) R-trees for n < 100.
 
-**Mechanism**: Bit interleaving keeps spatially adjacent rectangles close in memory, improving cache utilization.
+**Why**: Tree construction overhead (node allocation, bbox updates) exceeds traversal benefits at small scales.
 
-**Historical note**: Morton superseded Hilbert curve (25% faster due to simpler encoding). See [morton-vs-hilbert-analysis.md](../analyses/morton-vs-hilbert-analysis.md).
+**Impact**: Use Morton spatial locality for n<100, R-tree for n≥100. Crossover varies by workload (see transition zone analysis).
 
-### 3. Sparse Data Dominates (n < 100)
+See [sparse-data-analysis.md](../analyses/sparse-data-analysis.md) for performance data.
 
-**Result**: Linear scan O(n) outperforms R-trees for n < 100 due to lower overhead and spatial locality.
+### 3. R* Split Algorithm (Construction + Quality)
 
-**Data** (sparse-sequential write-heavy, n=50):
+**Finding**: R* split (Beckmann 1990) is fastest for tree construction and provides best query performance on overlapping/large datasets.
 
-- Morton spatial locality: ~7µs (2.9x faster than R*-tree)
-- R*-tree: ~20µs (baseline)
+**Performance**: 20-25x faster construction than Quadratic split, 30-35% faster queries on overlapping data vs Midpoint.
 
-**Why**: At small n, tree construction overhead (node allocation, bbox updates) exceeds traversal benefits.
+**Impact**: Production R-tree algorithm. Optimal balance of construction speed and tree quality.
 
-### 4. R* Split: Faster Construction, Workload-Dependent Queries
+See [r-star-analysis.md](../analyses/r-star-analysis.md) for split algorithm comparison.
 
-**Compared**: Midpoint O(m), Quadratic O(m²), R* O(m log m)
+### 4. Transition Zone Mapped (100 < n < 600)
 
-**Result**: R* is fastest for construction, but query performance depends on data pattern
-
-**Construction** (write-heavy, n=2500):
-
-- R* (RStarTreeImpl): 1.92ms (baseline, fastest)
-- Midpoint (ArrayBufferRTree): 2.20ms (15% slower)
-- Quadratic: 43.5ms (22x slower)
-
-**Query Performance** (10k queries after warm-up, workload-dependent):
-
-- Sequential n=1000: Midpoint 1.14ms vs R* 1.15ms (equivalent, <1% difference)
-- Overlapping n=1000: R* 15.1ms vs Midpoint 20.3ms (R* 34% faster)
-- Large n=5000: R* 13.5ms vs Midpoint 15.2ms (R* 12% faster)
-
-**Conclusion**: R* fastest for construction. Queries: equivalent on sequential, faster on overlapping/large.
-
-### 5. Transition Zone Mapped (100 < n < 600)
-
-**Hypothesis**: Crossover point varies by workload and overlap pattern
-
-**Result**: **VALIDATED** (23-scenario benchmark matrix: 3 workloads × 4 patterns × sparse/large sizes + 3 query-only scenarios)
+**Finding**: Crossover point between linear scan and R-tree varies by workload:
 
 - Read-heavy: R-tree wins at n > 100
 - Write + low overlap: R-tree wins at n > 200
-- Write + high overlap: Linear scan wins until n > 600 (crossover observed between n=500-1250)
+- Write + high overlap: Linear scan wins until n > 600
 
-**Impact**: Replaced "workload-dependent" with concrete decision thresholds.
+**Impact**: Concrete thresholds replace "workload-dependent" guidance.
 
-### 6. FastRTree Experiment Failed
+See [transition-zone-analysis.md](../analyses/transition-zone-analysis.md) for 23-scenario benchmark matrix.
 
-**Hypothesis**: R* axis selection + midpoint split = faster without quality loss
+### 5. Failed Experiments
 
-**Result**: **REJECTED** (5-run statistical analysis)
+**FastRTree** (R* axis + midpoint split): 1.29x slower, rejected.\
+**Bulk Insert API**: 1.01-1.39x slower due to LWW sequential dependency, rejected.\
+**Learned Indexes**: Requires ML runtimes (TensorFlow/PyTorch), impractical for constrained environments.
 
-- 1/20 scenarios faster than midpoint
-- 1.29x average slowdown
-- Only 1.03x competitive with full R*
+See `archive/docs/experiments/` for full analyses.
 
-### 7. TypedArrays: Only GAS-Compatible Optimization
+### 6. Implementation Constraints
 
-| Technology               | Performance | Constrained Runtime Compatible |
-| ------------------------ | ----------- | ------------------------------ |
-| TypedArrays (Int32Array) | Good        | ✅ Yes                         |
-| WebAssembly              | Near-native | ❌ No                          |
-| WebGPU                   | GPU compute | ❌ No                          |
-| SharedArrayBuffer        | Parallel    | ❌ No                          |
+**TypedArrays**: Only performance optimization compatible with constrained runtimes (Google Apps Script). WASM/WebGPU/SharedArrayBuffer unavailable.
 
-### 8. Comprehensive Benchmark Coverage (35 Scenarios)
+**Implementation style**: Imperative + TypedArrays required for production (~14x faster than functional style with `.flatMap`/`.filter`).
 
-**Benchmark categories**:
+**Bundle sizes**: Morton ~1.8KB, R-tree ~8.4KB (minified). Already optimal.
 
-**Algorithmic patterns** (stress-test data structures):
+### 7. Comprehensive Testing (35 Benchmark Scenarios)
 
-- Sequential: Non-overlapping ranges in order
-- Grid: Small ranges in 2D grid pattern
-- Overlapping: Intentional overlaps to test decomposition
-- Large: High-cardinality datasets (n=500-5000)
+**Coverage**:
 
-**User operation patterns** (common spreadsheet actions):
+- **Algorithmic patterns**: Sequential, grid, overlapping, large datasets (n=500-5000)
+- **User patterns**: Single cells, columns, rows, diagonal, striping, merge-like blocks
+- **Workloads**: Write-heavy (80/20), query-only (10k queries), mixed
 
-- Single-cell edits: Individual cell formatting (most frequent action)
-- Column operations: Full-column formatting (A:A style)
-- Row operations: Full-row formatting (1:1 style)
-- Diagonal selection: Cascading conditional formats
-- Striping: Alternating row colors (zebra tables)
-- Merge-like blocks: Title blocks and headers
+**Adversarial validation**: Pathological patterns (concentric, diagonal, checkerboard) validate O(n) fragmentation bound. Empirical k ≈ 2.3 overlaps per insert.
 
-**Workload patterns** (mixed read/write):
+See [adversarial-patterns.md](../analyses/adversarial-patterns.md) and [benchmark-statistics.md](../analyses/benchmark-statistics.md).
 
-- 80/20 write-heavy scenarios
-- Query-only scenarios (10k queries on pre-populated index)
+### 8. Production Readiness (October 2025)
 
-**Total**: 35 scenarios × 8 implementations = 280 benchmark measurements
+**Optimization study**: No further micro-optimizations viable (<10% impact threshold). Current performance is algorithmically determined.
 
-### 9. Implementation Style: Imperative vs Functional
+**Test coverage**: Axiom-based conformance, ASCII snapshots, cross-implementation consistency, adversarial worst-case.
 
-**Comparison**: Optimized (imperative + TypedArrays) vs Verbose (functional style)
+**Conclusion**: Implementations production-ready. Future gains require new algorithms, not micro-optimizations.
 
-**Finding**: Imperative style with TypedArrays is essential.
+## Algorithms
 
-**Example** (CompactRTree vs RStarTreeImpl at n=1250):
+**Linear Scan** (O(n)): Flat array with Morton spatial locality. Best for n<100 (2x faster via cache locality). Bundle: ~1.8KB.
 
-- Functional style (`CompactRTree`): Quadratic split with `.flatMap`, `.filter` → 43.8ms (header comment)
-- Imperative style (`RStarTreeImpl`): R* split with loops, TypedArrays → 3.1ms (current)
-- Ratio: ~14x slower
+**R-tree** (O(log n)): Hierarchical index with R* split (Beckmann 1990). Best for n≥100. Bundle: ~8.4KB.
 
-**Note**: Current benchmarks don't include CompactRTree for direct comparison. Data from implementation header.
+See `packages/@jim/spandex/src/index/` for implementations.
 
-**Lesson**: Functional style acceptable for educational/reference implementations. Production requires imperative style + TypedArrays.
+## Methodology
 
-### 10. Bulk Insert API: Rejected (LWW Constraint)
+**Benchmarks**: 35 scenarios (algorithmic patterns + user patterns + workloads), 5 runs, CV% <5%.
 
-**Hypothesis**: `insertBatch()` API would provide 2-5x speedup over sequential inserts via bulk loading techniques
+**Testing**: Axiom-based correctness (LWW semantics, disjointness, fragment bounds), adversarial worst-case validation (k ≈ 2.3 overlaps/insert), cross-implementation consistency.
 
-**Result**: **REJECTED** (1.01-1.39x SLOWER than sequential inserts)
+**Reproduce**: `deno task bench:update` • `deno task test` • `deno task test:adversarial`
 
-**Root cause**: Last-Writer-Wins semantics require sequential processing within batch to maintain correctness. Later entries must decompose earlier entries in order, preventing:
+## Documentation Map
 
-- Parallel processing
-- Hilbert curve pre-sorting
-- Amortized memory allocations
-- Single-pass overlap detection
-
-**Complexity analysis**:
-
-- Batch API: O(k²) within-batch LWW + O(n×k) merge = O(k² + n×k)
-- Sequential: O(k×n) with lower constant factors
-- For k ≪ n: Batch has extra O(k²) overhead with no benefit
-
-**Full analysis**: `archive/docs/experiments/bulk-insert-api-experiment.md`
-
-### 11. Modern Techniques Inapplicable
-
-**Researched**: Morton curves (Z-order), Packed Hilbert R-trees, STR bulk loading, learned indexes (LISA, RSMI, 2024-2025 SOTA)
-
-**Result**: No applicable improvements for this use case
-
-**Findings**:
-
-- **Morton curves**: ✅ VALIDATED - Now production. 25% faster than Hilbert due to simpler bit-interleaving encoding (constant-time vs iterative).
-- **Packed/STR bulk loading**: 4x faster tree construction but requires static data (no dynamic updates).
-- **Learned indexes**: ML-based spatial indexes require TensorFlow/PyTorch, model training, periodic rebuilds. Not practical in constrained runtimes (bundle size, compute limits).
-- **GPU acceleration**: Not available in constrained environments.
-
-**Conclusion**: Modern techniques target massive datasets (millions+ records) with predictable distributions.
-
-**Full analysis**: `archive/docs/experiments/modern-spatial-indexing-research.md`
-
-### 12. Optimization Feasibility Study (October 2025)
-
-**Goal**: Squeeze maximum performance from production implementations
-
-**Results**:
-
-- **Performance optimizations**: None viable (all <10% improvement threshold)
-  - Current performance is algorithmically determined, not implementation-limited
-  - 2x spatial locality speedup (Morton curve) represents maximum gains for linear scan
-  - Minor RTree inefficiencies (2-5% impact) below significance threshold
-- **Bundle size**: Already optimal
-  - Morton: ~1.8KB minified
-  - RTree: ~8.4KB minified
-- **Test coverage**: ✅ Production-ready
-  - Axiom-based conformance tests
-  - ASCII snapshot regression tests
-  - Cross-implementation consistency validation
-  - Adversarial worst-case fragmentation tests
-  - All tests passing ✅
-
-**Conclusion**: Implementations are production-ready. Future gains require new algorithms rather than micro-optimizations.
-
-**Documentation**: [optimization-feasibility-study.md](../../archive/docs/experiments/optimization-feasibility-study-2025-10-07.md), [test-coverage-improvements.md](../../archive/docs/experiments/test-coverage-improvements-2025-10-07.md)
-
----
-
-## Algorithm Complexity
-
-### Linear Scan (O(n))
-
-Flat array storage with various optimization strategies:
-
-- **Spatial locality** (Morton curve): 2x faster via improved memory access patterns
-- **Compact storage**: Smallest bundle size
-- **TypedArrays**: Memory-efficient coordinate storage
-- **Educational**: Clear reference implementation
-
-See `packages/@jim/spandex/src/index/` for current implementations.
-
-**Practical**: n² fragmentation rare; typical O(n) performance.
-
-### R-tree (O(log n))
-
-Hierarchical index with various split strategies:
-
-- R* split (Beckmann 1990): Production quality, optimal tree
-- **Midpoint split**: Faster construction, acceptable quality
-- **Quadratic split** (Guttman 1984): Research baseline
-
-See `packages/@jim/spandex/src/index/` for current implementations, `archive/` for failed experiments.
-
----
-
-## Benchmark Methodology
-
-**Matrix**:
-
-- Sizes: Sparse (n<100), Large (n>1000)
-- Patterns: Sequential, grid, overlapping, large ranges
-- Workloads: Write-heavy (80/20), read-heavy (20/80), mixed (50/50)
-
-**Statistical rigor**:
-
-- 5 iterations per scenario
-- Mean ± stddev, CV% reported
-- Baseline: `RStarTreeImpl` (O(log n) reference)
-
-**Reproduce**: `deno task bench:update` or `./scripts/analyze-benchmarks.ts 5`
-
----
-
-## Testing Philosophy
-
-**Axiom-based correctness**, not code coverage.
-
-**Conformance tests**: Core correctness properties (LWW semantics, overlap resolution, disjointness invariants, fragment bounds), boundary conditions, query correctness, and cross-implementation consistency. All implementations must pass identical test suite.
-
-**Adversarial tests** (worst-case validation):
-Pathological patterns designed to maximize fragmentation empirically validate O(n) bound:
-
-| Pattern          | Purpose                                          | Result                               |
-| ---------------- | ------------------------------------------------ | ------------------------------------ |
-| Concentric       | Max overlaps (each insert contains all previous) | 100 inserts → 232 ranges (2.32x)     |
-| Diagonal Sweep   | Partial overlaps across many ranges              | 2.0-2.5x fragmentation               |
-| Checkerboard     | Fragment large blocks with small holes           | 2.0-2.5x despite hole punching       |
-| Growth Analysis  | Measure ratio change with scale                  | 3.70x → 2.32x (decreasing!)          |
-| RTree Validation | Verify bound applies to tree structures          | Same 2.3x as linear scan             |
-| Random Stress    | Realistic unpredictable patterns                 | 1.75-1.90x (easier than adversarial) |
-
-**Key Findings**: Fragmentation ratio **decreases** with scale (opposite of exponential), average k ≈ 2.3 overlaps per insert, geometric bound (A/A_min) proven impossible to exceed.
-
-See [adversarial-patterns.md](../analyses/adversarial-patterns.md) for full analysis. Run tests via `deno task test:adversarial`.
-
-**Invariants** (2 global properties):
-Non-duplication (no identical ranges), disjointness (no overlaps).
-
-**Run tests**: `deno task test` (all), `deno task test:adversarial` (worst-case only)
-
----
-
-## Documentation
-
-| Doc                                      | Purpose                                          |
-| ---------------------------------------- | ------------------------------------------------ |
-| `README.md`                              | Navigation, reading paths                        |
-| `PRODUCTION-GUIDE.md`                    | Decision tree, migration guide                   |
-| `core/theoretical-foundation.md`         | Algorithm math & proofs                          |
-| `core/RESEARCH-SUMMARY.md`               | This document (executive summary)                |
-| `analyses/morton-vs-hilbert-analysis.md` | Morton vs Hilbert comparison (Morton 25% faster) |
-| `analyses/sparse-data-analysis.md`       | Why linear scan wins for n<100                   |
-| `analyses/transition-zone-analysis.md`   | Crossover points (100 < n < 600)                 |
-| `analyses/r-star-analysis.md`            | Split algorithm comparison                       |
-| `analyses/alternatives-analysis.md`      | Why not quadtrees, grids, etc?                   |
-| `active/` (workspace)                    | Current experiments (empty when clean)           |
-| `../archive/docs/experiments/`           | Rejected experiments (full analyses)             |
-
----
-
-## Future Work
-
-1. **Bulk operations**: Batch insert optimization (STR packing)
-2. **Tree quality empirical study**: Use new `getTreeQualityMetrics()` to compare R* vs Midpoint split structural differences
-
----
+| Document                                                                | Purpose                                 |
+| ----------------------------------------------------------------------- | --------------------------------------- |
+| [PRODUCTION-GUIDE](../../PRODUCTION-GUIDE.md)                           | Quick start, algorithm selection        |
+| [theoretical-foundation](./theoretical-foundation.md)                   | Proofs, complexity analysis             |
+| [morton-vs-hilbert-analysis](../analyses/morton-vs-hilbert-analysis.md) | Space-filling curve comparison          |
+| [sparse-data-analysis](../analyses/sparse-data-analysis.md)             | Why O(n) wins for n<100                 |
+| [transition-zone-analysis](../analyses/transition-zone-analysis.md)     | Crossover thresholds by workload        |
+| [r-star-analysis](../analyses/r-star-analysis.md)                       | Split algorithm comparison              |
+| [adversarial-patterns](../analyses/adversarial-patterns.md)             | Worst-case fragmentation validation     |
+| [benchmark-statistics](../analyses/benchmark-statistics.md)             | Statistical methodology                 |
+| [alternatives-analysis](../analyses/alternatives-analysis.md)           | Why not quadtrees/grids?                |
+| `archive/docs/experiments/`                                             | Failed experiments (preserved learning) |
 
 ## References
 
@@ -327,11 +148,6 @@ Non-duplication (no identical ranges), disjointness (no overlaps).
 - **GridRange type** - Custom interface matching Google Sheets GridRange (minus sheetId) defined in `src/adapters/gridrange.ts`
 - **Deno Standard Library** - TypeScript runtime and testing framework
 
-### Implementation References
-
-- See [docs/analyses/](../analyses/) for empirical validation of all claims
-- See [BENCHMARKS.md](../../BENCHMARKS.md) for reproducible performance data
-
 ---
 
-**Conclusion**: Best algorithm depends on n and workload. Linear scan wins for sparse (n<100), R-tree wins for large (n>1000).
+**Result**: Algorithm choice depends on n and workload. Morton linear scan for n<100, R-tree for n≥100. See [PRODUCTION-GUIDE](../../PRODUCTION-GUIDE.md) for decision tree.

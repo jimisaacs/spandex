@@ -38,7 +38,7 @@ Step 1: Check ROOT [0,0,10,10]
 Step 2: Check left child [0,0,5,5]
         ✅ Intersects! Descend to its children
 
-Step 3: Check right child [5,5,10,10]  
+Step 3: Check right child [5,5,10,10]
         ❌ No intersection! PRUNE entire subtree (D,E,F skipped!)
 
 Step 4: Check leaves A, B, C

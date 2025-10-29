@@ -131,12 +131,12 @@ const html = createRenderer().render(index, { legend, showCoordinates: true });
 
 ## Performance
 
-| n     | Algorithm | Time  |
-| ----- | --------- | ----- |
-| < 100 | Morton    | ~7µs  |
-| ≥ 100 | R*-tree   | ~50µs |
+| n     | Algorithm | Performance                         |
+| ----- | --------- | ----------------------------------- |
+| < 100 | Morton    | 5-10x faster than R*-tree           |
+| ≥ 100 | R*-tree   | 10-20x faster than Morton at n≈2500 |
 
-Crossover n≈100. See monorepo BENCHMARKS.md.
+Crossover n≈100. See [BENCHMARKS.md](https://github.com/jimisaacs/spandex/blob/main/BENCHMARKS.md) for current measurements.
 
 ## Implementation-Specific Methods
 
@@ -208,10 +208,9 @@ index = createMortonLinearScanIndex<T>();
 
 ### Documentation
 
-- **[GitHub Repository](https://github.com/jimisaacs/spandex)** - Full monorepo with docs
-- **[Production Guide](https://github.com/jimisaacs/spandex/blob/main/PRODUCTION-GUIDE.md)** - Algorithm selection
+- **[Production Guide](https://github.com/jimisaacs/spandex/blob/main/PRODUCTION-GUIDE.md)** - Algorithm selection guide
 - **[Benchmarks](https://github.com/jimisaacs/spandex/blob/main/BENCHMARKS.md)** - Performance data
-- **[Research Docs](https://github.com/jimisaacs/spandex/tree/main/docs)** - Analysis & theory
+- **[GitHub Repository](https://github.com/jimisaacs/spandex)** - Full repository
 
 ## License
 

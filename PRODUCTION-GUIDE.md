@@ -19,10 +19,10 @@ const index = createRStarTreeIndex<string>();
 ## The Algorithms
 
 **Morton Linear Scan** - O(n), uses Z-order curve for spatial locality\
-Best for: < 100 rectangles, ~7µs @ n=50
+Best for: < 100 rectangles (5-10x faster than R-tree at n=50)
 
 **R-Star Tree** - O(log n), hierarchical with smart splits (Beckmann 1990)\
-Best for: ≥ 100 rectangles, ~50µs @ n=100
+Best for: ≥ 100 rectangles (10-20x faster than linear scan at n=2500)
 
 **Lazy Partitioned** - Separate indexes per attribute, spatial join on query\
 Best for: Independent attributes (spreadsheet cells, GIS layers)
@@ -35,9 +35,16 @@ See [BENCHMARKS.md](./BENCHMARKS.md) for current data or [benchmark-statistics.m
 
 ## Special Cases
 
-**High overlap workloads** (lots of rectangles stacking on each other): Crossover shifts to n≈600 because decomposition dominates.
+**High overlap workloads** - When many rectangles stack (e.g., conditional formatting in spreadsheets):
 
-**Multiple independent attributes**: Use `LazyPartitionedIndex` - it creates separate indexes per attribute and joins results on query.
+- Crossover shifts to n≈600 instead of n=100
+- Why: Rectangle decomposition cost dominates, so linear scan stays competitive longer
+- See [transition-zone-analysis](./docs/analyses/transition-zone-analysis.md) for workload-specific thresholds
+
+**Multiple independent attributes** - When tracking different properties per cell (backgrounds, borders, fonts):
+
+- Use `LazyPartitionedIndex` - separate index per attribute, joins on query
+- Best for properties updated independently (spreadsheet cells, GIS layers)
 
 ```typescript
 import createLazyPartitionedIndex from '@jim/spandex/index/lazypartitionedindex';
@@ -47,6 +54,8 @@ const index = createLazyPartitionedIndex(createMortonLinearScanIndex);
 index.set([0, 0, 10, 10], 'backgroundColor', 'red');
 index.set([5, 5, 15, 15], 'fontSize', 14);
 ```
+
+See [RECTANGLE-DECOMPOSITION-PRIMER](./docs/RECTANGLE-DECOMPOSITION-PRIMER.md) for the three strategies: LWW, Shallow Merge, and Spatial Join.
 
 ## Switching Algorithms
 

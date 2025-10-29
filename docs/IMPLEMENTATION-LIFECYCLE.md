@@ -1,6 +1,6 @@
-# Implementation Lifecycle Guide
+# Implementation Lifecycle
 
-Quick reference for managing implementations in this research project.
+Managing implementations in the spatial indexing library.
 
 ## Adding a New Implementation
 
@@ -102,8 +102,6 @@ deno task bench:update      # Regenerate BENCHMARKS.md (~2 min)
 
 Update `docs/analyses/` with findings.
 
----
-
 ## Archiving an Implementation
 
 ### Automated Script (Recommended)
@@ -149,8 +147,6 @@ deno task bench:update      # Quick update (~2 min)
 deno task bench:analyze 5 docs/analyses/benchmark-statistics.md  # Full stats (~30 min)
 ```
 
----
-
 ## Restoring an Archived Implementation
 
 ```bash
@@ -164,8 +160,6 @@ Then:
 deno task test              # Verify tests pass
 deno task bench:update      # Update benchmarks
 ```
-
----
 
 ## Retrieving Archived Code
 
@@ -193,8 +187,6 @@ git show <SHA>:packages/@jim/spandex/src/index/archivedimpl.ts > /tmp/archivedim
 # (manually adjust imports as needed)
 ```
 
----
-
 ## Quick Reference
 
 | Task                          | Command                                                               |
@@ -206,8 +198,6 @@ git show <SHA>:packages/@jim/spandex/src/index/archivedimpl.ts > /tmp/archivedim
 | List active implementations   | `ls packages/@jim/spandex/src/index/`                                 |
 | List archived implementations | See `archive/IMPLEMENTATION-HISTORY.md`                               |
 
----
-
 ## Best Practices
 
 1. Document why archived
@@ -215,10 +205,7 @@ git show <SHA>:packages/@jim/spandex/src/index/archivedimpl.ts > /tmp/archivedim
 3. Update `docs/analyses/`
 4. Commit conventions: `feat:`, `archive:`, `unarchive:`
 
----
+## See Also
 
-See also:
-
-- `CLAUDE.md` - Full project rules and conventions
-- `archive/README.md` - Archive structure and management
-- `docs/README.md` - Documentation organization
+- [Archive Management](../archive/README.md)
+- [Documentation Structure](./README.md)

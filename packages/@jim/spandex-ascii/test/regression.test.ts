@@ -19,7 +19,7 @@ const FIXTURE_PATH = new URL('./fixtures/regression.md', import.meta.url);
 
 //#region REGRESSION SCENARIOS
 
-Deno.test('Regression - Round-trip Scenarios', async (t) => {
+Deno.test('ASCII Regression Scenarios', async (t) => {
 	const { renderLayout, renderProgression } = createRenderer();
 	const scenarios = createRegressionScenarios();
 
@@ -28,7 +28,109 @@ Deno.test('Regression - Round-trip Scenarios', async (t) => {
 		filePath: FIXTURE_PATH,
 	});
 
-	//#region COMPARISONS (independent states, same input)
+	//#region SECTION 1: CORE BEHAVIOR - What the library does
+
+	await t.step('Overlap Decomposition (fragments)', async () => {
+		const { factory, steps } = scenarios.progressions.overlapDecomposition();
+		const legend = { 'A': 'A', 'B': 'B', 'C': 'C' };
+
+		const result = renderProgression(
+			factory,
+			steps.map(({ name, action }) => ({ params: { name }, action })),
+			{ legend, strict: true },
+		);
+
+		await assertMatch(result, { name: 'Overlap Decomposition (fragments)' });
+		validateRoundTrip<string>(result, 3, { legend }, true);
+	});
+
+	await t.step('Cross Formation (LWW decomposition)', async () => {
+		const { factory, steps } = scenarios.progressions.crossFormation();
+		const legend = { 'H': 'H', 'V': 'V' };
+
+		const result = renderProgression(
+			factory,
+			steps.map(({ name, action }) => ({ params: { name }, action })),
+			{ legend, strict: true },
+		);
+
+		await assertMatch(result, { name: 'Cross Formation (LWW decomposition)' });
+		validateRoundTrip<string>(result, 3, { legend }, true);
+	});
+
+	await t.step('Data Density Variations', async () => {
+		const { singleCell, sparse, dense } = scenarios.dataDensity();
+		const legend = { 'X': 'X', 'A': 'A', 'B': 'B', 'C': 'C', 'D': 'D' };
+
+		const result = renderLayout(
+			[
+				{ params: { name: 'Single Cell' }, source: singleCell },
+				{ params: { name: 'Sparse' }, source: sparse },
+				{ params: { name: 'Dense 4×4' }, source: dense },
+			],
+			{ legend, strict: true },
+		);
+
+		await assertMatch(result, { name: 'Data Density Variations' });
+		validateRoundTrip<string>(result, 3, { legend }, true);
+	});
+
+	//#endregion
+
+	//#region SECTION 2: PRACTICAL FEATURES - How to use it
+
+	await t.step('Partitioned Index - Multiple attributes', async () => {
+		type CellData = { bg: string; fg: string };
+		const { factory, steps } = scenarios.progressions.partitionedMultiple<CellData>();
+		const legend = {
+			'B': { bg: 'BACK' },
+			'F': { fg: 'FORE' },
+			'X': { bg: 'BACK', fg: 'FORE' },
+			'D': { bg: 'DARK', fg: 'FORE' },
+		};
+
+		const result = renderProgression(
+			factory,
+			steps.map(({ name, action }) => ({ params: { name }, action })),
+			{ legend, strict: true },
+		);
+
+		await assertMatch(result, { name: 'Partitioned Index - Multiple attributes' });
+		validateRoundTrip<Record<string, unknown>>(result, 3, { legend }, true);
+	});
+
+	await t.step('Partitioned Index - Attribute override', async () => {
+		type CellData = { color: string };
+		const { factory, steps } = scenarios.progressions.partitionedOverride<CellData>();
+		const legend = { 'R': { color: 'RED' }, 'B': { color: 'BLUE' } };
+
+		const result = renderProgression(
+			factory,
+			steps.map(({ name, action }) => ({ params: { name }, action })),
+			{ legend, strict: true },
+		);
+
+		await assertMatch(result, { name: 'Partitioned Index - Attribute override' });
+		validateRoundTrip<Record<string, unknown>>(result, 2, { legend }, true);
+	});
+
+	await t.step('Global Override Evolution', async () => {
+		const { factory, steps } = scenarios.progressions.globalOverride();
+		const legend = { 'G': 'GLOBAL', '+': 'LOCAL+', '-': 'LOCAL-' };
+
+		const result = renderProgression(
+			factory,
+			steps.map(({ name, action }) => ({ params: { name }, action })),
+			{ legend, strict: true },
+		);
+
+		await assertMatch(result, { name: 'Global Override Evolution' });
+		validateRoundTrip<string>(result, 3, { legend }, true);
+	});
+
+	//#endregion
+
+	//#region SECTION 3: COORDINATE CAPABILITIES - What it can handle
 
 	await t.step('Origin Inclusion Modes', async () => {
 		const { index1, index2, index3 } = scenarios.originInclusion();
@@ -59,10 +161,6 @@ Deno.test('Regression - Round-trip Scenarios', async (t) => {
 		validateRoundTrip<string>(result, 3, { legend }, true);
 		validateRoundTrip<string>(result2, 3, { legend }, true);
 	});
-
-	//#endregion
-
-	//#region VARIATIONS (related but independent scenarios)
 
 	await t.step('Infinity Edges (all directions)', async () => {
 		const { top, right, bottom, left } = scenarios.infinityEdges();
@@ -116,107 +214,9 @@ Deno.test('Regression - Round-trip Scenarios', async (t) => {
 		validateRoundTrip<string>(result, 2, { legend }, true);
 	});
 
-	await t.step('Data Density Variations', async () => {
-		const { singleCell, sparse, dense } = scenarios.dataDensity();
-		const legend = { 'X': 'X', 'A': 'A', 'B': 'B', 'C': 'C', 'D': 'D' };
-
-		const result = renderLayout(
-			[
-				{ params: { name: 'Single Cell' }, source: singleCell },
-				{ params: { name: 'Sparse' }, source: sparse },
-				{ params: { name: 'Dense 4×4' }, source: dense },
-			],
-			{ legend, strict: true },
-		);
-
-		await assertMatch(result, { name: 'Data Density Variations' });
-		validateRoundTrip<string>(result, 3, { legend }, true);
-	});
-
-	await t.step('Partitioned Index - Multiple attributes', async () => {
-		type CellData = { bg: string; fg: string };
-		const { factory, steps } = scenarios.progressions.partitionedMultiple<CellData>();
-		const legend = {
-			'B': { bg: 'BACK' },
-			'F': { fg: 'FORE' },
-			'X': { bg: 'BACK', fg: 'FORE' },
-			'D': { bg: 'DARK', fg: 'FORE' },
-		};
-
-		const result = renderProgression(
-			factory,
-			steps.map(({ name, action }) => ({ params: { name }, action })),
-			{ legend, strict: true },
-		);
-
-		await assertMatch(result, { name: 'Partitioned Index - Multiple attributes' });
-		validateRoundTrip<Record<string, unknown>>(result, 3, { legend }, true);
-	});
-
-	await t.step('Partitioned Index - Attribute override', async () => {
-		type CellData = { color: string };
-		const { factory, steps } = scenarios.progressions.partitionedOverride<CellData>();
-		const legend = { 'R': { color: 'RED' }, 'B': { color: 'BLUE' } };
-
-		const result = renderProgression(
-			factory,
-			steps.map(({ name, action }) => ({ params: { name }, action })),
-			{ legend, strict: true },
-		);
-
-		await assertMatch(result, { name: 'Partitioned Index - Attribute override' });
-		validateRoundTrip<Record<string, unknown>>(result, 2, { legend }, true);
-	});
-
 	//#endregion
 
-	//#region CUMULATIVE EVOLUTIONS (showing LWW/decomposition)
-
-	await t.step('Cross Formation (LWW decomposition)', async () => {
-		const { factory, steps } = scenarios.progressions.crossFormation();
-		const legend = { 'H': 'H', 'V': 'V' };
-
-		const result = renderProgression(
-			factory,
-			steps.map(({ name, action }) => ({ params: { name }, action })),
-			{ legend, strict: true },
-		);
-
-		await assertMatch(result, { name: 'Cross Formation (LWW decomposition)' });
-		validateRoundTrip<string>(result, 3, { legend }, true);
-	});
-
-	await t.step('Global Override Evolution', async () => {
-		const { factory, steps } = scenarios.progressions.globalOverride();
-		const legend = { 'G': 'GLOBAL', '+': 'LOCAL+', '-': 'LOCAL-' };
-
-		const result = renderProgression(
-			factory,
-			steps.map(({ name, action }) => ({ params: { name }, action })),
-			{ legend, strict: true },
-		);
-
-		await assertMatch(result, { name: 'Global Override Evolution' });
-		validateRoundTrip<string>(result, 3, { legend }, true);
-	});
-
-	await t.step('Overlap Decomposition (fragments)', async () => {
-		const { factory, steps } = scenarios.progressions.overlapDecomposition();
-		const legend = { 'A': 'A', 'B': 'B', 'C': 'C' };
-
-		const result = renderProgression(
-			factory,
-			steps.map(({ name, action }) => ({ params: { name }, action })),
-			{ legend, strict: true },
-		);
-
-		await assertMatch(result, { name: 'Overlap Decomposition (fragments)' });
-		validateRoundTrip<string>(result, 3, { legend }, true);
-	});
-
-	//#endregion
-
-	//#region SINGLE STATES (no value in multi-state)
+	//#region SECTION 4: EDGE CASES - Completeness
 
 	await t.step('Empty Index', async () => {
 		const { factory, steps } = scenarios.progressions.empty();
@@ -248,7 +248,7 @@ Deno.test('Regression - Round-trip Scenarios', async (t) => {
 
 	//#endregion
 
-	//#region PROGRESSION FEATURES (spacing, multi-state)
+	//#region SECTION 5: META FEATURES - Renderer capabilities
 
 	await t.step('Two-state progression', async () => {
 		const { factory, steps } = scenarios.progressions.twoState();

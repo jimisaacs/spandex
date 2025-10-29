@@ -21,6 +21,13 @@ Thumbs.db
 *.tmp
 
 # Temporary workspace (for AI assistant work-in-progress docs)
-# Ignore everything in .temp/ except README
 .temp/*
 !.temp/README.md
+
+# Lume site output
+_site/
+_cache/
+.lume/
+
+# Environment
+.env

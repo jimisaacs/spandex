@@ -34,24 +34,8 @@ const html = render(index, {
 	cellHeight: 50,
 });
 
-// Output HTML
-console.log(html);
-```
-
-Renders:
-
-```html
-<table class="spatial-index-grid" style="...">
-  <thead>
-    <tr><th></th><th>0</th><th>1</th><th>2</th><th>3</th></tr>
-  </thead>
-  <tbody>
-    <tr><th>0</th><td style="background-color: #ff0000;">R</td>...</tr>
-    <tr><th>1</th><td style="background-color: #ff0000;">R</td>...</tr>
-    <tr><th>2</th><td style="background-color: #0000ff;">B</td>...</tr>
-    <tr><th>3</th><td style="background-color: #0000ff;">B</td>...</tr>
-  </tbody>
-</table>
+// Output HTML with styled table, gradients, and legend
+document.body.innerHTML = html;
 ```
 
 ## Features
@@ -73,6 +57,7 @@ interface HTMLRenderParams<T> {
 	cellWidth?: number; // Pixels (default: 40)
 	cellHeight?: number; // Pixels (default: 40)
 	showGrid?: boolean; // Border lines (default: true)
+	gridOnly?: boolean; // Omit legend (default: false)
 	includeOrigin?: boolean; // Show absolute origin (0,0) even if outside viewport (default: false)
 }
 ```
@@ -83,47 +68,11 @@ Rectangles with infinite bounds get special treatment: gradients fade toward inf
 
 ## Use Cases
 
-### Web Debugging
+**Browser debugging** - Rich visualization with colors and interactive hover states
 
-```typescript
-// Serve via HTTP
-import { serve } from 'https://deno.land/std/http/server.ts';
+**Documentation** - Generate visual examples for markdown, HTML docs, or static sites
 
-serve((req) => {
-	const html = render(index, { legend, showCoordinates: true });
-	return new Response(
-		`<!DOCTYPE html><html><head><title>Spatial Index</title></head><body>${html}</body></html>`,
-		{ headers: { 'content-type': 'text/html' } },
-	);
-});
-```
-
-### Documentation Generation
-
-```typescript
-// Generate visual examples for docs
-const examples = [
-	{ name: 'Sequential', index: sequentialIndex },
-	{ name: 'Overlapping', index: overlappingIndex },
-	{ name: 'Grid', index: gridIndex },
-];
-
-for (const { name, index } of examples) {
-	const html = render(index, { legend, cellWidth: 30, cellHeight: 30 });
-	await Deno.writeTextFile(`docs/examples/${name}.html`, wrapHTML(html));
-}
-```
-
-### Visual Regression Testing
-
-```typescript
-import { assertEquals } from 'jsr:@std/assert';
-
-Deno.test('renders correctly', () => {
-	const html = render(index, { legend, showCoordinates: false });
-	assertEquals(html, expectedHTML); // Snapshot test
-});
-```
+**Regression testing** - Snapshot test HTML output for visual consistency
 
 ## Layout API
 
@@ -167,7 +116,7 @@ Both implement the same `RenderBackend` interface.
 
 - **[@jim/spandex](https://jsr.io/@jim/spandex)** - Core library (required)
 - **[@jim/spandex-ascii](https://jsr.io/@jim/spandex-ascii)** - ASCII rendering backend
-- **[GitHub](https://github.com/jimisaacs/spandex)** - Full monorepo with research docs
+- **[GitHub Repository](https://github.com/jimisaacs/spandex)** - Full repository
 
 ## License
 

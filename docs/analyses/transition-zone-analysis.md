@@ -1,5 +1,7 @@
 # Transition Zone Analysis: O(n) → O(log n) Crossover Points
 
+> **Historical Note**: This analysis documents crossover point experiments using the 23-scenario benchmark matrix. Absolute timings reflect experimental conditions at the time. **Core findings remain valid**: crossover varies by workload (n=100-600), with overlap patterns significantly affecting the transition point. For current measurements, see [BENCHMARKS.md](../../BENCHMARKS.md).
+
 **Finding**: Crossover points where R-tree overtakes linear scan vary by workload and overlap pattern, ranging from n=100 to n=600.
 
 **Source Experiment**: See [corrected-transition-analysis.md](../../archive/docs/experiments/corrected-transition-analysis.md) for full experimental details and methodology.

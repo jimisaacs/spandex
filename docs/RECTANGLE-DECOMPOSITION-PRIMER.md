@@ -2,56 +2,11 @@
 
 Three strategies for handling overlapping 2D rectangles.
 
----
-
 ## The Core Problem
 
-Imagine you're building a spreadsheet system. Users can:
+When storing overlapping 2D rectangles, you must decide how to handle intersections. Three strategies exist with different trade-offs in insertion complexity, query complexity, and storage characteristics.
 
-- Color cells A1:C2 red
-- Then color cells B0:D2 blue
-
-**Question**: What happens to cells B1, C1, B2, C2 that are in BOTH ranges?
-
-This is the **rectangle decomposition problem**.
-
----
-
-## Three Strategies
-
-### 1. Last-Writer-Wins (LWW)
-
-**The simplest approach** - new values replace old values in overlaps.
-
-- ✅ **Pro**: Simple inserts, minimal storage
-- ❌ **Con**: Can only store one value per cell
-- 📖 **Read more**: [rectangle-decomposition-lww.md](./diagrams/rectangle-decomposition-lww.md)
-
-**Use when**: Single property per cell.
-
-### 2. Shallow Merge
-
-**Property combination** - merge object properties in overlaps using spread operator.
-
-- ✅ **Pro**: Cells can have multiple properties (background AND font color)
-- ❌ **Con**: More complex inserts, more storage fragments
-- 📖 **Read more**: [rectangle-decomposition-merge.md](./diagrams/rectangle-decomposition-merge.md)
-
-**Use when**: Properties always updated together.
-
-### 3. Spatial Join
-
-**Multiple simple indexes** - keep each property in its own index, combine at query time.
-
-- ✅ **Pro**: Simple inserts (just LWW per index), properties updated independently
-- ❌ **Con**: Slightly more complex queries (join operation)
-- 📖 **Read more**: [rectangle-decomposition-spatial-join.md](./diagrams/rectangle-decomposition-spatial-join.md)
-
-**Use when**: Properties updated independently.
-
----
-
-## Quick Comparison
+## Strategy Comparison
 
 | Approach          | Insert  | Query  | Storage (example)           | Best for                   |
 | ----------------- | ------- | ------ | --------------------------- | -------------------------- |
@@ -59,30 +14,50 @@ This is the **rectangle decomposition problem**.
 | **Shallow Merge** | Complex | Simple | 4 ranges                    | Properties always together |
 | **Spatial Join**  | Simple  | Join   | 3 ranges (across 2 indexes) | Independent properties     |
 
----
+## Strategy Details
 
-## Reading Path
+### 1. Last-Writer-Wins (LWW)
 
-**If you want to understand all three**:
+New values replace old values in overlaps.
 
-1. Start with [Last-Writer-Wins](./diagrams/rectangle-decomposition-lww.md) - the foundation
-2. Then [Shallow Merge](./diagrams/rectangle-decomposition-merge.md) - property combination
-3. Finally [Spatial Join](./diagrams/rectangle-decomposition-spatial-join.md) - multiple indexes
+- ✅ **Pro**: Simple inserts, minimal storage
+- ❌ **Con**: Single value per coordinate
+- 📖 **Read more**: [rectangle-decomposition-lww.md](./diagrams/rectangle-decomposition-lww.md)
 
-**To use this library**:
+**Use when**: Single property per cell.
 
-- [README](../README.md) and [PRODUCTION-GUIDE](../PRODUCTION-GUIDE.md)
-- LWW (Strategy #1) = single-property indexes
-- Spatial Join (Strategy #3) = multi-property use cases
+### 2. Shallow Merge
 
----
+Merge object properties in overlaps using spread operator.
+
+- ✅ **Pro**: Multiple properties per coordinate
+- ❌ **Con**: More complex inserts, more storage fragments
+- 📖 **Read more**: [rectangle-decomposition-merge.md](./diagrams/rectangle-decomposition-merge.md)
+
+**Use when**: Properties always updated together.
+
+### 3. Spatial Join
+
+Separate index per property, combine at query time.
+
+- ✅ **Pro**: Simple inserts, independent property updates
+- ❌ **Con**: Query-time join operation required
+- 📖 **Read more**: [rectangle-decomposition-spatial-join.md](./diagrams/rectangle-decomposition-spatial-join.md)
+
+**Use when**: Properties updated independently.
+
+## Further Reading
+
+Detailed strategy documentation: [LWW](./diagrams/rectangle-decomposition-lww.md), [Shallow Merge](./diagrams/rectangle-decomposition-merge.md), [Spatial Join](./diagrams/rectangle-decomposition-spatial-join.md)
+
+**This library**: Implements LWW for single-property indexes. Multi-property use cases require Spatial Join pattern.
+
+**Implementation guides**: [README](../README.md), [PRODUCTION-GUIDE](../PRODUCTION-GUIDE.md)
 
 ## Related Documentation
 
 - **[RESEARCH-SUMMARY](./core/RESEARCH-SUMMARY.md)** - All research findings
 - **[theoretical-foundation](./core/theoretical-foundation.md)** - Mathematical proofs and complexity analysis
 - **[BENCHMARKS](../BENCHMARKS.md)** - Performance data for current implementations
-
----
 
 **Academic basis**: Rectangle decomposition (Guttman, 1984 R-trees), spatial join (Brinkhoff et al., 1993).

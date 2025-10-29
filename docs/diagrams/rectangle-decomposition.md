@@ -85,7 +85,7 @@ Final result:
 
 Result: 3 non-overlapping rectangles
 - Red top strip: 10 cells
-- Red left strip: 6 cells  
+- Red left strip: 6 cells
 - Blue: 25 cells (overwrote 9 cells of red)
 ```
 

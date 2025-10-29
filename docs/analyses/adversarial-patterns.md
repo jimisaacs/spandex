@@ -257,7 +257,7 @@ Then: **R ≤ A / A_min**
 - **Formal Proof**: [theoretical-foundation.md](../core/theoretical-foundation.md#geometric-bound-on-fragmentation-formal-proof)
 - **Test Implementation**: [packages/@jim/spandex/test/adversarial.test.ts](../../packages/@jim/spandex/test/adversarial.test.ts)
 - **R-Tree Complexity**: [r-star-analysis.md](./r-star-analysis.md)
-- **Conformance Tests**: [packages/@local/spandex-testing/src/axiom/](../../packages/@local/spandex-testing/src/axiom/) (geometry.ts, properties.ts, visual.ts)
+- **Conformance Tests**: `packages/@local/spandex-testing/src/axiom/` (geometry.ts, properties.ts, visual.ts)
 
 ---
 

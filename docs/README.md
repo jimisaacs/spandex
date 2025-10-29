@@ -1,20 +1,28 @@
 # Documentation
 
-Research and development docs for the [@jim/spandex](https://jsr.io/@jim/spandex) spatial indexing library.
+Research and development documentation for [@jim/spandex](https://jsr.io/@jim/spandex).
 
-**Package docs**: See individual README files in `packages/@jim/` for API reference and usage.
+## Quick Links by Role
 
-## Quick Links
+**New to rectangle decomposition?** Start with [RECTANGLE-DECOMPOSITION-PRIMER](./RECTANGLE-DECOMPOSITION-PRIMER.md) - explains three strategies for handling overlapping rectangles.
 
-**New here?** [RECTANGLE-DECOMPOSITION-PRIMER](./RECTANGLE-DECOMPOSITION-PRIMER.md) explains the core problem
+**Using the library?**
 
-**Using the library?** [PRODUCTION-GUIDE](../PRODUCTION-GUIDE.md) picks algorithms, [BENCHMARKS](../BENCHMARKS.md) shows performance
+- [PRODUCTION-GUIDE](../PRODUCTION-GUIDE.md) - Algorithm selection and migration
+- [BENCHMARKS](../BENCHMARKS.md) - Current performance data
+- [benchmark-statistics](./analyses/benchmark-statistics.md) - Statistical methodology
 
-**Contributing?** [IMPLEMENTATION-LIFECYCLE](./IMPLEMENTATION-LIFECYCLE.md) for adding code, [BENCHMARK-FRAMEWORK](./BENCHMARK-FRAMEWORK.md) for testing
+**Contributing?**
 
-**Deep dive?** [RESEARCH-SUMMARY](./core/RESEARCH-SUMMARY.md) summarizes findings, [analyses/](./analyses/) has details
+- [IMPLEMENTATION-LIFECYCLE](./IMPLEMENTATION-LIFECYCLE.md) - Add/archive implementations
+- [BENCHMARK-FRAMEWORK](./BENCHMARK-FRAMEWORK.md) - Run and understand benchmarks
+- [TELEMETRY-GUIDE](./TELEMETRY-GUIDE.md) - Production instrumentation
 
----
+**Interested in the research?**
+
+- [RESEARCH-SUMMARY](./core/RESEARCH-SUMMARY.md) - Key findings (5 min read)
+- [theoretical-foundation](./core/theoretical-foundation.md) - Proofs and complexity analysis
+- [analyses/](./analyses/) - Individual experiment results
 
 ## Structure
 
@@ -28,49 +36,28 @@ docs/
 ├── RECTANGLE-DECOMPOSITION-PRIMER.md  # Educational introduction
 ├── IMPLEMENTATION-LIFECYCLE.md        # Add/archive/restore workflows
 ├── BENCHMARK-FRAMEWORK.md             # Performance testing guide
-├── TELEMETRY-GUIDE.md                 # Production instrumentation
-└── CLAUDE.md                          # Documentation standards
+└── TELEMETRY-GUIDE.md                 # Production instrumentation
 
 archive/docs/experiments/            # Rejected experiments (preserved)
 ```
 
----
+## Core Research
 
-## The Problem
+**Executive summary**: [RESEARCH-SUMMARY](./core/RESEARCH-SUMMARY.md) provides overview of all findings (5 min read)
 
-Insert overlapping rectangles, maintain non-overlapping partitions. When rectangles overlap, resolve conflicts with one of three strategies:
+**Theory**: [theoretical-foundation](./core/theoretical-foundation.md) contains mathematical proofs and complexity analysis
 
-- **Last-Writer-Wins** ([diagram](./diagrams/rectangle-decomposition-lww.md)) - What this library does
-- **Shallow Merge** ([diagram](./diagrams/rectangle-decomposition-merge.md)) - Combine properties
-- **Spatial Join** ([diagram](./diagrams/rectangle-decomposition-spatial-join.md)) - Keep separate, join on query
+## Key Experiments
 
-See [RECTANGLE-DECOMPOSITION-PRIMER](./RECTANGLE-DECOMPOSITION-PRIMER.md) for details.
+Each analysis document includes hypothesis, methodology, data, and conclusions:
 
-## Guides
+- [morton-vs-hilbert-analysis](./analyses/morton-vs-hilbert-analysis.md) - Why Morton curve is 25% faster than Hilbert
+- [sparse-data-analysis](./analyses/sparse-data-analysis.md) - Why linear scan wins for n<100
+- [transition-zone-analysis](./analyses/transition-zone-analysis.md) - Crossover thresholds by workload (100 < n < 600)
+- [r-star-analysis](./analyses/r-star-analysis.md) - Split algorithm comparison (R* vs Midpoint vs Quadratic)
+- [adversarial-patterns](./analyses/adversarial-patterns.md) - Worst-case fragmentation validation
+- [benchmark-statistics](./analyses/benchmark-statistics.md) - Statistical methodology and confidence
 
-| Guide                                                                 | Purpose                     |
-| --------------------------------------------------------------------- | --------------------------- |
-| [RECTANGLE-DECOMPOSITION-PRIMER](./RECTANGLE-DECOMPOSITION-PRIMER.md) | Core problem explained      |
-| [IMPLEMENTATION-LIFECYCLE](./IMPLEMENTATION-LIFECYCLE.md)             | Add/archive implementations |
-| [BENCHMARK-FRAMEWORK](./BENCHMARK-FRAMEWORK.md)                       | Run performance tests       |
-| [TELEMETRY-GUIDE](./TELEMETRY-GUIDE.md)                               | Collect production metrics  |
-| [CLAUDE.md](./CLAUDE.md)                                              | Documentation standards     |
+**Related work**: [alternatives-analysis](./analyses/alternatives-analysis.md) (quadtrees, grids, etc.) • [related-work](./analyses/related-work.md) (modern techniques)
 
-## Research
-
-**Summary**: [RESEARCH-SUMMARY](./core/RESEARCH-SUMMARY.md) - Key findings and recommendations
-
-**Theory**: [theoretical-foundation](./core/theoretical-foundation.md) - Proofs and complexity analysis
-
-**Experiments** (`analyses/`):
-
-| Analysis                                                      | Finding                                       |
-| ------------------------------------------------------------- | --------------------------------------------- |
-| [morton-vs-hilbert](./analyses/morton-vs-hilbert-analysis.md) | Morton 25% faster, simpler encoding           |
-| [sparse-data](./analyses/sparse-data-analysis.md)             | Linear scan wins below n=100                  |
-| [transition-zone](./analyses/transition-zone-analysis.md)     | Crossover validated at n≈100                  |
-| [r-star](./analyses/r-star-analysis.md)                       | R* split best for construction                |
-| [adversarial](./analyses/adversarial-patterns.md)             | O(n) fragmentation bound holds                |
-| [statistics](./analyses/benchmark-statistics.md)              | Methodology: 5 runs, CV%<5%, effect size >20% |
-
-Failed experiments in `archive/docs/experiments/` (kept for reference).
+**Failed experiments**: See `archive/docs/experiments/` for rejected approaches and lessons learned

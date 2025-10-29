@@ -1,6 +1,6 @@
 # Sparse Data Analysis: Why Linear Scan Wins
 
-**Historical Note**: This analysis used HilbertLinearScan (now superseded by MortonLinearScan, which is 25% faster). The core findings about linear scan vs R-tree remain valid.
+> **Historical Note**: This analysis documents the original Hilbert-based experiment that established the sparse data optimization strategy. Morton curves have since replaced Hilbert (25% faster), and current performance exceeds the numbers cited here. **Core findings remain valid**: linear scan dominates at n<100, R-trees win at n>1000. For current measurements, see [BENCHMARKS.md](../../BENCHMARKS.md).
 
 **Finding**: For sparse data (n < 100), linear scan O(n) outperforms R-tree O(log n).
 
