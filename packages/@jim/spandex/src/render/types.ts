@@ -90,7 +90,7 @@ export interface RenderBackend<
  *
  * Handles both `LayoutItem<T>` and inline `{ source: RenderSource<T>, params: ... }` objects.
  */
-type ExtractItemValueType<Item> = Item extends LayoutItem<infer T, any> ? T
+type ExtractItemValueType<Item> = Item extends LayoutItem<infer T, RenderParams | undefined> ? T
 	: Item extends { source: RenderSource<infer T> | RenderableIndex<infer T> } ? T
 	: never;
 

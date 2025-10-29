@@ -108,9 +108,10 @@ jobs:
         name: Publish to JSR
         runs-on: ubuntu-latest
         if: |
-            github.event_name == 'push' &&
-            github.ref == 'refs/heads/main' &&
-            startsWith(github.event.head_commit.message, 'chore: release v')
+            github.event_name == 'workflow_dispatch' ||
+            (github.event_name == 'push' &&
+             github.ref == 'refs/heads/main' &&
+             startsWith(github.event.head_commit.message, 'chore: release v'))
         permissions:
             contents: read
             id-token: write
