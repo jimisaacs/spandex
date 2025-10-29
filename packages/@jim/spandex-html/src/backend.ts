@@ -30,9 +30,7 @@ import type { ExtentResult, QueryResult } from '@jim/spandex';
 import type { LayoutContext, RenderBackend, RenderContext } from '@jim/spandex/render';
 import type { HTMLLayoutParams, HTMLPartialParams, HTMLRenderParams } from './types.ts';
 
-// ============================================================================
-// Types and Constants
-// ============================================================================
+//#region Types and Constants
 
 /**
  * Intermediate representation for layout composition.
@@ -88,8 +86,6 @@ const STYLES = {
 	},
 	spacing: {
 		headerPadding: '4px',
-		arrowOffset: '2px',
-		verticalArrowOffset: '-1px',
 		tableMargin: '10px',
 		messageMargin: '0 10px 10px 10px',
 		messagePadding: '20px',
@@ -103,9 +99,9 @@ const STYLES = {
 	},
 } as const;
 
-// ============================================================================
-// Utility Functions
-// ============================================================================
+//#endregion Types and Constants
+
+//#region Utility Functions
 
 /**
  * Escape HTML special characters for safe rendering.
@@ -120,9 +116,21 @@ function escapeHtml(text: string): string {
 		.replace(/'/g, '&#039;');
 }
 
+/** Convert column number to spreadsheet letter (0→A, 25→Z, 26→AA, negatives get '-' prefix) */
+function columnToLetter(col: number): string {
+	if (col < 0) return '-' + columnToLetter(-col - 1);
+	if (col < 26) return String.fromCharCode(65 + col);
+	return columnToLetter(Math.floor(col / 26) - 1) + columnToLetter(col % 26);
+}
+
+/** Format row number for display (negatives stay negative, non-negatives use 1-based indexing) */
+function formatRowNumber(row: number): string {
+	return String(row < 0 ? row : row + 1);
+}
+
 /**
- * Serialize value to consistent string key for legend lookup.
- * Handles all JavaScript primitives and falls back to JSON for objects.
+ * Serialize value to consistent string for legend lookup.
+ * Handles primitives directly, falls back to JSON for objects.
  */
 function serializeValue<T>(value: T): string {
 	if (value === null) return 'null';
@@ -133,60 +141,48 @@ function serializeValue<T>(value: T): string {
 }
 
 /**
- * Calculate contrasting text color (black or white) for readability.
- * Uses ITU-R BT.601 relative luminance formula to determine optimal contrast.
+ * Calculate contrasting text color for readability.
+ * Uses ITU-R BT.601 luminance formula.
  *
- * @param bgColor - Hex color string (e.g., "#ff0000" or "#f00")
- * @returns "#000" for light backgrounds, "#fff" for dark backgrounds
+ * @param bgColor - Hex color ("#ff0000" or "#f00")
+ * @returns "#000" (light bg) or "#fff" (dark bg)
  */
 function getContrastColor(bgColor: string): '#000' | '#fff' {
 	const hex = bgColor.replace('#', '');
-
-	// Parse RGB: support both 3-char (#RGB) and 6-char (#RRGGBB) formats
-	// Normalize 3-char to 6-char by doubling each digit
 	const is3Char = hex.length === 3;
+
+	// Parse RGB (support 3-char and 6-char hex)
 	const r = parseInt(is3Char ? hex[0]! + hex[0]! : hex.slice(0, 2), 16);
 	const g = parseInt(is3Char ? hex[1]! + hex[1]! : hex.slice(2, 4), 16);
 	const b = parseInt(is3Char ? hex[2]! + hex[2]! : hex.slice(4, 6), 16);
 
-	// ITU-R BT.601 coefficients for perceived brightness
+	// ITU-R BT.601 perceived brightness
 	const luminance = r * 0.299 + g * 0.587 + b * 0.114;
-
-	// Threshold at middle of 0-255 range
 	return luminance > 128 ? '#000' : '#fff';
 }
 
-// ============================================================================
-// Grid Building
-// ============================================================================
+//#endregion Utility Functions
 
-/**
- * Legend entry containing visual properties for a value.
- * Simplified from full legend entry (omits value for internal use).
- */
+//#region Grid Building
+
+/** Legend entry: visual properties for a value (omits value for internal use) */
 interface LegendEntry {
-	/** Display label shown in cell */
 	label: string;
-	/** Background color as hex string */
 	color: string;
 }
 
-/**
- * Grid coordinate key for cell lookup.
- * Format: "x,y" where x and y are coordinates (e.g., "0,0", "5,-3").
- */
+/** Grid coordinate key: "x,y" format (e.g., "0,0", "5,-3") */
 type GridKey = string;
 
 /**
- * Build grid of cells from spatial fragments with infinite edge tracking.
- *
- * Maps each (x,y) coordinate to its visual representation (label + color) plus
- * which edges extend to infinity.
+ * Build grid from fragments with infinite edge tracking.
+ * Maps (x,y) → CellData with visual properties and infinite edge flags.
  */
 function buildGrid<T>(
 	fragments: Iterable<QueryResult<T>>,
 	extent: ExtentResult,
 	legend: Record<string, { label: string; color: string; value: T }>,
+	usedLegendKeys?: Set<string> | null,
 ): Map<GridKey, CellData> {
 	// Pre-compute legend lookup by serialized value
 	const legendMap = new Map<string, LegendEntry>(
@@ -201,7 +197,6 @@ function buildGrid<T>(
 
 	for (const [bounds, value] of fragments) {
 		const [x1, y1, x2, y2] = bounds;
-
 		if (x2 < minX || x1 > maxX || y2 < minY || y1 > maxY) continue;
 
 		const serializedValue = serializeValue(value);
@@ -213,19 +208,22 @@ function buildGrid<T>(
 			);
 		}
 
-		// Track if this fragment has infinite edges
+		// Track usage for strict mode validation
+		usedLegendKeys?.add(serializedValue);
+
+		// Track infinite edges
 		const fragmentInfiniteTop = y1 === -Infinity;
 		const fragmentInfiniteBottom = y2 === Infinity;
 		const fragmentInfiniteLeft = x1 === -Infinity;
 		const fragmentInfiniteRight = x2 === Infinity;
 
-		// Clamp fragment to viewport bounds
+		// Clamp to viewport
 		const clampedX1 = Math.max(minX, x1);
 		const clampedX2 = Math.min(maxX, x2);
 		const clampedY1 = Math.max(minY, y1);
 		const clampedY2 = Math.min(maxY, y2);
 
-		// Fill grid cells, marking infinite edges at viewport boundaries
+		// Fill cells, mark infinite edges at viewport boundary
 		for (let y = clampedY1; y <= clampedY2; y++) {
 			for (let x = clampedX1; x <= clampedX2; x++) {
 				const key: GridKey = `${x},${y}`;
@@ -250,38 +248,26 @@ function buildGrid<T>(
 	return grid;
 }
 
-// ============================================================================
-// Infinite Edge Visualization
-// ============================================================================
+//#endregion Grid Building
 
-/**
- * Format coordinate label with infinity symbol if at infinite edge.
- */
-function formatCoordinateLabel(coord: number, isInfinite: boolean): string {
-	if (!isInfinite) return String(coord);
-	return `<span style="font-size: ${STYLES.sizes.infinityFont};">∞</span>`;
+//#region Infinite Edge Visualization
+
+/** Format coordinate with ∞ symbol if infinite */
+function formatCoordinateLabel(coord: number, isInfinite: boolean, isColumn: boolean): string {
+	if (!isInfinite) return isColumn ? columnToLetter(coord) : formatRowNumber(coord);
+	return `<span style="font-size: ${STYLES.sizes.infinityFont}; line-height: 1;">∞</span>`;
 }
 
-/**
- * Edge pattern for infinite edge detection.
- * Tracks which edges of a cell extend to infinity.
- */
+/** Infinite edge pattern: tracks which edges extend to infinity */
 interface InfiniteEdges {
-	/** Top edge is infinite */
 	top: boolean;
-	/** Bottom edge is infinite */
 	bottom: boolean;
-	/** Left edge is infinite */
 	left: boolean;
-	/** Right edge is infinite */
 	right: boolean;
-	/** Total number of infinite edges (0-4) */
-	count: number;
+	count: number; // 0-4
 }
 
-/**
- * Detect which edges are infinite for a given cell.
- */
+/** Detect infinite edges for a cell */
 function detectInfiniteEdges(
 	cell: CellData | undefined,
 	isTopRow: boolean,
@@ -302,9 +288,7 @@ function detectInfiniteEdges(
 	return { top, bottom, left, right, count };
 }
 
-/**
- * Check if adjacent cell is unbounded (has any infinite edges).
- */
+/** Check if adjacent cell is unbounded (has any infinite edge) */
 function isAdjacentUnbounded(adjacentCell: CellData | undefined): boolean {
 	if (!adjacentCell) return false;
 	return adjacentCell.infiniteTop || adjacentCell.infiniteBottom ||
@@ -313,12 +297,10 @@ function isAdjacentUnbounded(adjacentCell: CellData | undefined): boolean {
 
 /**
  * Determine border style based on edge relationships.
- *
- * Logic:
- * - Bounded edge: solid if fully bounded, dotted if cell has mixed edges
- * - Infinite edge at viewport: transparent (extends to infinity)
- * - Infinite edge with unbounded neighbor: transparent (both infinite)
- * - Infinite edge with bounded neighbor: dotted (transition zone)
+ * - Bounded edge: solid (fully bounded) or dotted (mixed edges)
+ * - Infinite at viewport: transparent (extends to ∞)
+ * - Infinite with unbounded neighbor: transparent
+ * - Infinite with bounded neighbor: dotted (transition)
  */
 function getBorderStyle(
 	thisEdgeInfinite: boolean,
@@ -327,72 +309,44 @@ function getBorderStyle(
 	adjacentCell: CellData | undefined,
 ): string {
 	if (!thisEdgeInfinite) {
-		// Bounded edge: use semi border only if THIS cell has mixed edges (some infinite, some bounded)
 		return thisCellUnbounded ? STYLES.border.semiInfinite : STYLES.border.data;
 	}
-
-	// Infinite edge at viewport boundary: transparent (extends to infinity)
 	if (isAtViewportBoundary) return STYLES.border.transparent;
-
-	// Inner infinite edge: transparent if adjacent is unbounded, dotted if bounded
 	return isAdjacentUnbounded(adjacentCell) ? STYLES.border.transparent : STYLES.border.semiInfinite;
 }
 
-/**
- * Build gradient CSS for infinite edges based on edge pattern.
- * Returns appropriate gradient for the given edge combination.
- */
+/** Build gradient CSS for infinite edges based on pattern */
 function buildInfiniteGradient(edges: InfiniteEdges, bgColor: string): string {
 	const { top, bottom, left, right, count } = edges;
 	const fade = STYLES.colors.transparent;
 
-	if (count === 0) {
-		return bgColor; // No gradient needed
-	}
+	if (count === 0) return bgColor;
 
 	if (count === 4) {
-		// All edges: radial from center
 		return `radial-gradient(circle at center, ${bgColor} ${STYLES.gradient.centerSolid}, ${fade} 100%)`;
 	}
 
 	if (count === 3) {
-		// Three edges: radial from finite edge (the one that's NOT infinite)
-		// Position gradient center at the finite edge
 		const centerX = !left ? '0%' : !right ? '100%' : '50%';
 		const centerY = !top ? '0%' : !bottom ? '100%' : '50%';
 		return `radial-gradient(ellipse at ${centerX} ${centerY}, ${bgColor} ${STYLES.gradient.threeSideSolid}, ${fade} 100%)`;
 	}
 
 	if (count === 2) {
-		// Two edges: opposite (band) or adjacent (corner)
 		if ((top && bottom) || (left && right)) {
-			// Opposite edges: band gradient from center
 			const direction = top && bottom ? 'to bottom' : 'to right';
 			return `linear-gradient(${direction}, ${fade} 0%, ${bgColor} ${STYLES.gradient.bandCenter}, ${fade} 100%)`;
-		} else {
-			// Adjacent edges (corner): gradient from opposite corner
-			// If left edge is infinite, gradient starts from right (100%)
-			const cornerX = left ? '100%' : '0%'; // left→right, right→left
-			const cornerY = top ? '100%' : '0%'; // top→bottom, bottom→top
-			return `radial-gradient(ellipse at ${cornerX} ${cornerY}, ${bgColor} ${STYLES.gradient.cornerSolid}, ${fade} 100%)`;
 		}
+		const cornerX = left ? '100%' : '0%';
+		const cornerY = top ? '100%' : '0%';
+		return `radial-gradient(ellipse at ${cornerX} ${cornerY}, ${bgColor} ${STYLES.gradient.cornerSolid}, ${fade} 100%)`;
 	}
 
-	// Single edge: linear gradient
 	const direction = top ? 'to top' : bottom ? 'to bottom' : left ? 'to left' : 'to right';
 	return `linear-gradient(${direction}, ${bgColor} ${STYLES.gradient.singleEdgeStart}, ${fade} 100%)`;
 }
 
-/**
- * Build cell styling for infinite edges using smart gradient combinations.
- *
- * Border system (checks both this cell and adjacent cells):
- * - Infinite edge at viewport → transparent (extends to ∞)
- * - Bounded ↔ unbounded → dotted gray (transition zone)
- * - Unbounded ↔ unbounded → transparent
- * - Bounded ↔ bounded → solid white
- * - Empty cells → cool gray dotted
- */
+/** Build cell styling with infinite edge gradients and adaptive borders */
 function buildCellInfiniteStyle(
 	cell: CellData | undefined,
 	bgColor: string,
@@ -408,114 +362,68 @@ function buildCellInfiniteStyle(
 	const edges = detectInfiniteEdges(cell, isTopRow, isBottomRow, isLeftCol, isRightCol);
 	const background = buildInfiniteGradient(edges, bgColor);
 
-	// Build borders surgically: each side gets its own style based on whether IT is infinite
-	let border: string;
-
-	if (!showGrid) {
-		border = `border: ${STYLES.border.none}`;
-	} else if (!cell) {
-		border = `border: ${STYLES.border.transparent}`;
-	} else {
-		// Semi borders appear whenever a border touches an unbounded region
-		// A cell is "unbounded" if it has any infinite edges
-		const thisCellUnbounded = edges.count > 0;
-
-		const topCell = grid.get(`${x},${y - 1}`);
-		const bottomCell = grid.get(`${x},${y + 1}`);
-		const leftCell = grid.get(`${x - 1},${y}`);
-		const rightCell = grid.get(`${x + 1},${y}`);
-
-		// Each border checks: am I infinite? Is THIS cell unbounded? Is ADJACENT cell unbounded?
-		const topBorder = getBorderStyle(edges.top, isTopRow, thisCellUnbounded, topCell);
-		const bottomBorder = getBorderStyle(edges.bottom, isBottomRow, thisCellUnbounded, bottomCell);
-		const leftBorder = getBorderStyle(edges.left, isLeftCol, thisCellUnbounded, leftCell);
-		const rightBorder = getBorderStyle(edges.right, isRightCol, thisCellUnbounded, rightCell);
-
-		border = [
-			`border-top: ${topBorder}`,
-			`border-bottom: ${bottomBorder}`,
-			`border-left: ${leftBorder}`,
-			`border-right: ${rightBorder}`,
-		].join('; ');
-	}
+	const border = !showGrid ? `border: ${STYLES.border.none}` : !cell ? `border: ${STYLES.border.transparent}` : [
+		`border-top: ${getBorderStyle(edges.top, isTopRow, edges.count > 0, grid.get(`${x},${y - 1}`))}`,
+		`border-bottom: ${getBorderStyle(edges.bottom, isBottomRow, edges.count > 0, grid.get(`${x},${y + 1}`))}`,
+		`border-left: ${getBorderStyle(edges.left, isLeftCol, edges.count > 0, grid.get(`${x - 1},${y}`))}`,
+		`border-right: ${getBorderStyle(edges.right, isRightCol, edges.count > 0, grid.get(`${x + 1},${y}`))}`,
+	].join('; ');
 
 	return { border, background, edges };
 }
 
-/**
- * Build positioned arrow indicator (⇡⇣⇠⇢).
- */
-function buildArrow(symbol: string, position: string): string {
-	return `<span style="position: absolute; color: ${STYLES.colors.arrowOverlay}; font-size: ${STYLES.sizes.arrowFont}; font-weight: bold; ${position}">${symbol}</span>`;
-}
-
-/**
- * Build directional arrow indicators for infinite edges.
- * Returns HTML for positioned arrow overlays (⇡⇣⇠⇢).
- */
+/** Build directional arrows (⇡⇣⇠⇢) positioned at cell edges */
 function buildInfiniteIndicator(edges: InfiniteEdges): string {
 	if (edges.count === 0) return '';
-
-	const arrows: string[] = [];
-	const { arrowOffset, verticalArrowOffset } = STYLES.spacing;
-
-	if (edges.top) {
-		arrows.push(buildArrow('⇡', `top: ${verticalArrowOffset}; left: 50%; transform: translateX(-50%);`));
-	}
-	if (edges.bottom) {
-		arrows.push(buildArrow('⇣', `bottom: ${verticalArrowOffset}; left: 50%; transform: translateX(-50%);`));
-	}
-	if (edges.left) {
-		arrows.push(buildArrow('⇠', `left: ${arrowOffset}; top: 50%; transform: translateY(-50%);`));
-	}
-	if (edges.right) {
-		arrows.push(buildArrow('⇢', `right: ${arrowOffset}; top: 50%; transform: translateY(-50%);`));
-	}
-
-	return arrows.join('');
+	const arrow = (symbol: string, position: string) =>
+		`<span style="position: absolute; color: ${STYLES.colors.arrowOverlay}; font-size: ${STYLES.sizes.arrowFont}; font-weight: bold; ${position}">${symbol}</span>`;
+	return [
+		edges.top && arrow('⇡', `top: 0; left: 50%; transform: translate(-50%, -50%);`),
+		edges.bottom && arrow('⇣', `bottom: 0; left: 50%; transform: translate(-50%, 50%);`),
+		edges.left && arrow('⇠', `left: 0; top: 50%; transform: translate(-50%, -50%);`),
+		edges.right && arrow('⇢', `right: 0; top: 50%; transform: translate(50%, -50%);`),
+	].filter(Boolean).join('');
 }
 
-// ============================================================================
-// Table Rendering
-// ============================================================================
+//#endregion Infinite Edge Visualization
 
-/**
- * Build header (th) element with optional infinity indicator.
- * Used for both column and row headers.
- */
+//#region Table Rendering
+
+/** Build header (th) with optional ∞ indicator */
 function buildHeader(
 	coord: number,
 	isStartEdge: boolean,
 	isEndEdge: boolean,
 	startLabel: string,
 	endLabel: string,
-	extraStyles?: string,
+	isColumn: boolean,
+	extraStyles: string,
+	extentSize: number,
 ): string {
-	const isInfinite = isStartEdge || isEndEdge;
-	const label = isInfinite ? formatCoordinateLabel(coord, true) : String(coord);
+	// Show ∞ if:
+	// 1. Both edges infinite at origin (special case)
+	// 2. Extent has multiple coordinates (general case)
+	const isBothEdgesAtOrigin = isStartEdge && isEndEdge && coord === 0;
+	const isInfinite = isBothEdgesAtOrigin || ((isStartEdge || isEndEdge) && extentSize > 1);
+	const label = formatCoordinateLabel(coord, isInfinite, isColumn);
 
-	// Build title attribute for infinite edges
-	let titleAttr = '';
-	if (isInfinite) {
-		const directions = [
-			isStartEdge ? startLabel : null,
-			isEndEdge ? endLabel : null,
-		].filter(Boolean).join(' and ');
-		titleAttr = ` title="Extends to ${directions} infinity"`;
-	}
+	const titleAttr = isInfinite
+		? ` title="Extends to ${
+			[isStartEdge && startLabel, isEndEdge && endLabel].filter(Boolean).join(' and ')
+		} infinity"`
+		: '';
 
-	// Assemble header styles
-	const styleParts = [
+	const style = [
 		`border: ${STYLES.border.header}`,
 		`padding: ${STYLES.spacing.headerPadding}`,
 		'text-align: center',
 		`font-size: ${STYLES.sizes.headerFont}`,
 		`color: ${STYLES.colors.headerText}`,
 		'font-weight: 300',
-	];
-	if (extraStyles) styleParts.push(extraStyles);
+		extraStyles,
+	].join('; ');
 
-	return `<th style="${styleParts.join('; ')}"${titleAttr}>${label}</th>`;
+	return `<th style="${style}"${titleAttr}>${label}</th>`;
 }
 
 function buildColumnHeader(
@@ -526,13 +434,16 @@ function buildColumnHeader(
 	maxX: number,
 	cellWidth: number,
 ): string {
+	const extentSize = maxX - minX + 1;
 	return buildHeader(
 		x,
 		x === minX && leftInf,
 		x === maxX && rightInf,
 		'left',
 		'right',
-		`width: ${cellWidth}px; min-width: ${cellWidth}px; max-width: ${cellWidth}px`,
+		true, // isColumn
+		`min-width: ${cellWidth}px`,
+		extentSize,
 	);
 }
 
@@ -544,19 +455,46 @@ function buildRowHeader(
 	maxY: number,
 	cellHeight: number,
 ): string {
+	const extentSize = maxY - minY + 1;
 	return buildHeader(
 		y,
 		y === minY && topInf,
 		y === maxY && bottomInf,
 		'top',
 		'bottom',
-		`height: ${cellHeight}px; min-height: ${cellHeight}px; max-height: ${cellHeight}px`,
+		false, // isColumn
+		`min-height: ${cellHeight}px`,
+		extentSize,
 	);
 }
 
-/**
- * Build table cell (td) with styling and infinite edge indicators.
- */
+/** Build empty set header (∅) for empty index */
+function buildEmptySetHeader(dimension: 'width' | 'height', size: number): string {
+	const style = [
+		`border: ${STYLES.border.header}`,
+		`padding: ${STYLES.spacing.headerPadding}`,
+		'text-align: center',
+		`font-size: ${STYLES.sizes.headerFont}`,
+		`color: ${STYLES.colors.headerText}`,
+		'font-weight: 300',
+		`min-${dimension}: ${size}px`,
+	].join('; ');
+	return `<th style="${style}">∅</th>`;
+}
+
+/** Build fixed-size dimension styles for data cells */
+function buildCellDimensions(width: number, height: number): string {
+	return [
+		`width: ${width}px`,
+		`height: ${height}px`,
+		`min-width: ${width}px`,
+		`min-height: ${height}px`,
+		`max-width: ${width}px`,
+		`max-height: ${height}px`,
+	].join('; ');
+}
+
+/** Build table cell (td) with infinite edge indicators */
 function buildCell(
 	x: number,
 	y: number,
@@ -568,11 +506,13 @@ function buildCell(
 	cellWidth: number,
 	cellHeight: number,
 	showGrid: boolean,
+	includeOrigin: boolean,
 ): string {
 	const cell = grid.get(`${x},${y}`);
 	const bgColor = cell?.color ?? STYLES.colors.transparent;
 	const label = cell?.label ?? '';
 	const textColor = cell ? getContrastColor(bgColor) : '#000';
+	const isOrigin = includeOrigin && x === 0 && y === 0;
 
 	const isTopRow = y === minY;
 	const isBottomRow = y === maxY;
@@ -592,59 +532,50 @@ function buildCell(
 		isRightCol,
 	);
 
-	const indicators = buildInfiniteIndicator(edges);
+	const originMarker = isOrigin
+		? `<span style="position: absolute; top: -1px; left: -1px; transform: translate(-50%, -50%); color: ${STYLES.colors.arrowOverlay}; font-size: ${STYLES.sizes.arrowFont}; font-weight: bold; z-index: 10; line-height: 1;" title="Absolute origin (0,0)">*</span>`
+		: '';
 
-	const cellStyle = [
+	const style = [
 		'position: relative',
 		border,
 		`background: ${background}`,
 		`color: ${textColor}`,
 		'text-align: center',
 		'vertical-align: middle',
-		`width: ${cellWidth}px`,
-		`height: ${cellHeight}px`,
-		`min-width: ${cellWidth}px`,
-		`min-height: ${cellHeight}px`,
-		`max-width: ${cellWidth}px`,
-		`max-height: ${cellHeight}px`,
+		buildCellDimensions(cellWidth, cellHeight),
 		`font-size: ${STYLES.sizes.cellFont}`,
 	].join('; ');
 
-	return `<td style="${cellStyle}">${indicators}<span style="position: relative; z-index: 1;">${
-		escapeHtml(label)
-	}</span></td>`;
+	return `<td style="${style}">${originMarker}${
+		buildInfiniteIndicator(edges)
+	}<span style="position: relative; z-index: 1;">${escapeHtml(label)}</span></td>`;
 }
 
-/**
- * Render visual legend with color swatches and code-formatted values.
- */
+/** Render legend with color swatches */
 function renderLegend(entries: [string, { label: string; color: string; value: unknown }][]): string {
-	const { messageMargin } = STYLES.spacing;
-	const { headerFont } = STYLES.sizes;
+	const items = entries.map(([_key, { label, color, value }]) => {
+		const valueStr = typeof value === 'object' && value !== null ? JSON.stringify(value) : String(value);
+		const swatch = `<span style="display: inline-block; width: 12px; height: 12px; background: ${
+			escapeHtml(color)
+		}; border: 1px solid rgba(0,0,0,0.2); margin-right: 6px; vertical-align: middle;"></span>`;
+		return `${swatch}<code style="background: none; padding: 0; color: inherit;">${
+			escapeHtml(label)
+		}</code> = <code style="background: none; padding: 0; color: inherit;">${escapeHtml(valueStr)}</code>`;
+	}).join('<br>');
 
-	const items = entries
-		.map(([_key, { label, color, value }]) => {
-			const valueStr = typeof value === 'object' && value !== null ? JSON.stringify(value) : String(value);
-
-			const swatch = `<span style="display: inline-block; width: 12px; height: 12px; background: ${
-				escapeHtml(color)
-			}; border: 1px solid rgba(0,0,0,0.2); margin-right: 6px; vertical-align: middle;"></span>`;
-
-			const labelCode = `<code style="background: none; padding: 0; color: inherit;">${escapeHtml(label)}</code>`;
-			const valueCode = `<code style="background: none; padding: 0; color: inherit;">${
-				escapeHtml(valueStr)
-			}</code>`;
-
-			return `${swatch}${labelCode} = ${valueCode}`;
-		})
-		.join('<br>');
-
-	return `<div style="margin: ${messageMargin}; font-size: ${headerFont}; color: ${STYLES.colors.legendText}; font-family: monospace; line-height: 1.8; color-scheme: light dark;">${items}</div>`;
+	return `<div style="margin: ${STYLES.spacing.messageMargin}; font-size: ${STYLES.sizes.headerFont}; color: ${STYLES.colors.legendText}; font-family: monospace; line-height: 1.8; color-scheme: light dark;">${items}</div>`;
 }
 
-/**
- * Render complete HTML table from spatial fragments.
- */
+/** Validate strict mode: throw if legend has unused keys */
+function validateStrictMode(legend: Record<string, unknown>, usedLegendKeys: Set<string>): void {
+	const unused = Object.keys(legend).filter((k) => !usedLegendKeys.has(k));
+	if (unused.length) {
+		throw new Error(`Strict mode enabled: ${unused.length} unused legend key(s): ${unused.join(', ')}`);
+	}
+}
+
+/** Render HTML table from fragments */
 function renderHTMLTable<T>(
 	fragments: Iterable<QueryResult<T>>,
 	extent: ExtentResult,
@@ -659,21 +590,22 @@ function renderHTMLTable<T>(
 		cellHeight = 40,
 		showGrid = true,
 		gridOnly: gridOnlyParam = false,
+		strict = false,
+		usedLegendKeys = strict ? new Set<string>() : null,
+		includeOrigin = false,
 	} = params;
 
 	const omitLegend = gridOnly || gridOnlyParam;
-
-	// Handle empty index
 	const fragmentsArray = Array.from(fragments);
-	if (fragmentsArray.length === 0 && extent.empty) {
-		const { empty } = STYLES.colors;
-		const { messagePadding } = STYLES.spacing;
-		return `<div class="${
-			escapeHtml(className)
-		}" style="padding: ${messagePadding}; text-align: center; color: ${empty};">Empty index</div>`;
+	const isEmpty = fragmentsArray.length === 0 && extent.empty;
+
+	const grid = buildGrid(fragmentsArray, extent, legend, usedLegendKeys);
+
+	// Validate strict mode after building grid
+	if (strict && usedLegendKeys) {
+		validateStrictMode(legend, usedLegendKeys);
 	}
 
-	const grid = buildGrid(fragmentsArray, extent, legend);
 	const [minX, minY, maxX, maxY] = extent.mbr;
 	const [leftInf, topInf, rightInf, bottomInf] = extent.edges;
 
@@ -683,30 +615,59 @@ function renderHTMLTable<T>(
 	parts.push(
 		`<table class="${
 			escapeHtml(className)
-		}" style="border-collapse: collapse; font-family: monospace; margin: ${tableMargin}; width: auto; table-layout: fixed; color-scheme: light dark;">`,
+		}" style="border-collapse: collapse; border-spacing: 0; font-family: monospace; margin: ${tableMargin}; width: auto; table-layout: fixed; color-scheme: light dark;">`,
 	);
 
 	if (showCoordinates) {
-		parts.push(`<thead><tr><th style="border: none; width: auto; min-width: 0;"></th>`);
-		for (let x = minX; x <= maxX; x++) {
-			parts.push(buildColumnHeader(x, leftInf, rightInf, minX, maxX, cellWidth));
+		const cornerWidth = cellWidth / 2;
+		const cornerHeight = cellHeight / 2;
+		const cornerStyle = `border: none; min-width: ${cornerWidth}px; min-height: ${cornerHeight}px;`;
+		parts.push(`<thead><tr><th style="${cornerStyle}"></th>`);
+		if (isEmpty) {
+			parts.push(buildEmptySetHeader('width', cellWidth));
+		} else {
+			for (let x = minX; x <= maxX; x++) {
+				parts.push(buildColumnHeader(x, leftInf, rightInf, minX, maxX, cellWidth));
+			}
 		}
 		parts.push('</tr></thead>');
 	}
 
 	parts.push('<tbody>');
-	for (let y = minY; y <= maxY; y++) {
+	if (isEmpty) {
+		// Empty index: single row with empty set symbol and empty cell
 		parts.push('<tr>');
-
 		if (showCoordinates) {
-			parts.push(buildRowHeader(y, topInf, bottomInf, minY, maxY, cellHeight));
+			parts.push(buildEmptySetHeader('height', cellHeight));
 		}
-
-		for (let x = minX; x <= maxX; x++) {
-			parts.push(buildCell(x, y, grid, minX, maxX, minY, maxY, cellWidth, cellHeight, showGrid));
-		}
-
+		// Empty cell
+		const cellStyle = [
+			'position: relative',
+			`border: ${showGrid ? STYLES.border.transparent : STYLES.border.none}`,
+			`background: ${STYLES.colors.transparent}`,
+			'text-align: center',
+			'vertical-align: middle',
+			buildCellDimensions(cellWidth, cellHeight),
+			`font-size: ${STYLES.sizes.cellFont}`,
+		].join('; ');
+		parts.push(`<td style="${cellStyle}"></td>`);
 		parts.push('</tr>');
+	} else {
+		for (let y = minY; y <= maxY; y++) {
+			parts.push('<tr>');
+
+			if (showCoordinates) {
+				parts.push(buildRowHeader(y, topInf, bottomInf, minY, maxY, cellHeight));
+			}
+
+			for (let x = minX; x <= maxX; x++) {
+				parts.push(
+					buildCell(x, y, grid, minX, maxX, minY, maxY, cellWidth, cellHeight, showGrid, includeOrigin),
+				);
+			}
+
+			parts.push('</tr>');
+		}
 	}
 	parts.push('</tbody></table>');
 
@@ -718,9 +679,9 @@ function renderHTMLTable<T>(
 	return parts.join('');
 }
 
-// ============================================================================
-// Parameter Defaults
-// ============================================================================
+//#endregion Table Rendering
+
+//#region Parameter Defaults
 
 /** Render parameter defaults */
 const RENDER_DEFAULTS = {
@@ -732,12 +693,22 @@ const RENDER_DEFAULTS = {
 	showGrid: true,
 	gridOnly: false,
 	includeOrigin: false,
+	strict: false,
+	usedLegendKeys: null,
 } as const;
 
 function withRenderDefaults<T>(
 	params: HTMLRenderParams<T>,
 ): Required<HTMLRenderParams<T>> {
-	return { ...RENDER_DEFAULTS, ...params, legend: params.legend ?? RENDER_DEFAULTS.legend };
+	const strict = params.strict ?? RENDER_DEFAULTS.strict;
+	const usedLegendKeys = params.usedLegendKeys ?? (strict ? new Set<string>() : null);
+	return {
+		...RENDER_DEFAULTS,
+		...params,
+		legend: params.legend ?? RENDER_DEFAULTS.legend,
+		strict,
+		usedLegendKeys,
+	};
 }
 
 function withLayoutDefaults<T>(
@@ -758,9 +729,9 @@ function withLayoutDefaults<T>(
 	};
 }
 
-// ============================================================================
-// Backend Implementation
-// ============================================================================
+//#endregion Parameter Defaults
+
+//#region Backend Implementation
 
 class HTMLRenderContext<T> implements RenderContext<T, string, HTMLRenderParams<T>> {
 	readonly params: Required<HTMLRenderParams<T>>;
@@ -803,7 +774,17 @@ class HTMLLayoutContext<T> implements
 			legend: params.legend ?? this.params.legend,
 		};
 
-		const html = renderHTMLTable(fragments, extent, mergedParams, true);
+		let html = renderHTMLTable(fragments, extent, mergedParams, true);
+
+		// Wrap table + name in a container so name appears above table in layouts
+		if (params.name) {
+			const nameHeader =
+				`<div style="text-align: center; font-family: monospace; font-size: 11px; color: ${STYLES.colors.legendText}; margin: 0 0 5px 0;">${
+					escapeHtml(params.name)
+				}</div>`;
+			html = `<div style="display: inline-block;">${nameHeader}${html}</div>`;
+		}
+
 		const legendEntries = Object.entries(mergedParams.legend);
 		const result: HTMLBackendIR = { html };
 		if (legendEntries.length > 0) {
@@ -815,7 +796,8 @@ class HTMLLayoutContext<T> implements
 		irs: Iterable<HTMLBackendIR>,
 		params?: Partial<HTMLLayoutParams<T>>,
 	): string {
-		const { direction, spacing, title } = { ...this.params, ...params };
+		const mergedParams = { ...this.params, ...params };
+		const { direction, spacing, title, strict, usedLegendKeys } = mergedParams;
 
 		const parts: string[] = [];
 
@@ -844,6 +826,11 @@ class HTMLLayoutContext<T> implements
 
 		if (legendEntries && legendEntries.length > 0) {
 			parts.push(renderLegend(legendEntries));
+		}
+
+		// Validate strict mode after layout
+		if (strict && usedLegendKeys) {
+			validateStrictMode(mergedParams.legend, usedLegendKeys);
 		}
 
 		return parts.join('');
@@ -904,3 +891,5 @@ export class HTMLBackend implements
 		return new HTMLLayoutContext(params);
 	}
 }
+
+//#endregion Backend Implementation

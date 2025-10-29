@@ -35,6 +35,10 @@ export interface HTMLRenderParams<T> extends RenderParams {
 	showGrid?: boolean;
 	/** If true, omit legend (grid only, default: false) */
 	gridOnly?: boolean;
+	/** If true, throw error if legend contains unused keys (default: false) */
+	strict?: boolean;
+	/** Internal: tracks which legend keys were used (for strict mode) */
+	usedLegendKeys?: Set<string> | null;
 }
 
 /**

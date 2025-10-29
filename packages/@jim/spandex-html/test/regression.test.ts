@@ -63,7 +63,7 @@ Deno.test('HTML Regression Scenarios', async (t) => {
 		const result = renderProgression(
 			factory,
 			steps.map(({ name, action }) => ({ params: { name }, action })),
-			{ legend },
+			{ legend, strict: true },
 		);
 
 		await assertMatch(result, {
@@ -78,7 +78,7 @@ Deno.test('HTML Regression Scenarios', async (t) => {
 		const result = renderProgression(
 			factory,
 			steps.map(({ name, action }) => ({ params: { name }, action })),
-			{ legend },
+			{ legend, strict: true },
 		);
 
 		await assertMatch(result, {
@@ -102,7 +102,7 @@ Deno.test('HTML Regression Scenarios', async (t) => {
 				{ params: { name: 'Sparse' }, source: sparse },
 				{ params: { name: 'Dense 4×4' }, source: dense },
 			],
-			{ legend },
+			{ legend, strict: true },
 		);
 
 		await assertMatch(result, { name: 'Data Density Variations' });
@@ -127,7 +127,7 @@ Deno.test('HTML Regression Scenarios', async (t) => {
 		const result = renderProgression(
 			factory,
 			steps.map(({ name, action }) => ({ params: { name }, action })),
-			{ legend },
+			{ legend, strict: true },
 		);
 
 		await assertMatch(result, {
@@ -148,7 +148,7 @@ Deno.test('HTML Regression Scenarios', async (t) => {
 		const result = renderProgression(
 			factory,
 			steps.map(({ name, action }) => ({ params: { name }, action })),
-			{ legend },
+			{ legend, strict: true },
 		);
 
 		await assertMatch(result, {
@@ -167,7 +167,7 @@ Deno.test('HTML Regression Scenarios', async (t) => {
 		const result = renderProgression(
 			factory,
 			steps.map(({ name, action }) => ({ params: { name }, action })),
-			{ legend },
+			{ legend, strict: true },
 		);
 
 		await assertMatch(result, { name: 'Global Override Evolution' });
@@ -187,7 +187,7 @@ Deno.test('HTML Regression Scenarios', async (t) => {
 				{ params: { name: 'No Origin 2' }, source: index2 },
 				{ params: { name: 'No Origin 3' }, source: index3 },
 			],
-			{ legend, includeOrigin: false },
+			{ legend, strict: true, includeOrigin: false },
 		);
 
 		const withOrigin = renderLayout(
@@ -196,7 +196,7 @@ Deno.test('HTML Regression Scenarios', async (t) => {
 				{ params: { name: 'Origin Included 2' }, source: index2 },
 				{ params: { name: 'Origin Included 3' }, source: index3 },
 			],
-			{ legend, includeOrigin: true },
+			{ legend, strict: true, includeOrigin: true },
 		);
 
 		await assertMatch(noOrigin, { name: 'Origin Excluded' });
@@ -219,7 +219,7 @@ Deno.test('HTML Regression Scenarios', async (t) => {
 				{ params: { name: 'Bottom ∞' }, source: bottom },
 				{ params: { name: 'Left ∞' }, source: left },
 			],
-			{ legend },
+			{ legend, strict: true },
 		);
 
 		await assertMatch(result, { name: 'Infinity Edges (all directions)' });
@@ -242,7 +242,7 @@ Deno.test('HTML Regression Scenarios', async (t) => {
 				{ params: { name: 'Bottom-Left' }, source: bottomLeft },
 				{ params: { name: 'Bottom-Right' }, source: bottomRight },
 			],
-			{ legend },
+			{ legend, strict: true },
 		);
 
 		await assertMatch(result, { name: 'Infinity Corners' });
@@ -257,7 +257,7 @@ Deno.test('HTML Regression Scenarios', async (t) => {
 				{ params: { name: 'Horizontal Band' }, source: horizontal },
 				{ params: { name: 'Vertical Band' }, source: vertical },
 			],
-			{ legend },
+			{ legend, strict: true },
 		);
 
 		await assertMatch(result, { name: 'Infinity Bands (3 edges)' });
@@ -272,7 +272,7 @@ Deno.test('HTML Regression Scenarios', async (t) => {
 		const result = renderProgression(
 			factory,
 			steps.map(({ name, action }) => ({ params: { name }, action })),
-			{ legend: {} },
+			{ legend: {}, strict: true },
 		);
 
 		await assertMatch(result, { name: 'Empty Index' });
@@ -293,7 +293,7 @@ Deno.test('HTML Regression Scenarios', async (t) => {
 					params: { name: 'Origin Included', includeOrigin: true },
 				},
 			],
-			{ legend },
+			{ legend, strict: true },
 		);
 
 		await assertMatch(result, { name: 'All Infinity (no finite data)' });
@@ -310,7 +310,7 @@ Deno.test('HTML Regression Scenarios', async (t) => {
 		const result = renderProgression(
 			factory,
 			steps.map(({ name, action }) => ({ params: { name }, action })),
-			{ legend },
+			{ legend, strict: true },
 		);
 
 		await assertMatch(result, { name: 'Two-state progression' });
@@ -323,7 +323,7 @@ Deno.test('HTML Regression Scenarios', async (t) => {
 		const result = renderProgression(
 			factory,
 			steps.map(({ name, action }) => ({ params: { name }, action })),
-			{ legend },
+			{ legend, strict: true },
 		);
 
 		await assertMatch(result, {
@@ -338,7 +338,7 @@ Deno.test('HTML Regression Scenarios', async (t) => {
 		const result = renderProgression(
 			factory,
 			steps.map(({ name, action }) => ({ params: { name }, action })),
-			{ legend, spacing: 5 },
+			{ legend, spacing: 5, strict: true },
 		);
 
 		await assertMatch(result, { name: 'Custom spacing between grids' });
@@ -353,7 +353,7 @@ Deno.test('HTML Regression Scenarios', async (t) => {
 				{ params: { name: 'Index A' }, source: index1 },
 				{ params: { name: 'Index B' }, source: index2 },
 			],
-			{ legend, spacing: 5 },
+			{ legend, spacing: 5, strict: true },
 		);
 
 		await assertMatch(result, {
