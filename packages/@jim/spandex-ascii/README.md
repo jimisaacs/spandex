@@ -17,15 +17,18 @@ deno add jsr:@jim/spandex jsr:@jim/spandex-ascii
 
 ```typescript
 import createMortonLinearScanIndex from '@jim/spandex/index/mortonlinearscan';
+import { createA1Adapter } from '@jim/spandex/adapter/a1';
 import { createRenderer } from '@jim/spandex-ascii';
 
 const index = createMortonLinearScanIndex<string>();
-index.insert([0, 0, 2, 2], 'RED');
-index.insert([1, 1, 3, 3], 'BLUE');
+const adapter = createA1Adapter(index);
+
+adapter.insert('A1:C3', 'red');
+adapter.insert('B2:D4', 'blue');
 
 const { render } = createRenderer();
 console.log(render(index, {
-	legend: { 'R': 'RED', 'B': 'BLUE' },
+	legend: { R: 'red', B: 'blue' },
 }));
 ```
 
@@ -33,18 +36,18 @@ console.log(render(index, {
 
 ```
     A   B   C   D
-  ┏━━━┳━━━┳━━━┳━━━┓
-0 ┃ R ┃ R ┃ R ┃   ┃
-  ┣━━━╋━━━╋━━━╋━━━┫
-1 ┃ R ┃ B ┃ B ┃ B ┃
-  ┣━━━╋━━━╋━━━╋━━━┫
+  ┏━━━┳━━━┳━━━┓   ·
+1 ┃ R ┃ R ┃ R ┃
+  ┣━━━╋━━━╋━━━╋━━━┓
 2 ┃ R ┃ B ┃ B ┃ B ┃
   ┣━━━╋━━━╋━━━╋━━━┫
-3 ┃   ┃ B ┃ B ┃ B ┃
-  ┗━━━┻━━━┻━━━┻━━━┛
+3 ┃ R ┃ B ┃ B ┃ B ┃
+  ┗━━━╋━━━╋━━━╋━━━┫
+4     ┃ B ┃ B ┃ B ┃
+  ·   ┗━━━┻━━━┻━━━┛
 
-B = "BLUE"
-R = "RED"
+B = "blue"
+R = "red"
 ```
 
 **Options**:

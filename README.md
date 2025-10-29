@@ -18,42 +18,43 @@ npx jsr add @jim/spandex       # Node.js
 
 ```typescript
 import createMortonLinearScanIndex from '@jim/spandex/index/mortonlinearscan';
+import { createA1Adapter } from '@jim/spandex/adapter/a1';
 import { createRenderer } from '@jim/spandex-ascii';
 
 const index = createMortonLinearScanIndex<string>();
+const adapter = createA1Adapter(index);
 
-// Insert first region
-index.insert([0, 0, 2, 2], 'A');
+// Insert first region (A1:C3 in spreadsheet notation)
+adapter.insert('A1:C3', 'red');
 
-// Insert overlapping region (last-writer-wins)
-index.insert([1, 1, 3, 3], 'B');
+// Insert overlapping region (B2:D4 - last-writer-wins)
+adapter.insert('B2:D4', 'blue');
 
 // Visualize the decomposition
 const { render } = createRenderer();
-console.log(render(index, { gridOnly: true }));
+console.log(render(index, { legend: { R: 'red', B: 'blue' }, gridOnly: true }));
 // Output:
-//     A   B   C
-//   ┏━━━┳━━━┳━━━┓
-// 1 ┃ A ┃ A ┃ A ┃
-//   ┣━━━╋━━━╋━━━┫
-// 2 ┃ A ┃ B ┃ B ┃
-//   ┣━━━╋━━━╋━━━┫
-// 3 ┃ A ┃ B ┃ B ┃
-//   ┗━━━╋━━━╋━━━┫
-// 4     ┃ B ┃ B ┃
-//       ┗━━━┻━━━┛
+//     A   B   C   D
+//   ┏━━━┳━━━┳━━━┓   ·
+// 1 ┃ R ┃ R ┃ R ┃
+//   ┣━━━╋━━━╋━━━╋━━━┓
+// 2 ┃ R ┃ B ┃ B ┃ B ┃
+//   ┣━━━╋━━━╋━━━╋━━━┫
+// 3 ┃ R ┃ B ┃ B ┃ B ┃
+//   ┗━━━╋━━━╋━━━╋━━━┫
+// 4     ┃ B ┃ B ┃ B ┃
+//   ·   ┗━━━┻━━━┻━━━┛
 
-// Query returns 4 non-overlapping fragments
-for (const [rect, value] of index.query()) {
+// Query returns 3 non-overlapping fragments
+for (const [rect, value] of adapter.query()) {
 	console.log(rect, value);
 }
-// [0,0,2,0] 'A'
-// [0,1,0,2] 'A'
-// [0,3,0,3] 'A'
-// [1,1,3,3] 'B'
+// [0,0,2,0] 'red'
+// [0,1,0,2] 'red'
+// [1,1,3,3] 'blue'
 ```
 
-Region A split into 3 fragments, B wins the overlap.
+Red region split into 2 fragments, blue wins the overlap.
 
 ## Published Packages
 

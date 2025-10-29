@@ -16,12 +16,15 @@ deno add jsr:@jim/spandex jsr:@jim/spandex-html
 ## Usage
 
 ```typescript
-import { createRenderer } from '@jim/spandex-html';
 import createMortonLinearScanIndex from '@jim/spandex/index/mortonlinearscan';
+import { createA1Adapter } from '@jim/spandex/adapter/a1';
+import { createRenderer } from '@jim/spandex-html';
 
 const index = createMortonLinearScanIndex<string>();
-index.insert([0, 0, 2, 2], 'red');
-index.insert([1, 1, 3, 3], 'blue');
+const adapter = createA1Adapter(index);
+
+adapter.insert('A1:C3', 'red');
+adapter.insert('B2:D4', 'blue');
 
 const { render } = createRenderer<string>();
 const html = render(index, {

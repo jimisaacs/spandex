@@ -31,21 +31,23 @@ import createMortonLinearScanIndex from '@jim/spandex/index/mortonlinearscan';
 
 ```typescript
 import createMortonLinearScanIndex from '@jim/spandex/index/mortonlinearscan';
+import { createA1Adapter } from '@jim/spandex/adapter/a1';
 
 const index = createMortonLinearScanIndex<string>();
+const adapter = createA1Adapter(index);
 
-// Insert rectangles (format: [xmin, ymin, xmax, ymax])
-index.insert([0, 0, 4, 4], 'region-A');
-index.insert([2, 2, 6, 6], 'region-B'); // Overlaps! LWW: B wins in overlap
+// Insert regions using A1 notation (spreadsheet style)
+adapter.insert('A1:C3', 'red');
+adapter.insert('B2:D4', 'blue'); // Overlaps! LWW: blue wins in overlap
 
-// Query returns non-overlapping fragments
-for (const [bounds, value] of index.query()) {
+// Query returns non-overlapping fragments (as rectangles)
+for (const [bounds, value] of adapter.query()) {
 	console.log(bounds, value);
 }
 // Output:
-// [0, 0, 4, 1] "region-A"  (A's top edge, not overlapping)
-// [0, 2, 1, 4] "region-A"  (A's left edge, not overlapping)
-// [2, 2, 6, 6] "region-B"  (B covers entire overlap region)
+// [0, 0, 2, 0] 'red'   (top row of red region)
+// [0, 1, 0, 2] 'red'   (left column of red region)
+// [1, 1, 3, 3] 'blue'  (blue covers entire overlap)
 ```
 
 ## Algorithm Selection
