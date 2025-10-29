@@ -1,4 +1,6 @@
 /**
+ * @module
+ *
  * Rectangle utilities: construction, validation, canonical forms
  *
  * Canonicalization maps structurally equal rectangles to sentinel references (ZERO, ALL).

@@ -1,4 +1,10 @@
-/** A1 notation adapter: "A1:C3" | "B:D" | "2:4" → Rectangle */
+/**
+ * @module
+ *
+ * A1 notation adapter: "A1:C3" | "B:D" | "2:4" → Rectangle
+ *
+ * Converts Excel/Google Sheets A1 notation to rectangles for spatial indexing.
+ */
 
 import type { RenderableIndexAdapter } from '../render/types.ts';
 import type {

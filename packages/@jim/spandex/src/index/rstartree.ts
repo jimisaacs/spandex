@@ -1,4 +1,6 @@
 /**
+ * @module
+ *
  * RStarTreeImpl: R-tree with R* split algorithm (Beckmann et al., 1990)
  *
  * Hierarchical spatial index using R* split (minimizes perimeter sum, then overlap).

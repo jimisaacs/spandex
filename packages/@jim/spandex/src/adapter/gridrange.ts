@@ -1,4 +1,10 @@
-/** Google Sheets GridRange adapter: half-open [start, end) ⟷ closed [min, max] */
+/**
+ * @module
+ *
+ * Google Sheets GridRange adapter: half-open [start, end) ⟷ closed [min, max]
+ *
+ * Converts Google Sheets API GridRange format to/from internal closed-interval rectangles.
+ */
 
 import * as r from '../r.ts';
 import type { RenderableIndexAdapter } from '../render/types.ts';

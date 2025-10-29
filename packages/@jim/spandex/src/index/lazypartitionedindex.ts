@@ -1,4 +1,6 @@
 /**
+ * @module
+ *
  * Attribute-Partitioned Spatial Index
  *
  * Manages independent spatial indexes per attribute. Lazy creation, spatial join on query.

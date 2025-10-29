@@ -1,4 +1,6 @@
 /**
+ * @module
+ *
  * Morton Curve (Z-Order) Linear Scan - PRODUCTION IMPLEMENTATION
  *
  * Linear scan implementation using Morton codes (Z-order curve) for spatial ordering.
