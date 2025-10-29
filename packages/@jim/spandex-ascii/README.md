@@ -27,7 +27,7 @@ adapter.insert('A1:C3', 'red');
 adapter.insert('B2:D4', 'blue');
 
 const { render } = createRenderer();
-console.log(render(index, {
+console.log(render(adapter, {
 	legend: { R: 'red', B: 'blue' },
 }));
 ```

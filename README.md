@@ -32,7 +32,7 @@ adapter.insert('B2:D4', 'blue');
 
 // Visualize the decomposition
 const { render } = createRenderer();
-console.log(render(index, { legend: { R: 'red', B: 'blue' }, gridOnly: true }));
+console.log(render(adapter, { legend: { R: 'red', B: 'blue' }, gridOnly: true }));
 // Output:
 //     A   B   C   D
 //   ┏━━━┳━━━┳━━━┓   ·
