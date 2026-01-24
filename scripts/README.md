@@ -61,8 +61,8 @@ Runs benchmarks and generates `BENCHMARKS.md`.
 
 **What it does**:
 
-1. Runs `deno bench benchmarks/performance.ts --json`
-2. Parses results
+1. Runs `deno bench benchmarks/performance.ts` (parses text table output)
+2. Extracts performance data
 3. Generates formatted `BENCHMARKS.md` with comparison tables
 
 **Output**: `BENCHMARKS.md` (auto-generated, don't edit manually)
@@ -86,6 +86,52 @@ Runs benchmarks multiple times for statistical analysis.
 **Output**: Markdown file with statistical analysis
 
 **Note**: Run before completing tasks to ensure statistical docs are current. Also run `bench:update` to keep both docs in sync.
+
+### `compare-benchmarks.ts`
+
+Compares two benchmark text outputs and detects regressions.
+
+**Run**: `deno task bench:compare <pr.txt> <main.txt> <output.md>`
+
+**Example**:
+
+```bash
+deno bench benchmarks/performance.ts > pr-benchmarks.txt
+# ... checkout main ...
+deno bench benchmarks/performance.ts > main-benchmarks.txt
+deno task bench:compare pr-benchmarks.txt main-benchmarks.txt comparison.md
+```
+
+**What it does**:
+
+1. Parses text table output from `deno bench`
+2. Compares performance metrics
+3. Detects regressions (>20% slower) and improvements (>20% faster)
+4. Generates markdown comparison table
+
+**Exit codes**:
+
+- 0 = No regressions
+- 1 = Regressions detected
+- 2 = Error (invalid input, missing files)
+
+**Used by**: `.github/workflows/performance-regression.yml` (automated PR checks)
+
+**Local testing**:
+
+```bash
+# Run benchmarks and save to files
+deno bench benchmarks/performance.ts > pr-benchmarks.txt
+# ... make changes ...
+deno bench benchmarks/performance.ts > main-benchmarks.txt
+
+# Compare
+deno task bench:compare pr-benchmarks.txt main-benchmarks.txt comparison.md
+echo $?  # 0=no regression, 1=regression, 2=error
+
+# Or run without arguments to test parsing
+deno run --allow-read --allow-run scripts/compare-benchmarks.ts
+```
 
 ---
 

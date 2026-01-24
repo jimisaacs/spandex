@@ -56,6 +56,8 @@ git diff packages/@jim/spandex/test/**/fixtures/*.md
 
 ### Benchmarking
 
+**See [docs/BENCHMARK-FRAMEWORK.md](./docs/BENCHMARK-FRAMEWORK.md) for complete benchmarking workflows and when to use which command.**
+
 **⚠️ CRITICAL: TWO BENCHMARK SCRIPTS**
 
 1. **`bench:update`** → Generates `BENCHMARKS.md` (quick, ~2 min)
@@ -228,15 +230,15 @@ Validated by `assertInvariants()` in conformance tests.
 2. Create test files in `packages/@jim/spandex/test/index/newimpl/`:
    ```typescript
    // property.test.ts
-   import { NewImpl } from '@jim/spandex';
+   import createNewImplIndex from '@jim/spandex/index/newimpl';
    import { testPropertyAxioms } from '@local/spandex-testing/axiom';
 
    Deno.test('NewImpl - Property Axioms', async (t) => {
-   	await testPropertyAxioms(t, () => new NewImpl<string>());
+   	await testPropertyAxioms(t, createNewImplIndex);
    });
 
    // geometry.test.ts
-   import { NewImpl } from '@jim/spandex';
+   import createNewImplIndex from '@jim/spandex/index/newimpl';
    import { asciiStringCodec, createFixtureGroup } from '@local/snapmark';
    import { testGeometryAxioms } from '@local/spandex-testing/axiom';
 
@@ -246,7 +248,7 @@ Validated by `assertInvariants()` in conformance tests.
    		filePath: new URL('../fixtures/geometry-test.md', import.meta.url),
    	});
 
-   	await testGeometryAxioms(t, () => new NewImpl<string>(), assertMatch);
+   	await testGeometryAxioms(t, createNewImplIndex, assertMatch);
 
    	await flush();
    });
@@ -297,6 +299,8 @@ Benchmarks automatically exclude archived implementations (based on filesystem l
 
 ### Experiment Workflow (MANDATORY)
 
+**See [docs/active/README.md](./docs/active/README.md) for the complete experiment workflow.**
+
 **CRITICAL RULE**: `docs/active/experiments/` must be **EMPTY** after experiment completion.
 
 **Why this matters**:
@@ -308,7 +312,7 @@ Benchmarks automatically exclude archived implementations (based on filesystem l
 
 **Experiment lifecycle**:
 
-```
+```text
 1. Create hypothesis → docs/active/experiments/[name]-experiment.md
 2. Run benchmarks → OVERWRITES docs/analyses/benchmark-statistics.md
 3. Document findings → docs/analyses/[name]-analysis.md
@@ -360,7 +364,7 @@ Benchmarks automatically exclude archived implementations (based on filesystem l
 
 **Example**:
 
-```bash
+```text
 # WRONG - Completed experiments still in active/
 docs/active/experiments/
 ├── experiment-1.md (COMPLETED)
@@ -417,13 +421,14 @@ deno task bench:analyze 5 docs/analyses/benchmark-statistics.md  # Updates stats
 
 **When to use specific implementation names**:
 
-- ✅ **Analysis files** (`docs/analyses/*.md`) - Report experimental results with specific names
-- ✅ **Example code** - Show concrete usage examples
-- ✅ **Operational guides** (PRODUCTION-GUIDE sections) - Show what to import
-- ✅ **Diagram files** - Explain specific algorithm details
-- ✅ **Experimental data** - "MortonLinearScanImpl achieved 6.9µs" (factual measurement)
-- ❌ **Structural docs** (README, summaries) - Use generic terms in prescriptive sections
-- ❌ **Decision tables** - Use algorithm approaches, not class names
+| Context | Use Names? | Example |
+| --- | --- | --- |
+| Analysis files (`docs/analyses/*.md`) | ✅ Yes | "MortonLinearScanImpl achieved 6.9µs" |
+| Example code | ✅ Yes | `import createMortonLinearScanIndex from '@jim/spandex/index/mortonlinearscan'` |
+| Operational guides | ✅ Yes | Show what to import in PRODUCTION-GUIDE sections |
+| Diagram files | ✅ Yes | Explain specific algorithm details |
+| Structural docs (README, summaries) | ❌ No | "Spatial locality optimization" not "MortonLinearScanImpl" |
+| Decision tables | ❌ No | Use algorithm approaches, not class names |
 
 **Why this matters**: When implementations are added/removed/renamed, only `packages/@jim/spandex/src/index/` and generated files need updating. Documentation stays valid without edits.
 
@@ -446,16 +451,16 @@ deno task bench:analyze 5 docs/analyses/benchmark-statistics.md  # Updates stats
 
 **Key rule**: Semantic constraints (e.g., "Google Sheets coordinates start at 0") apply only at **API boundaries** (input/output), NOT internally.
 
-**Why this matters**:
+**Why this matters**: Internal representation should be whatever is most performant (fewer branches, better symmetry).
 
-- Internal representation should be whatever is most performant (fewer branches, better symmetry)
-- Conversion happens at boundaries: `Input → [convert] → Internal (optimized) → [convert] → Output`
-- Don't impose semantic constraints internally unless they provide performance/correctness benefit
+**Boundary conversion pattern**: `Input → [convert] → Internal (optimized) → [convert] → Output`
+
+**Constraint rule**: Don't impose semantic constraints internally unless they provide performance/correctness benefit.
 
 **Examples in codebase**:
 
 - ✅ __R_-tree_*: Uses `NEG_INF/POS_INF` constants instead of `Infinity` (works with TypedArrays, symmetric)
-- ✅ **MortonLinearScan**: Uses `MAX_COORD = 65536` constant (avoids `Infinity` checks in hot paths)
+- ✅ **MortonLinearScan**: Uses `MAX_COORD = 65535 (0xFFFF)` constant (avoids `Infinity` checks in hot paths)
 
 **See**: docs/active/semantic-vs-performance-principle.md for detailed rationale and optimization opportunities.
 
@@ -495,7 +500,7 @@ Insert algorithm (A \ B → ≤4 fragments):
 
 **Mechanism**: Bit interleaving maps 2D coordinates to 1D while preserving spatial locality. Constant-time encoding (vs iterative Hilbert) provides 25% speedup at small n.
 
-**Limitation**: MAX_COORD = 65,536 (2^16). Coordinates ≥65K wrap/collide but algorithm remains correct (spatial locality may degrade).
+**Limitation**: MAX_COORD = 65,535 (0xFFFF). Coordinates >65K wrap in Morton encoding (degrades locality) but geometry remains correct.
 
 **Historical note**: Originally used Hilbert curve, replaced with Morton after benchmarking showed 25% improvement. See docs/analyses/morton-vs-hilbert-analysis.md for full experimental analysis.
 
@@ -536,31 +541,22 @@ See docs/analyses/benchmark-statistics.md for full methodology.
 
 ## Code Conventions
 
-**Formatting** (enforced by `deno fmt`):
+**See [CONTRIBUTING.md](./CONTRIBUTING.md) for code style guidelines.**
 
-- Tabs (width 4), line width 120
-- Semicolons, single quotes
-
-**Type Safety**:
+**Key requirements**:
 
 - No `any` types in source code
 - All implementations must `implements SpatialIndex<T>`
 - All public APIs need JSDoc comments
-
-**Imports**:
-
-```typescript
-✅ import createMortonLinearScanIndex from '@jim/spandex/index/mortonlinearscan';
-✅ import HybridRTree from '../archive/src/implementations/failed-experiments/hybridrtree.ts';
-```
+- Use subpath imports for tree-shaking
 
 ---
 
 ## Documentation Writing Style
 
-**Philosophy**: Technical precision without unnecessary complexity. Write for the informed reader who values their time.
+**Key principle**: Lead with conclusions, front-load information, use high-density formats (tables/bullets), write imperatively.
 
-**📖 Detailed Framework**: See [docs/CLAUDE.md](./docs/CLAUDE.md) for comprehensive documentation standards (directory structure, document types, tone by context, checklists).
+**Philosophy**: Technical precision without unnecessary complexity. Write for the informed reader who values their time.
 
 ### Tone & Voice
 
@@ -660,19 +656,19 @@ const index = createSomeIndex<T>();
 
 **Introducing concepts**:
 
-```
+```text
 Problem → Solution → Trade-offs → When to use
 ```
 
 **Reporting findings**:
 
-```
+```text
 Hypothesis → Method → Data → Conclusion → Impact
 ```
 
 **Comparing options**:
 
-```
+```text
 Use table with: Feature | Option A | Option B | Winner
 ```
 
@@ -856,7 +852,7 @@ See archive/README.md for full archive philosophy and management.
 
 ### Directory Structure
 
-```
+```text
 packages/@jim/spandex/
 ├── src/index/            # Active implementations (auto-discovered by benchmarks)
 └── test/                 # Active tests (all passing)
@@ -921,7 +917,7 @@ benchmarks/               # Benchmark suites (performance.ts)
 
 **Example workflow**:
 
-```
+```text
 1. User: "Archive SomeImplementation"
 2. You: [runs archive command]
 3. You: [runs `deno task sync-docs` - regenerates BENCHMARKS.md]
@@ -932,7 +928,7 @@ benchmarks/               # Benchmark suites (performance.ts)
 
 When `sync-docs` updates files, mention it:
 
-```
+```text
 ✅ [Task completed]
 📝 Updated: BENCHMARKS.md (auto-discovered N implementations)
 ```
@@ -943,25 +939,16 @@ This prevents user frustration ("why is X still in the docs?").
 
 ## Pre-Commit Checklist
 
-Before committing:
-
-- [ ] All tests pass: `deno task test`
-- [ ] Code formatted: `deno task fmt`
-- [ ] Linted: `deno task lint`
-- [ ] **Type-checked (ENTIRE PROJECT)**: `deno check` (no args - includes archive)
-- [ ] Docs updated if behavior changed
-- [ ] No `any` types in source code
-- [ ] All public APIs have JSDoc comments
-- [ ] `docs/active/experiments/` is EMPTY (or only has in-progress work)
-- [ ] `.temp/` cleaned up (optional, but nice)
-- [ ] If archiving: reason documented in archived file header
+See [CONTRIBUTING.md](./CONTRIBUTING.md) for the complete pre-commit checklist.
 
 ## Key Documentation
 
 ### Quick Reference
 
 - **README.md** - Project overview and quick start
+- **docs/GETTING-STARTED.md** - Comprehensive tutorial for new users
 - **PRODUCTION-GUIDE.md** - Decision tree for choosing implementations
+- **docs/TROUBLESHOOTING.md** - Common issues and solutions
 - **BENCHMARKS.md** - Performance data (auto-generated)
 - **CLAUDE.md** (this file) - AI assistant context and project conventions
 

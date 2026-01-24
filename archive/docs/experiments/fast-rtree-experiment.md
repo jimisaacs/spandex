@@ -78,7 +78,7 @@ for (let axis = 0; axis < 2; axis++) {
 	// Choose axis with minimum perimeter
 }
 // Then split at midpoint along best axis
-```
+```text
 
 ## Success Criteria
 

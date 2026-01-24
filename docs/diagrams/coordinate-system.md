@@ -11,7 +11,7 @@
 
 ### Example 1: Simple Range
 
-```
+```text
 GridRange: { startRowIndex: 0, endRowIndex: 5 }
 
 Means: [0, 5) = rows 0, 1, 2, 3, 4
@@ -27,11 +27,11 @@ Row  Included?
  6   ❌ NO
 
 Common mistake: Thinking row 5 is included!
-```
+```text
 
 ### Example 2: Single Row
 
-```
+```text
 GridRange: { startRowIndex: 3, endRowIndex: 4 }
 
 Means: [3, 4) = row 3 ONLY
@@ -42,11 +42,11 @@ Row  Included?
  3   ✅ YES (only this one!)
  4   ❌ NO  (excluded)
  5   ❌ NO
-```
+```text
 
 ### Example 3: Empty Range
 
-```
+```text
 GridRange: { startRowIndex: 5, endRowIndex: 5 }
 
 Means: [5, 5) = EMPTY (zero rows!)
@@ -58,13 +58,13 @@ Row  Included?
  4   ❌ NO
  5   ❌ NO  (start == end → empty!)
  6   ❌ NO
-```
+```text
 
 ## Why Half-Open Intervals?
 
 ### 1. **Adjacent Ranges Don't Overlap**
 
-```
+```text
 ✅ Half-open:
 Range A: [0, 5) = rows 0-4
 Range B: [5, 10) = rows 5-9
@@ -83,32 +83,32 @@ Range A: [0, 5] = rows 0-5
 Range B: [5, 10] = rows 5-10
 
         OVERLAP at row 5! Ambiguous!
-```
+```text
 
 ### 2. **Range Length is Simple**
 
-```
+```text
 ✅ Half-open: length = end - start
    [0, 5) has length 5 - 0 = 5 ✓
 
 ❌ Closed: length = end - start + 1
    [0, 4] has length 4 - 0 + 1 = 5 (extra +1 is error-prone!)
-```
+```text
 
 ### 3. **Matches Programming Conventions**
 
-```
+```text
 Array slicing:  arr[0:5] means indices 0-4
 Python range:   range(0, 5) yields 0,1,2,3,4
 Google Sheets:  GridRange uses half-open
 Our library:    Matches the API!
-```
+```text
 
 ## Common Mistakes & How to Avoid
 
 ### Mistake 1: Including the End
 
-```
+```text
 ❌ WRONG:
 "I want rows 0 through 5"
 → endRowIndex: 5
@@ -120,11 +120,11 @@ Result: Gets rows 0-4 (missing row 5!)
 → endRowIndex: 6 (one more than you want!)
 
 Result: [0, 6) = rows 0-5 ✓
-```
+```text
 
 ### Mistake 2: Off-by-One on Single Cell
 
-```
+```text
 ❌ WRONG:
 "I want cell A1 (row 0, col 0)"
 → { startRowIndex: 0, endRowIndex: 0 }
@@ -136,11 +136,11 @@ Result: [0, 0) = EMPTY!
 → { startRowIndex: 0, endRowIndex: 1 }
 
 Result: [0, 1) = row 0 only ✓
-```
+```text
 
 ### Mistake 3: Assuming Inclusive
 
-```
+```text
 ❌ WRONG thinking:
 endRowIndex: 5 means "up to and including row 5"
 
@@ -152,11 +152,11 @@ endRowIndex: 5 means "up to but NOT including row 5"
           = "last row is 4"
 
 Mnemonic: "end is where you STOP, not where you INCLUDE"
-```
+```text
 
 ## 2D Example: Full Grid Range
 
-```
+```text
 GridRange:
 {
     startRowIndex: 2,
@@ -178,7 +178,7 @@ row 4    ·       ✅      ✅      ✅      ·
 row 5    ·       ·       ·       ·       ·
 
 Covers 3 rows × 3 columns = 9 cells
-```
+```text
 
 ## Converting Between Notations
 
@@ -195,7 +195,7 @@ const inclusive = [
 ];
 
 Result: [0, 4] in inclusive notation
-```
+```text
 
 ### Inclusive → Half-Open (API Return)
 
@@ -210,7 +210,7 @@ const gridRange = {
 };
 
 Result: [0, 5) in half-open notation
-```
+```text
 
 ## Quick Reference
 

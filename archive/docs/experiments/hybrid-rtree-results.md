@@ -135,7 +135,7 @@ if (n < 100) {
 } else {
     use RStarTreeImpl              // 1.5-13x faster than linear scan
 }
-```
+```text
 
 **This is the optimal answer. No further optimization possible through algorithm changes.**
 

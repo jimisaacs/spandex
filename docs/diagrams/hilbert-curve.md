@@ -8,7 +8,7 @@ A **space-filling curve** that maps 2D coordinates to a 1D line while preserving
 
 ## Order-2 Hilbert Curve (4×4 grid)
 
-```
+```text
 Points visited in Hilbert order (0 → 15):
 
  0 ─ 1   14─ 15
@@ -21,13 +21,13 @@ Points visited in Hilbert order (0 → 15):
 
 Hilbert index:  0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15
 2D position:   (0,0)(1,0)(1,1)(0,1)(0,2)(0,3)(1,3)(1,2)(2,2)(2,3)(3,3)(3,2)(3,1)(2,1)(2,0)(3,0)
-```
+```text
 
 **Key property**: Points close in 2D (like (1,0) and (1,1)) have nearby Hilbert indices (1 and 2).
 
 ## Order-3 Hilbert Curve (8×8 grid)
 
-```
+```text
  0 ─ 1  14─ 15  16─ 17  30─ 31
      │   │        │   │
  3 ─ 2  13─ 12  19─ 18  29─ 28
@@ -40,11 +40,11 @@ Hilbert index:  0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15
 
 Pattern: Recursively subdivides into 4 quadrants, 
          rotating at each level to maintain continuity
-```
+```text
 
 ## Why It Preserves Locality
 
-```
+```text
 Euclidean distance vs Hilbert distance:
 
 Points A(1,1) and B(2,1):
@@ -69,11 +69,11 @@ Neighbors:        Hilbert Indices:
 └───┴───┴───┘    
 
 Average index difference: ~2.5 (vs ~8 for row-major)
-```
+```text
 
 ## How Space-Filling Curves Are Used (Morton/Hilbert)
 
-```
+```text
 Rectangle storage (sorted by space-filling curve index):
 
 Index  Hilbert   Rectangle       Value
@@ -89,11 +89,11 @@ When querying region [1,1,5,5]:
 - Entries 0,1,2,3 are LIKELY in same cache line!
 - Hardware prefetcher loads next entries
 - 2x speedup from cache locality
-```
+```text
 
 ## Comparison: Hilbert vs Naive (Insertion Order)
 
-```
+```text
 NAIVE LINEAR SCAN (insertion order):
 Memory: [A] → [A,B] → [A,B,C] → [A,B,C,D] → [A,B,C,D,E]
          │     │       │         │           │
@@ -110,7 +110,7 @@ Memory: [A,D,B,C,E]  ← Sorted by Hilbert index
 
 Query [0,0,5,5]: Scan both, but Hilbert version loads
 A,D,B,C together into cache (spatially clustered).
-```
+```text
 
 ## Mathematical Foundation
 
@@ -140,7 +140,7 @@ for (let s = MAX_COORD / 2; s > 0; s >>= 1) {
 	// Rotate quadrant for continuity
 	if (ry === 0) { /* rotation logic */ }
 }
-```
+```text
 
 **Current Morton implementation** (production) uses constant-time bit interleaving via magic masks:
 
@@ -151,7 +151,7 @@ x = (x | (x << 4)) & 0x0F0F0F0F;
 x = (x | (x << 2)) & 0x33333333;
 x = (x | (x << 1)) & 0x55555555;
 // Same for y, then interleave: x | (y << 1)
-```
+```text
 
 See:
 

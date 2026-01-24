@@ -21,9 +21,10 @@ Comparing **O(n) linear scan** vs **O(log n) R-tree** across:
 
 **How to read**: Lower time is better. "Relative" compares to RStarTree baseline:
 
-- **1.0x** = same speed as RStarTree
-- **>1.0x** = slower than RStarTree (e.g., 2.0x = twice as slow)
-- **<1.0x** = faster than RStarTree (e.g., 0.5x = twice as fast)
+- **1.0x** = same speed as RStarTree (baseline)
+- **>1.0x** = slower than RStarTree (e.g., 2.0x = twice as slow, 14.0x = 14 times slower)
+- **<1.0x** = faster than RStarTree (e.g., 0.5x = twice as fast, 0.1x = 10 times faster)
+- **0.0x** = very fast (rounds to 0.00ms, <0.005ms)
 
 ## Quick Comparison
 

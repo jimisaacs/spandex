@@ -116,15 +116,13 @@ Check `packages/@jim/spandex/src/index/` for all active implementations (auto-di
    - Add JSDoc with complexity analysis
    - Include references if applicable
 
-3. **Test**: Create `test/[name].test.ts`
+3. **Test**: Create `test/index/[name]/property.test.ts`
    ```typescript
-   import { testSpatialIndexAxioms } from '@local/spandex-testing';
-   import { LinearScanImpl, NewImpl } from '@jim/spandex';
+   import createNewImplIndex from '@jim/spandex/index/newimpl';
+   import { testPropertyAxioms } from '@local/spandex-testing/axiom';
 
-   testSpatialIndexAxioms({
-   	reference: LinearScanImpl,
-   	implementation: NewImpl,
-   	name: 'NewImpl',
+   Deno.test('NewImpl - Property Axioms', async (t) => {
+   	await testPropertyAxioms(t, createNewImplIndex);
    });
    ```
    - Run: `deno task test:newimpl`

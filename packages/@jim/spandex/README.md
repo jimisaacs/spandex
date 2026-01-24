@@ -133,10 +133,10 @@ const html = createRenderer().render(index, { legend, showCoordinates: true });
 
 ## Performance
 
-| n     | Algorithm | Performance                         |
-| ----- | --------- | ----------------------------------- |
-| < 100 | Morton    | 5-10x faster than R*-tree           |
-| ≥ 100 | R*-tree   | 10-20x faster than Morton at n≈2500 |
+| n     | Algorithm | Performance                     |
+| ----- | --------- | ------------------------------- |
+| < 100 | Morton    | 2-8x faster than R*-tree        |
+| ≥ 100 | R*-tree   | 2x faster than Morton at n≈2500 |
 
 Crossover n≈100. See [BENCHMARKS.md](https://github.com/jimisaacs/spandex/blob/main/BENCHMARKS.md) for current measurements.
 
@@ -165,21 +165,40 @@ partitioned.clear(); // Remove all partitions
 
 ## Common Patterns
 
-```typescript
-// "Deleting" regions (use Last-Writer-Wins)
-index.insert([0, 0, 10, 10], null); // LWW overwrites previous values
+**"Deleting"**: Use Last-Writer-Wins with `null`  
+**Resetting**: Create new instance
 
-// Resetting entire index
-index = createMortonLinearScanIndex<T>(); // Create new instead of clear()
-```
+For detailed patterns (switching implementations, diagnostics), see [PRODUCTION-GUIDE.md](https://github.com/jimisaacs/spandex/blob/main/PRODUCTION-GUIDE.md#common-patterns).
 
-## Related
+## Documentation
+
+**New to spandex?** Start with [Getting Started](https://github.com/jimisaacs/spandex/blob/main/docs/GETTING-STARTED.md) for a comprehensive tutorial.
+
+**Need help?** Check [Troubleshooting](https://github.com/jimisaacs/spandex/blob/main/docs/TROUBLESHOOTING.md) for common issues.
+
+**More resources**:
+
+- **[Production Guide](https://github.com/jimisaacs/spandex/blob/main/PRODUCTION-GUIDE.md)** - Algorithm selection guide
+- **[Benchmarks](https://github.com/jimisaacs/spandex/blob/main/BENCHMARKS.md)** - Performance data
+- **[Research Docs](https://github.com/jimisaacs/spandex/blob/main/docs/)** - Full documentation
+
+## Compatibility
+
+**Pure JavaScript (ES2020+)** - works in any modern JavaScript runtime:
+- Browsers, Node.js, Deno 2+, Bun
+- Constrained environments: Google Apps Script, V8 isolates
+- No WASM, SharedArrayBuffer, or native dependencies required
+
+Works anywhere JavaScript runs.
+
+## Related Packages
 
 - **[@jim/spandex-ascii](https://jsr.io/@jim/spandex-ascii)** - ASCII visualization for terminal/logs
 - **[@jim/spandex-html](https://jsr.io/@jim/spandex-html)** - HTML visualization for browser debugging
-- **[Production Guide](https://github.com/jimisaacs/spandex/blob/main/PRODUCTION-GUIDE.md)** - Algorithm selection guide
-- **[Benchmarks](https://github.com/jimisaacs/spandex/blob/main/BENCHMARKS.md)** - Performance data
-- **[GitHub Repository](https://github.com/jimisaacs/spandex)** - Full repository
+
+## Repository
+
+**[GitHub Repository](https://github.com/jimisaacs/spandex)** - Source code, issues, discussions
 
 ## License
 

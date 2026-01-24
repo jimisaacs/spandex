@@ -25,6 +25,7 @@
 		"bench": "deno bench -A benchmarks/performance.ts",
 		"bench:update": "deno run -A scripts/update-benchmarks.ts",
 		"bench:analyze": "deno run -A scripts/analyze-benchmarks.ts",
+		"bench:compare": "deno run --allow-read --allow-write scripts/compare-benchmarks.ts",
 		"bench:archived": "deno bench -A benchmarks/performance.ts -- --include-archived",
 		"sync-docs": "deno run -A scripts/sync-docs.ts",
 		"archive:impl": "deno run -A scripts/archive-impl.ts",
@@ -36,7 +37,7 @@
 		"site:serve": "cd site && deno task serve",
 		"lint": "deno lint",
 		"fmt": "deno fmt",
-		"check": "deno check"
+		"check": "deno check packages/**/*.ts scripts/**/*.ts benchmarks/**/*.ts"
 	},
 	"fmt": {
 		"useTabs": true,

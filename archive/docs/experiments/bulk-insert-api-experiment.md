@@ -97,7 +97,7 @@ interface SpatialIndex<T> {
 	// NEW: Bulk insertion
 	insertBatch(entries: Array<{ gridRange: GridRange; value: T }>): void;
 }
-```
+```text
 
 ### Alternative Names (avoid confusion with Google's RangeList)
 
@@ -122,7 +122,7 @@ for (const entry of entries) {
 // vs
 
 index.insertBatch(entries);
-```
+```text
 
 **Decomposition**: Same geometric set difference rules apply
 
@@ -143,7 +143,7 @@ insertBatch(entries) {
     this.insert(entry.gridRange, entry.value);  // O(n) each = O(n²)
   }
 }
-```
+```text
 
 **Optimized approach** (O(n log n)):
 
@@ -191,7 +191,7 @@ insertBatch(entries) {
 
   this.entries = allEntries;
 }
-```
+```text
 
 **Key optimization**: Single O(n) scan to find overlaps (not k × O(n))
 
@@ -222,7 +222,7 @@ insertBatch(entries) {
     this.insert(entry.gridRange, entry.value);
   }
 }
-```
+```text
 
 - Easy to implement
 - No speedup over sequential
@@ -241,7 +241,7 @@ insertBatch(entries) {
   // 3. Rebuild tree using STR algorithm
   this.root = buildSTRTree(combined);
 }
-```
+```text
 
 **STR (Sort-Tile-Recursive) Algorithm**:
 
@@ -325,7 +325,7 @@ for (const saved of savedRanges) {
 
 // With batch API (fast):
 backgroundColors.insertBatch(savedRanges);
-```
+```text
 
 **Expected speedup**: 3-5x (bulk load optimization)
 
@@ -344,7 +344,7 @@ function undo() {
 	// Bulk load previous state
 	backgroundColors.insertBatch(previousState);
 }
-```
+```text
 
 ### 3. Copy/Paste Multiple Ranges
 
@@ -361,7 +361,7 @@ const pastedRanges = copiedRanges.map((r) => ({
 }));
 
 backgroundColors.insertBatch(pastedRanges);
-```
+```text
 
 ### 4. Import from External Data
 
@@ -375,7 +375,7 @@ const formattedRanges = parseCSVWithFormatting(csvData);
 backgroundColors.insertBatch(formattedRanges.backgroundColor);
 fontWeights.insertBatch(formattedRanges.fontWeight);
 // ... etc
-```
+```text
 
 ---
 
@@ -636,7 +636,7 @@ insertBatch(entries: Array<{
     value: T;
     timestamp?: number;  // Optional explicit ordering
 }>): void;
-```
+```text
 
 **Tradeoffs**:
 
@@ -654,7 +654,7 @@ loadBatch(entries: Array<...>): void;
 
 // For incremental: LWW with existing, sequential required
 insertBatch(entries: Array<...>): void;
-```
+```text
 
 **Tradeoffs**:
 
@@ -680,7 +680,7 @@ insertBatch(entries: Array<...>): void {
         }
     }
 }
-```
+```text
 
 **Tradeoffs**:
 

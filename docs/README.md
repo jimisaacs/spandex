@@ -8,7 +8,9 @@ Research and development documentation for [@jim/spandex](https://jsr.io/@jim/sp
 
 **Using the library?**
 
+- [GETTING-STARTED](./GETTING-STARTED.md) - Quick tutorial with examples
 - [PRODUCTION-GUIDE](../PRODUCTION-GUIDE.md) - Algorithm selection and migration
+- [TROUBLESHOOTING](./TROUBLESHOOTING.md) - Common issues and solutions
 - [BENCHMARKS](../BENCHMARKS.md) - Current performance data
 - [benchmark-statistics](./analyses/benchmark-statistics.md) - Statistical methodology
 

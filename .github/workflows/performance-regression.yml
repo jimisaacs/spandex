@@ -1,0 +1,110 @@
+name: Performance Regression Tests
+
+on:
+    pull_request:
+        branches: [main]
+    workflow_dispatch:
+
+# Explicitly limit permissions (principle of least privilege)
+permissions:
+    contents: read
+    pull-requests: write
+
+jobs:
+    regression-test:
+        name: Check for Performance Regressions
+        runs-on: ubuntu-latest
+        timeout-minutes: 15
+
+        steps:
+            - name: Checkout PR code
+              uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+            - name: Setup Deno
+              uses: denoland/setup-deno@v2
+              with:
+                  deno-version: 2.x
+
+            - name: Run benchmarks on PR
+              run: |
+                  # Use minimal permissions (only what benchmarks need)
+                  deno bench --allow-read benchmarks/performance.ts > pr-benchmarks.txt
+              timeout-minutes: 5
+
+            - name: Checkout main branch
+              uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+              with:
+                  ref: main
+                  path: main-branch
+
+            - name: Run benchmarks on main
+              working-directory: main-branch
+              run: |
+                  deno bench --allow-read benchmarks/performance.ts > ../main-benchmarks.txt
+              timeout-minutes: 5
+
+            - name: Compare performance
+              id: compare
+              run: |
+                  # Use versioned script with minimal permissions
+                  deno run \
+                    --allow-read=pr-benchmarks.txt,main-benchmarks.txt,scripts/,benchmarks/ \
+                    --allow-run=deno \
+                    --allow-write=comparison.md \
+                    scripts/compare-benchmarks.ts \
+                    pr-benchmarks.txt \
+                    main-benchmarks.txt \
+                    comparison.md
+              timeout-minutes: 3
+              continue-on-error: true
+
+            - name: Find existing comment
+              if: github.event_name == 'pull_request'
+              id: find-comment
+              uses: peter-evans/find-comment@v3
+              with:
+                  issue-number: ${{ github.event.pull_request.number }}
+                  comment-author: 'github-actions[bot]'
+                  body-includes: '## Performance Comparison'
+
+            - name: Read comparison results
+              if: github.event_name == 'pull_request'
+              id: read-comparison
+              run: |
+                  if [ -f comparison.md ]; then
+                    # Read file and escape for GitHub Actions
+                    COMPARISON=$(cat comparison.md)
+                    # Use multiline output format
+                    echo "comparison<<EOF" >> $GITHUB_OUTPUT
+                    echo "$COMPARISON" >> $GITHUB_OUTPUT
+                    echo "EOF" >> $GITHUB_OUTPUT
+                  else
+                    echo "comparison=❌ Comparison failed - check workflow logs" >> $GITHUB_OUTPUT
+                  fi
+
+            - name: Create or update comment
+              if: github.event_name == 'pull_request'
+              uses: peter-evans/create-or-update-comment@v4
+              with:
+                  comment-id: ${{ steps.find-comment.outputs.comment-id }}
+                  issue-number: ${{ github.event.pull_request.number }}
+                  body: ${{ steps.read-comparison.outputs.comparison }}
+                  edit-mode: replace
+
+            - name: Upload benchmark artifacts
+              if: always()
+              uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b1f9bb3aabbd9c0 # v4.5.0
+              with:
+                  name: benchmark-results-${{ github.event.pull_request.number || github.run_id }}
+                  path: |
+                      pr-benchmarks.txt
+                      main-benchmarks.txt
+                      comparison.md
+                  retention-days: 7
+                  if-no-files-found: warn
+
+            - name: Fail if regressions detected
+              if: steps.compare.outcome == 'failure'
+              run: |
+                  echo "::error::Performance regressions detected (>20% slower)"
+                  exit 1

@@ -1,5 +1,7 @@
 # Archive
 
+**Note**: Archived implementation code has been removed from the filesystem but is preserved in git history.
+
 The code for archived implementations has been removed, but documentation and git history preserve everything. This keeps the repository maintainable while preserving the research record.
 
 ## What's Archived

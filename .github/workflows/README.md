@@ -1,8 +1,8 @@
 # GitHub Actions Workflows
 
-## How to Use
+This repository uses GitHub Actions for continuous integration and automated quality gates.
 
-This repository uses GitHub Actions for continuous integration. The workflows automatically run when you push code to GitHub.
+## Workflows
 
 ### `ci.yml` - Main CI Workflow
 
@@ -15,14 +15,15 @@ This repository uses GitHub Actions for continuous integration. The workflows au
    - Type-checks entire project (`deno check`)
    - Runs all tests (`deno task test`)
 
-2. **Quick Benchmarks job** (runs in parallel with tests):
+2. **Quick Benchmarks job** (runs **in parallel** with Statistical Analysis):
    - Runs `bench:update` to generate `BENCHMARKS.md` (~2 min)
    - Auto-commits updated file
+   - Typically finishes first due to shorter duration
 
-3. **Statistical Analysis job** (runs in parallel with tests):
+3. **Statistical Analysis job** (runs **in parallel** with Quick Benchmarks):
    - Runs `bench:analyze` to generate `docs/analyses/benchmark-statistics.md` (~30 min)
    - Auto-commits updated file
-   - Runs in parallel with Quick Benchmarks to save time
+   - Uses rebase strategy to handle potential race condition with Quick Benchmarks
 
 **When workflows run**:
 
@@ -135,6 +136,85 @@ If you prefer manual benchmark updates:
   uses: stefanzweifel/git-auto-commit-action@v5
   ...
 ```
+
+### `performance-regression.yml` - Performance Regression Tests
+
+**What it does**:
+
+Automatically detects performance regressions on pull requests:
+
+1. **Run benchmarks on PR code**
+2. **Run benchmarks on main branch**
+3. **Compare results** using `scripts/compare-benchmarks.ts`
+4. **Post comparison table** as PR comment (updates existing comment, no spam)
+5. **Fail if regression detected** (>20% slower)
+
+**When it runs**:
+
+- **Every pull request** → Compares PR vs main
+- **Manual trigger** → Can trigger anytime via workflow_dispatch
+
+**Security features**:
+
+- ✅ Minimal permissions (`contents: read`, `pull-requests: write`)
+- ✅ Pinned action versions (commit SHAs)
+- ✅ Benchmark runs with `--allow-read --allow-hrtime` only (no network, no write)
+- ✅ Comparison script has full input validation
+
+**Example output** (posted as PR comment):
+
+```markdown
+## Performance Comparison
+
+| Benchmark   | Main (µs) | PR (µs) | Change | Status        |
+| ----------- | --------- | ------- | ------ | ------------- |
+| sparse-grid | 13.00     | 12.00   | -7.7%  | ✅            |
+| large-grid  | 7100.00   | 8800.00 | +23.9% | 🔴 REGRESSION |
+| new-feature | -         | 2500.00 | NEW    | 🆕            |
+```
+
+**Thresholds**:
+
+- **Regression**: >20% slower (fails CI)
+- **Improvement**: >20% faster (celebrates but passes)
+- **Neutral**: Within ±20% (passes)
+
+**Local testing**:
+
+```bash
+# Run benchmarks and save output
+deno bench benchmarks/performance.ts > pr-benchmarks.txt
+# ... checkout main or make changes ...
+deno bench benchmarks/performance.ts > main-benchmarks.txt
+
+# Compare
+deno run --allow-read --allow-write=comparison.md \
+  scripts/compare-benchmarks.ts pr-benchmarks.txt main-benchmarks.txt comparison.md
+
+# Check exit code (1 = regression, 0 = success, 2 = error)
+echo $?
+
+# Or test without args (validates parsing)
+deno run --allow-read --allow-run scripts/compare-benchmarks.ts
+```
+
+---
+
+### `docs.yml` - Documentation Deployment
+
+**What it does**:
+
+Builds and deploys the static documentation site to GitHub Pages.
+
+**When it runs**:
+
+- **Push to main** → Rebuilds and deploys site
+- **CI workflow completes** → Triggers rebuild
+- **Manual trigger** → Can deploy anytime
+
+**Built site**: [https://jimisaacs.github.io/spandex/](https://jimisaacs.github.io/spandex/)
+
+---
 
 ## Troubleshooting
 

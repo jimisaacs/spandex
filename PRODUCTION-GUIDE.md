@@ -2,6 +2,8 @@
 
 Quick reference for choosing algorithms in [@jim/spandex](https://jsr.io/@jim/spandex).
 
+**New to spandex?** Start with [docs/GETTING-STARTED.md](./docs/GETTING-STARTED.md) for a tutorial.
+
 ## Pick an Algorithm
 
 ```typescript
@@ -14,15 +16,41 @@ import createRStarTreeIndex from '@jim/spandex/index/rstartree';
 const index = createRStarTreeIndex<string>();
 ```
 
-**Why n=100?** That's where tree traversal overhead starts paying off. Below that, simple iteration is faster.
+**Why n=100?** Use linear scan below 100 (simpler, faster). Use R-tree at 100+ (tree traversal pays off). See "Special Cases" below for workload-specific thresholds.
 
-## The Algorithms
+## Available Algorithms
+
+The library currently provides these implementations (auto-discovered from `packages/@jim/spandex/src/index/`):
+
+**Core implementations:**
+
+- **MortonLinearScan** - O(n) linear scan with Z-order spatial locality optimization
+- **RStarTree** - O(log n) hierarchical indexing with R* split algorithm
+- **LazyPartitionedIndex** - Wrapper that maintains separate indexes per attribute (spatial join pattern)
+
+**To see all available:**
+
+```bash
+ls packages/@jim/spandex/src/index/
+```
+
+Each `.ts` file is an implementation that can be imported:
+
+```typescript
+import createMortonLinearScanIndex from '@jim/spandex/index/mortonlinearscan';
+import createRStarTreeIndex from '@jim/spandex/index/rstartree';
+import createLazyPartitionedIndex from '@jim/spandex/index/lazypartitionedindex';
+```
+
+**Historical note**: This is an active research project. Some experimental implementations are archived when superseded by better approaches. Current implementations represent validated, production-ready algorithms. See `archive/README.md` for research history.
+
+## Algorithm Details
 
 **Morton Linear Scan** - O(n), uses Z-order curve for spatial locality\
-Best for: < 100 rectangles (5-10x faster than R-tree at n=50)
+Best for: < 100 rectangles (2-8x faster than R-tree at sparse sizes)
 
 **R-Star Tree** - O(log n), hierarchical with smart splits (Beckmann 1990)\
-Best for: ≥ 100 rectangles (10-20x faster than linear scan at n=2500)
+Best for: ≥ 100 rectangles (2x faster than linear scan at n=2500, scales better)
 
 **Lazy Partitioned** - Separate indexes per attribute, spatial join on query\
 Best for: Independent attributes (spreadsheet cells, GIS layers)
@@ -40,6 +68,14 @@ See [BENCHMARKS.md](./BENCHMARKS.md) for current data or [benchmark-statistics.m
 - Crossover shifts to n≈600 instead of n=100
 - Why: Rectangle decomposition cost dominates, so linear scan stays competitive longer
 - See [transition-zone-analysis](./docs/analyses/transition-zone-analysis.md) for workload-specific thresholds
+
+**How to determine your workload**:
+- **Read-heavy** (frequent queries): Use R*-tree at n > 100
+- **High overlap** (many stacked rectangles): Use Morton until n > 600
+- **Low overlap** (sparse inserts): Use R*-tree at n > 200
+- **Mixed** (80% write / 20% read): Use Morton until n > 200
+
+When in doubt, start with Morton (< 100) and measure your actual usage pattern before switching.
 
 **Multiple independent attributes** - When tracking different properties per cell (backgrounds, borders, fonts):
 
@@ -63,10 +99,10 @@ Same interface across all implementations - just swap the factory:
 
 ```typescript
 // From this
-const index = createMortonLinearScanIndex<T>();
+const index = createMortonLinearScanIndex<string>();
 
 // To this
-const index = createRStarTreeIndex<T>();
+const index = createRStarTreeIndex<string>();
 ```
 
 That's it. No other code changes needed.
@@ -86,7 +122,7 @@ index.insert([0, 0, 10, 10], null); // LWW semantics
 **Resetting index** - create new:
 
 ```typescript
-index = createMortonLinearScanIndex<T>(); // Same cost as clear(), clearer intent
+index = createMortonLinearScanIndex<string>(); // Same cost as clear(), clearer intent
 ```
 
 **Diagnostic methods** - use concrete types:

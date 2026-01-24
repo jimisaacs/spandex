@@ -20,6 +20,10 @@ Thumbs.db
 # Temporary files
 *.tmp
 
+# Benchmark comparison artifacts (from CI or local testing)
+comparison*.md
+*-benchmarks.txt
+
 # Temporary workspace (for AI assistant work-in-progress docs)
 .temp/*
 !.temp/README.md

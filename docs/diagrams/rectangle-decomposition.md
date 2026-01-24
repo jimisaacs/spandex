@@ -2,7 +2,7 @@
 
 ## Basic Decomposition: A \ B → ≤4 Fragments
 
-```
+```text
 ┌─────────────────┐
 │                 │
 │        A        │
@@ -24,11 +24,11 @@ After decomposition (A \ B):
 └─────────────────┘
 
 Result: 4 disjoint fragments (Top, Bottom, Left, Right)
-```
+```text
 
 ## Step-by-Step: Overlapping Insertions
 
-```
+```text
 STEP 1: Insert Red [0,5) × [0,5)
 
 ┌─────┬─────┬─────┬─────┬─────┐
@@ -87,11 +87,11 @@ Result: 3 non-overlapping rectangles
 - Red top strip: 10 cells
 - Red left strip: 6 cells
 - Blue: 25 cells (overwrote 9 cells of red)
-```
+```text
 
 ## Geometric Set Difference: The Core Operation
 
-```
+```text
 Given rectangles A and B that overlap:
 
 A = [ax1, ay1, ax2, ay2] (inclusive coordinates)
@@ -118,11 +118,11 @@ L (Left):   [ax1, max(ay1,by1), bx1-1, min(ay2,by2)]  if ax1 < bx1
 R (Right):  [bx2+1, max(ay1,by1), ax2, min(ay2,by2)]  if ax2 > bx2
 
 Note: × (center) is removed (B wins in LWW)
-```
+```text
 
 ## Last-Writer-Wins (LWW) Semantics
 
-```
+```text
 Time →
 
 t1: Insert A (value: "first")
@@ -147,7 +147,7 @@ Result: Last writer wins!
     └───┴─────┘
 
 Not layered! Not priority queue! DECOMPOSITION.
-```
+```text
 
 ## Why Decomposition vs Alternatives
 

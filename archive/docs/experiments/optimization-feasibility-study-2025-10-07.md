@@ -52,7 +52,7 @@ hilbertIndex(); // O(16) iterations, pure function
 insert(); // O(n) scan + O(n) splice per fragment
 binarySearch(); // O(log n) for Hilbert-sorted array
 subtract(); // O(1) geometric decomposition
-```
+```text
 
 **Optimization Opportunities**:
 
@@ -82,7 +82,7 @@ insertIntoNode(); // O(log n) tree traversal
 splitNode(); // O(m²) bbox recomputation [INEFFICIENCY]
 updateBounds(); // O(m) per node
 searchEntries(); // O(log n) with spatial pruning
-```
+```text
 
 **Optimization Opportunities**:
 
@@ -117,7 +117,7 @@ searchEntries(); // O(log n) with spatial pruning
 cut(); // Functional style, compact
 hits(); // Inline AABB test
 insert(); // Single-pass with inline operations
-```
+```text
 
 **Optimization Opportunities**: None
 

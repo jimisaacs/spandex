@@ -102,7 +102,7 @@ for (const item of this.items) {
 }
 this.items = kept; // Array replacement
 this.items.push(...fragments); // Array concatenation
-```
+```text
 
 **vs Morton's superior pattern**:
 
@@ -113,7 +113,7 @@ for (let i = 0; i < this.entries.length; i++) {
 	if (!overlaps) this.entries[writeIdx++] = this.entries[i];
 }
 this.entries.length = writeIdx; // One-time truncation
-```
+```text
 
 **Impact**: 2.4x performance difference from algorithm structure alone
 
@@ -137,7 +137,7 @@ function mortonCode(x: number, y: number): number {
 	// 8 more for y...
 	return x | (y << 1); // Interleave
 }
-```
+```text
 
 **With XOR-based coarse grid**:
 
@@ -147,7 +147,7 @@ const hint = (x: number, y: number) => {
 	const cy = (y & 0xFFFF) >> 6;
 	return (cx ^ cy) | ((cx & 0xFF) << 8) | ((cy & 0xFF) << 16);
 };
-```
+```text
 
 **Result**: 253 bytes saved (13% bundle size reduction)
 

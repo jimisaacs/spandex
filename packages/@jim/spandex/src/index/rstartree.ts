@@ -472,13 +472,19 @@ class RStarTreeImpl<T> implements RStarTreeIndex<T> {
 				}
 
 				// Perimeter sum (margin metric from R* paper)
-				const perim1 = 2 * ((g1x2 - g1x1) + (g1y2 - g1y1));
-				const perim2 = 2 * ((g2x2 - g2x1) + (g2y2 - g2y1));
-				const perimeterSum = perim1 + perim2;
+				// Handle infinite bounds: skip if any coordinate is infinite
+				const hasInfiniteBounds = !r.isFin(g1x1) || !r.isFin(g1y1) || !r.isFin(g1x2) || !r.isFin(g1y2) ||
+					!r.isFin(g2x1) || !r.isFin(g2y1) || !r.isFin(g2x2) || !r.isFin(g2y2);
 
-				if (perimeterSum < minPerimeterSum) {
-					minPerimeterSum = perimeterSum;
-					bestAxis = axis;
+				if (!hasInfiniteBounds) {
+					const perim1 = 2 * ((g1x2 - g1x1) + (g1y2 - g1y1));
+					const perim2 = 2 * ((g2x2 - g2x1) + (g2y2 - g2y1));
+					const perimeterSum = perim1 + perim2;
+
+					if (perimeterSum < minPerimeterSum) {
+						minPerimeterSum = perimeterSum;
+						bestAxis = axis;
+					}
 				}
 			}
 		}
@@ -514,9 +520,15 @@ class RStarTreeImpl<T> implements RStarTreeIndex<T> {
 		}
 
 		// Evaluate initial split
-		let overlapX = Math.max(0, Math.min(g1x2, g2x2) - Math.max(g1x1, g2x1) + 1);
-		let overlapY = Math.max(0, Math.min(g1y2, g2y2) - Math.max(g1y1, g2y1) + 1);
-		minOverlap = overlapX * overlapY;
+		// Handle infinite bounds: skip overlap calculation if any coordinate is infinite
+		const hasInfiniteBounds = !r.isFin(g1x1) || !r.isFin(g1y1) || !r.isFin(g1x2) || !r.isFin(g1y2) ||
+			!r.isFin(g2x1) || !r.isFin(g2y1) || !r.isFin(g2x2) || !r.isFin(g2y2);
+
+		if (!hasInfiniteBounds) {
+			const overlapX = Math.max(0, Math.min(g1x2, g2x2) - Math.max(g1x1, g2x1) + 1);
+			const overlapY = Math.max(0, Math.min(g1y2, g2y2) - Math.max(g1y1, g2y1) + 1);
+			minOverlap = overlapX * overlapY;
+		}
 		bestSplit = MIN_ENTRIES;
 
 		// Incrementally move entries from group2 to group1
@@ -544,13 +556,19 @@ class RStarTreeImpl<T> implements RStarTreeIndex<T> {
 				if (by2 > g2y2) g2y2 = by2;
 			}
 
-			overlapX = Math.max(0, Math.min(g1x2, g2x2) - Math.max(g1x1, g2x1) + 1);
-			overlapY = Math.max(0, Math.min(g1y2, g2y2) - Math.max(g1y1, g2y1) + 1);
-			const overlap = overlapX * overlapY;
+			// Handle infinite bounds: skip overlap calculation if any coordinate is infinite
+			const hasInfiniteBounds = !r.isFin(g1x1) || !r.isFin(g1y1) || !r.isFin(g1x2) || !r.isFin(g1y2) ||
+				!r.isFin(g2x1) || !r.isFin(g2y1) || !r.isFin(g2x2) || !r.isFin(g2y2);
 
-			if (overlap < minOverlap) {
-				minOverlap = overlap;
-				bestSplit = k;
+			if (!hasInfiniteBounds) {
+				const overlapX = Math.max(0, Math.min(g1x2, g2x2) - Math.max(g1x1, g2x1) + 1);
+				const overlapY = Math.max(0, Math.min(g1y2, g2y2) - Math.max(g1y1, g2y1) + 1);
+				const overlap = overlapX * overlapY;
+
+				if (overlap < minOverlap) {
+					minOverlap = overlap;
+					bestSplit = k;
+				}
 			}
 		}
 

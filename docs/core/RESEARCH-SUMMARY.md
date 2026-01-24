@@ -20,9 +20,9 @@ See [PRODUCTION-GUIDE](../../PRODUCTION-GUIDE.md) for implementation details.
 
 This section summarizes research outcomes. For detailed methodology and data, see individual analysis documents linked below.
 
-### 1. Morton Curve Optimization (25% speedup)
+### 1. Morton Curve Optimization (5-53% speedup, 25% average)
 
-**Finding**: Morton curve (Z-order) via bit interleaving provides 25% average speedup over Hilbert curve at small n, while being simpler to implement.
+**Finding**: Morton curve (Z-order) via bit interleaving provides 25% average speedup over Hilbert curve at small n (range: 5-53% depending on scenario), while being simpler to implement.
 
 **Impact**: Production algorithm for n<100. Constant-time encoding vs iterative Hilbert.
 
@@ -116,7 +116,9 @@ See `packages/@jim/spandex/src/index/` for implementations.
 
 | Document                                                                | Purpose                                 |
 | ----------------------------------------------------------------------- | --------------------------------------- |
-| [PRODUCTION-GUIDE](../../PRODUCTION-GUIDE.md)                           | Quick start, algorithm selection        |
+| [GETTING-STARTED](../GETTING-STARTED.md)                                | Tutorial for new users                  |
+| [PRODUCTION-GUIDE](../../PRODUCTION-GUIDE.md)                           | Algorithm selection guide               |
+| [TROUBLESHOOTING](../TROUBLESHOOTING.md)                                | Common issues and solutions             |
 | [theoretical-foundation](./theoretical-foundation.md)                   | Proofs, complexity analysis             |
 | [morton-vs-hilbert-analysis](../analyses/morton-vs-hilbert-analysis.md) | Space-filling curve comparison          |
 | [sparse-data-analysis](../analyses/sparse-data-analysis.md)             | Why O(n) wins for n<100                 |

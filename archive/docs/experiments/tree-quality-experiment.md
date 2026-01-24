@@ -58,7 +58,7 @@ interface TreeQualityMetrics {
 	actualDataArea: number; // Sum of actual data rectangles
 	deadSpaceRatio: number; // (bounding - actual) / bounding
 }
-```
+```text
 
 ### Phase 2: Query Performance Benchmark
 

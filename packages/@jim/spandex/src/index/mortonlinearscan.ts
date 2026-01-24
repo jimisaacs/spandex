@@ -174,8 +174,9 @@ class MortonLinearScanImpl<T> implements MortonLinearScanIndex<T> {
 				const frags = subtract(entry.bounds, bounds);
 				for (let j = 0; j < frags.length; j++) {
 					const frag = frags[j]!;
-					const centerX = (frag[0] + frag[2]) >> 1;
-					const centerY = (frag[1] + frag[3]) >> 1;
+					// Handle infinite bounds: use 0 for center if coordinate is infinite
+					const centerX = r.isFin(frag[0]) && r.isFin(frag[2]) ? (frag[0] + frag[2]) >> 1 : 0;
+					const centerY = r.isFin(frag[1]) && r.isFin(frag[3]) ? (frag[1] + frag[3]) >> 1 : 0;
 					const morton = mortonCode(centerX, centerY);
 					fragments.push({ bounds: frag, value: entry.value, morton });
 				}
@@ -185,8 +186,9 @@ class MortonLinearScanImpl<T> implements MortonLinearScanIndex<T> {
 		}
 		entries.length = writeIdx;
 
-		const centerX = (bounds[0] + bounds[2]) >> 1;
-		const centerY = (bounds[1] + bounds[3]) >> 1;
+		// Handle infinite bounds: use 0 for center if coordinate is infinite
+		const centerX = r.isFin(bounds[0]) && r.isFin(bounds[2]) ? (bounds[0] + bounds[2]) >> 1 : 0;
+		const centerY = r.isFin(bounds[1]) && r.isFin(bounds[3]) ? (bounds[1] + bounds[3]) >> 1 : 0;
 		const morton = mortonCode(centerX, centerY);
 		fragments.push({ bounds, value, morton });
 

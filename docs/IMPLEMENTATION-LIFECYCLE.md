@@ -6,21 +6,45 @@ Managing implementations in the spatial indexing library.
 
 ### 1. Create the implementation
 
-Implement `SpatialIndex<T>`, add JSDoc, use `implements` keyword
+Create `packages/@jim/spandex/src/index/newimpl.ts` implementing `SpatialIndex<T>`:
 
 ```typescript
-import type { SpatialIndex } from '../types.ts';
+import type { ExtentResult, QueryResult, Rectangle, SpatialIndex } from '../types.ts';
 
 /**
  * NewImpl: Brief description
  *
- * Key characteristics:
- * - Complexity: O(?)
- * - Memory: ?
- * - Use case: ?
+ * **Complexity**: O(?)
+ * **Memory**: ?
+ * **Best for**: ?
+ * 
+ * @returns New spatial index instance
  */
-export default class NewImpl<T> implements SpatialIndex<T> {
-	// ... implementation
+export default function createNewImplIndex<T>(): SpatialIndex<T> {
+	return new NewImplImpl<T>();
+}
+
+class NewImplImpl<T> implements SpatialIndex<T> {
+	insert(bounds: Readonly<Rectangle>, value: T): void {
+		// ... implementation
+	}
+
+	*query(bounds?: Readonly<Rectangle>): IterableIterator<QueryResult<T>> {
+		// ... implementation
+	}
+
+	extent(): ExtentResult {
+		// ... implementation
+	}
+}
+```
+
+**Note**: Also update `packages/@jim/spandex/deno.json` exports if using subpath imports:
+```json
+{
+  "exports": {
+    "./index/newimpl": "./src/index/newimpl.ts"
+  }
 }
 ```
 
@@ -31,18 +55,18 @@ Create test directory `packages/@jim/spandex/test/index/newimpl/` with three tes
 **`property.test.ts`** - Core axioms:
 
 ```typescript
-import { NewImpl } from '@jim/spandex';
+import createNewImplIndex from '@jim/spandex/index/newimpl';
 import { testPropertyAxioms } from '@local/spandex-testing/axiom';
 
 Deno.test('NewImpl - Property Axioms', async (t) => {
-	await testPropertyAxioms(t, () => new NewImpl<string>());
+	await testPropertyAxioms(t, createNewImplIndex);
 });
 ```
 
 **`geometry.test.ts`** - Geometric operations:
 
 ```typescript
-import { NewImpl } from '@jim/spandex';
+import createNewImplIndex from '@jim/spandex/index/newimpl';
 import { asciiStringCodec, createFixtureGroup } from '@local/snapmark';
 import { testGeometryAxioms } from '@local/spandex-testing/axiom';
 
@@ -52,7 +76,7 @@ Deno.test('NewImpl - Geometry Axioms', async (t) => {
 		filePath: new URL('../../fixtures/geometry-test.md', import.meta.url),
 	});
 
-	await testGeometryAxioms(t, () => new NewImpl<string>(), assertMatch);
+	await testGeometryAxioms(t, createNewImplIndex, assertMatch);
 
 	await flush();
 });
@@ -61,7 +85,7 @@ Deno.test('NewImpl - Geometry Axioms', async (t) => {
 **`visual.test.ts`** - ASCII visualization snapshots:
 
 ```typescript
-import { NewImpl } from '@jim/spandex';
+import createNewImplIndex from '@jim/spandex/index/newimpl';
 import { asciiStringCodec, createFixtureGroup } from '@local/snapmark';
 import { testVisualAxioms } from '@local/spandex-testing/axiom';
 
@@ -71,7 +95,7 @@ Deno.test('NewImpl - Visual Axioms', async (t) => {
 		filePath: new URL('../../fixtures/visual-test.md', import.meta.url),
 	});
 
-	await testVisualAxioms(t, () => new NewImpl<string>(), assertMatch);
+	await testVisualAxioms(t, createNewImplIndex, assertMatch);
 
 	await flush();
 });
@@ -113,32 +137,33 @@ deno task archive:impl <Name> <category>
 
 **Categories**: `superseded` | `failed-experiments`
 
-### Manual Process
+**What the script does:**
 
-**1. Document the implementation:**
+1. Moves files to `archive/src/implementations/<category>/`
+2. Adds archive documentation header
+3. Updates imports
+4. Verifies type-checking
+
+**Note**: Script creates archive directories. These may be removed later (code preserved in git history).
+
+### Manual Archiving Process
+
+**1. Use archive script first** (recommended), then:
+
+**2. Document the implementation:**
 
 Add entry to `archive/IMPLEMENTATION-HISTORY.md` with:
 
-- Git SHA where code last exists
+- Git SHA where code last exists (current commit)
 - Date archived
 - What replaced it (if superseded)
 - Why archived
 - Performance data (benchmark wins)
 - Link to analysis document
 
-**2. Create analysis document:**
+**3. Create analysis document:**
 
 If not already done, create `archive/docs/experiments/[name]-experiment.md` documenting the hypothesis, methodology, results, and conclusion.
-
-**3. Remove files:**
-
-```bash
-# Remove implementation and tests
-git rm packages/@jim/spandex/src/index/X.ts
-git rm -r packages/@jim/spandex/test/index/X/
-
-# Update exports in mod.ts if needed
-```
 
 **4. Regenerate benchmarks:**
 
@@ -147,44 +172,84 @@ deno task bench:update      # Quick update (~2 min)
 deno task bench:analyze 5 docs/analyses/benchmark-statistics.md  # Full stats (~30 min)
 ```
 
-## Restoring an Archived Implementation
+**5. Commit with archive documentation:**
 
 ```bash
-deno task unarchive:impl <Name> <category>
-# Example: deno task unarchive:impl HybridRTree failed-experiments
+git add archive/
+git commit -m "archive: Move <Name> to archive/<category> - <reason>"
+# Record this commit SHA in archive/IMPLEMENTATION-HISTORY.md
 ```
 
-Then:
+**6. Optional: Remove archived code from filesystem**
 
 ```bash
-deno task test              # Verify tests pass
-deno task bench:update      # Update benchmarks
+# After documenting in IMPLEMENTATION-HISTORY.md with git SHA
+git rm -r archive/src/implementations/<category>/<name>.ts
+git rm -r archive/test/<category>/
+git commit -m "cleanup: Remove archived code from filesystem (preserved in git history)"
 ```
 
 ## Retrieving Archived Code
 
+**Current approach**: Archived implementation code is removed from filesystem, preserved in git history.
+
 **1. Find the git SHA:**
 
-Check `archive/IMPLEMENTATION-HISTORY.md` for commit SHA.
+Check `archive/IMPLEMENTATION-HISTORY.md` for the commit SHA where code last existed.
 
-**2. View the archived file:**
+**2. View archived files:**
 
 ```bash
-# View implementation
-git show <SHA>:packages/@jim/spandex/src/index/archivedimpl.ts
+# View implementation at specific commit
+git show 454e5c9:archive/src/implementations/superseded/hilbertlinearscan.ts
 
-# View tests
-git show <SHA>:packages/@jim/spandex/test/index/archivedimpl/
+# View all archived implementations at that commit
+git show 454e5c9:archive/src/implementations/
 ```
 
-**3. Extract for comparison:**
+**3. Restore for benchmarking:**
+
+```bash
+# Restore entire archive directory as it was at that commit
+git checkout 454e5c9 -- archive/
+
+# Now you can run archived benchmarks
+deno bench archive/benchmarks/morton-vs-hilbert.ts
+# Or use --include-archived flag
+deno task bench:archived
+
+# Clean up when done
+git restore archive/
+```
+
+**4. Extract for comparison:**
 
 ```bash
 # Extract to temporary location
-git show <SHA>:packages/@jim/spandex/src/index/archivedimpl.ts > /tmp/archivedimpl.ts
+git show 454e5c9:archive/src/implementations/superseded/hilbertlinearscan.ts > /tmp/hilbert.ts
+```
 
-# Create temporary benchmark
-# (manually adjust imports as needed)
+## Restoring an Archived Implementation to Active
+
+**Option 1: From git history (recommended)**
+
+```bash
+# 1. Find SHA in archive/IMPLEMENTATION-HISTORY.md
+# 2. Extract files
+git show <SHA>:archive/src/implementations/<category>/<name>.ts > packages/@jim/spandex/src/index/<name>.ts
+git show <SHA>:archive/test/<category>/<name>.test.ts > packages/@jim/spandex/test/index/<name>.test.ts
+
+# 3. Update imports, remove archive headers
+# 4. Verify
+deno task test
+deno task bench:update
+```
+
+**Option 2: Using unarchive script (if files exist in archive/)**
+
+```bash
+deno task unarchive:impl <Name> <category>
+# Only works if files are temporarily restored to archive/src/implementations/
 ```
 
 ## Quick Reference

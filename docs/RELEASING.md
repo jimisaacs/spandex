@@ -29,6 +29,8 @@
 
 4. **CI auto-publishes** when commit message starts with `chore: release v`
 
+   See `.github/workflows/ci.yml` (lines 105-137) for the publish-jsr job configuration.
+
 ## Manual Publishing
 
 If CI fails or you need manual control:
@@ -58,5 +60,4 @@ Follow semver:
 - [ ] No linter errors (`deno task lint`)
 - [ ] Formatted (`deno task fmt`)
 - [ ] Benchmarks updated (`deno task bench:update`)
-- [ ] CHANGELOG updated (if exists)
-- [ ] Version bumped in both packages
+- [ ] Version bumped in all package deno.json files
