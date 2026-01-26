@@ -9,7 +9,7 @@ This repository uses GitHub Actions for continuous integration and automated qua
 **What it does**:
 
 1. **Test job** (runs on every push/PR):
-   - Tests on Deno 2.x stable and canary
+   - Runs in parallel on **Deno 2.x** (stable) and **Deno canary** (nightly)
    - Checks formatting (`deno fmt --check`)
    - Runs linter (`deno lint`)
    - Type-checks entire project (`deno check`)
@@ -235,12 +235,12 @@ If benchmarks take longer than 60 minutes, increase timeout:
 timeout-minutes: 90 # Increase as needed
 ```
 
-### Tests fail on canary but pass on stable
+### Test (deno canary) fails but Test (deno 2.x) passes
 
-This is expected - canary is Deno's unstable version. The workflow will:
+This is expected - canary is Deno's nightly/development version. The workflow will:
 
-- ✅ Pass if stable passes (what matters)
-- ⚠️ Warn if canary fails (FYI only)
+- ✅ Pass if **Test (deno 2.x)** passes (what matters for production)
+- ⚠️ Warn if **Test (deno canary)** fails (early warning of breaking changes)
 
 ## Local Testing
 
