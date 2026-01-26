@@ -4,6 +4,22 @@ This file provides guidance to Claude Code (claude.ai/code) and Cursor IDE when 
 
 **Purpose**: Comprehensive reference + enforcement of project conventions and workflows.
 
+## What's Unique About This Repo
+
+**Active research project** - Experiments move from `docs/active/` → `docs/analyses/` or `archive/` when complete.
+
+**Key invariant**: `docs/active/experiments/` must be **empty** after completing work (workspace, not storage).
+
+**Archive approach**: Archived implementation code exists only in **git history** (not on filesystem). See `archive/IMPLEMENTATION-HISTORY.md` for git SHAs to retrieve code.
+
+**Active implementations** (3): `mortonlinearscan`, `rstartree`, `lazypartitionedindex` in `packages/@jim/spandex/src/index/`
+
+**Documentation structure**:
+- `PRODUCTION-GUIDE.md` - When to use which algorithm
+- `docs/GETTING-STARTED.md` - Complete tutorial
+- `docs/IMPLEMENTATION-LIFECYCLE.md` - Add/archive workflows
+- `BENCHMARKS.md` + `docs/analyses/benchmark-statistics.md` - Generated files (never edit directly)
+
 ## Project Overview
 
 **Monorepo** for 2D spatial indexing research. Maintains non-overlapping rectangles with last-writer-wins semantics using closed intervals `[min, max]`.
@@ -13,6 +29,12 @@ This file provides guidance to Claude Code (claude.ai/code) and Cursor IDE when 
 **Deployment Targets**: Pure JavaScript environments including browsers, Node.js, Deno, and constrained runtimes. Optimized for environments without WASM or SharedArrayBuffer (TypedArrays supported). One target deployment is Google Apps Script for spreadsheet property tracking.
 
 **Monorepo Structure**: Contains independent packages for spatial indexing (`@jim/spandex*`), general-purpose snapshot testing (`@local/snapmark`), and spandex-specific testing tools (`@local/spandex-testing`, `@local/spandex-telemetry`).
+
+**Published Packages**:
+
+- `@jim/spandex` - Core spatial indexing library
+- `@jim/spandex-ascii` - ASCII visualization renderer
+- `@jim/spandex-html` - HTML rendering utilities
 
 **Project Philosophy**: Active research with rigorous documentation. Archive failed experiments (research asset), maintain reproducibility, distinguish empirical findings from hypotheses.
 
@@ -154,6 +176,7 @@ deno task unarchive:impl <name>             # Restore from archive
 
 - `insert(bounds: Rectangle, value: T): void` - Last-writer-wins semantics
 - `query(bounds?: Rectangle): IterableIterator<[Rectangle, T]>` - Find intersecting ranges, or all ranges if no argument
+- `extent(): ExtentResult` - Get minimum bounding rectangle with infinity edge flags
 
 **`Rectangle`** - Core type-agnostic coordinate tuple:
 
@@ -172,23 +195,47 @@ type Rectangle = readonly [xmin: number, ymin: number, xmax: number, ymax: numbe
 - Conversion happens at boundaries via `createGridRangeAdapter()` in `packages/@jim/spandex/src/adapter/gridrange.ts`
 - Adapter handles transformation: half-open `[start, end)` ⟷ closed `[start, end-1]`
 
+### Package Exports
+
+**@jim/spandex** - Core library (tree-shakable via subpath exports):
+
+- **Main**: `@jim/spandex` - Types only (Rectangle, SpatialIndex, etc.)
+- **Implementations**:
+  - `@jim/spandex/index/mortonlinearscan` - Factory for Morton-based linear scan (O(n), best for n<100)
+  - `@jim/spandex/index/rstartree` - Factory for R* tree (O(log n), best for n≥100)
+  - `@jim/spandex/index/lazypartitionedindex` - Factory for multi-attribute wrapper
+- **Adapters**:
+  - `@jim/spandex/adapter/gridrange` - Google Sheets GridRange adapter (half-open intervals)
+  - `@jim/spandex/adapter/a1` - A1 notation adapter (e.g., "A1:D5")
+- **Utilities**:
+  - `@jim/spandex/r` - Rectangle utilities and operations
+  - `@jim/spandex/extent` - Extent calculations
+  - `@jim/spandex/render` - Rendering utilities (types and base renderer)
+
+**@jim/spandex-ascii** - ASCII visualization for terminal/markdown output (see `packages/@jim/spandex-ascii/README.md`)
+
+**@jim/spandex-html** - HTML rendering with customizable styling (see `packages/@jim/spandex-html/README.md`)
+
 ### Implementation Families
 
 **Active implementations**: See `packages/@jim/spandex/src/index/` directory for current production algorithms.
 
-**Two algorithm families**:
+**Active implementations** (3 total in `packages/@jim/spandex/src/index/`):
 
-- **O(n) Linear scan** - Best for sparse data (n < 100), uses spatial locality optimizations
-- **O(log n) Hierarchical indexing** - Best for large data (n ≥ 100), uses tree structures with smart split algorithms
+- **MortonLinearScan** - O(n), best for n<100 (Morton curve spatial locality)
+- **RStarTree** - O(log n), best for n≥100 (R* split algorithm)
+- **LazyPartitionedIndex** - Multi-attribute wrapper (vertical partitioning with spatial join)
 
-**Archived implementations**: See `archive/src/implementations/` for historical research and superseded algorithms.
+**For detailed algorithm selection, performance data, and usage examples**: See [PRODUCTION-GUIDE.md](./PRODUCTION-GUIDE.md) and [GETTING-STARTED.md](./docs/GETTING-STARTED.md)
 
-- Reference implementations (test oracles)
-- Superseded optimizations
-- Failed experiments (TypedArray approaches, alternative split algorithms)
-- Educational/minimal implementations
+**Archived implementations**: See `archive/IMPLEMENTATION-HISTORY.md` for complete list with git SHAs.
 
-All implementations are auto-discovered by benchmarks from their filesystem location.
+- **Storage**: Archived code removed from filesystem, exists only in git history
+- **Access**: Use git commands to retrieve (`git show <SHA>:path/to/file.ts`)
+- **Documentation**: Experiment writeups preserved in `archive/docs/experiments/`
+- **Types**: 7 superseded implementations, 2 failed experiments
+
+All active implementations are auto-discovered by benchmarks from `packages/@jim/spandex/src/index/`.
 
 ### Testing Framework
 
@@ -287,15 +334,19 @@ deno task bench:update  # Quick update BENCHMARKS.md to remove archived impl
 deno task bench:analyze 5 docs/analyses/benchmark-statistics.md  # (~30 min)
 ```
 
-This moves files, fixes imports, and verifies type-checking. Manual archiving:
+This documents the implementation in `archive/IMPLEMENTATION-HISTORY.md`, deletes the code, and verifies type-checking. Manual archiving:
 
-1. Move `packages/@jim/spandex/src/index/X.ts` → `archive/src/implementations/<category>/X.ts`
-2. Move `packages/@jim/spandex/test/index/X/` → `archive/test/X/`
-3. Add header comment explaining why archived
+1. Document in `archive/IMPLEMENTATION-HISTORY.md` with:
+   - Current git SHA (where implementation last existed)
+   - Performance stats (win rate, relative performance)
+   - Reason for archiving (superseded by what, or why it failed)
+   - Analysis document reference
+2. Delete `packages/@jim/spandex/src/index/X.ts`
+3. Delete `packages/@jim/spandex/test/index/X/`
 4. Run `deno task bench:update` to regenerate BENCHMARKS.md
-5. Update archive README if needed
+5. Run `deno task check` to verify no broken imports
 
-Benchmarks automatically exclude archived implementations (based on filesystem location).
+Benchmarks automatically exclude archived implementations (based on filesystem location). Archived code is retrievable via git history using the documented SHA.
 
 ### Experiment Workflow (MANDATORY)
 
@@ -466,78 +517,43 @@ deno task bench:analyze 5 docs/analyses/benchmark-statistics.md  # Updates stats
 
 ### Interval Semantics
 
-**Critical**: Core library uses **closed intervals**, adapter uses **half-open intervals**.
+**Critical**: Core library uses **closed intervals** `[min, max]`, adapter layer uses **half-open intervals** `[start, end)`.
 
-**Core library (`Rectangle`)**: Closed intervals `[min, max]` where both endpoints are **included**
+- Core `Rectangle`: `[0, 0, 4, 4]` includes point (4,4)
+- Adapter `GridRange`: `endRowIndex: 5` means rows 0-4 (5 is excluded)
 
-```typescript
-[0, 0, 4, 4] = x:[0,4], y:[0,4] (all inclusive)
-```
+**Why this matters**: Adapters convert at API boundaries. Internal algorithms use closed intervals for simpler geometry (no `±1` adjustments).
 
-**Adapter layer (`GridRange`)**: Half-open intervals `[start, end)` where `end` is **excluded**
-
-```typescript
-// startRowIndex: 0, endRowIndex: 5 means rows 0, 1, 2, 3, 4 (NOT 5!)
-[0, 5) = [0, 1, 2, 3, 4]
-```
-
-The adapter converts between Google Sheets' half-open semantics and the core library's closed intervals.
+**For detailed explanation**: See [docs/diagrams/coordinate-system.md](./docs/diagrams/coordinate-system.md)
 
 ### Rectangle Decomposition
 
-Insert algorithm (A \ B → ≤4 fragments):
+**Core algorithm**: Insert with overlap → Decompose existing rectangle into ≤4 non-overlapping fragments + store new rectangle (last-writer-wins).
 
-- Given existing rectangle A and new rectangle B (overlap)
-- Decompose A into ≤4 non-overlapping fragments
-- Store B (last-writer-wins)
-- Maintains disjointness invariant
+**Invariant**: No two rectangles ever overlap (disjointness maintained after every operation).
+
+**For visual explanation and examples**: See [docs/RECTANGLE-DECOMPOSITION-PRIMER.md](./docs/RECTANGLE-DECOMPOSITION-PRIMER.md)
 
 ### Space-Filling Curve Optimization
 
-**Current approach**: Morton curve (Z-order) via bit interleaving
+**Current approach**: Morton curve (Z-order) via bit interleaving for spatial locality in linear scan.
 
-**Empirical Finding** (validated): Morton provides spatial locality benefits with simpler encoding
+**Key insight**: 25% faster than Hilbert curve (constant-time encoding vs iterative).
 
-**Mechanism**: Bit interleaving maps 2D coordinates to 1D while preserving spatial locality. Constant-time encoding (vs iterative Hilbert) provides 25% speedup at small n.
+**Limitation**: MAX_COORD = 65,535 (0xFFFF) - coordinates >65K wrap but geometry stays correct.
 
-**Limitation**: MAX_COORD = 65,535 (0xFFFF). Coordinates >65K wrap in Morton encoding (degrades locality) but geometry remains correct.
-
-**Historical note**: Originally used Hilbert curve, replaced with Morton after benchmarking showed 25% improvement. See docs/analyses/morton-vs-hilbert-analysis.md for full experimental analysis.
+**For full experimental analysis**: See [docs/analyses/morton-vs-hilbert-analysis.md](./docs/analyses/morton-vs-hilbert-analysis.md)
 
 ### Performance Guidelines
 
-| Ranges          | Use                                 | Performance                     |
-| --------------- | ----------------------------------- | ------------------------------- |
-| < 100           | Spatial locality optimized (Morton) | Fastest for sparse data         |
-| ≥ 100           | R-Tree with R* split                | Fastest for large datasets      |
-| Bundle-critical | Compact linear scan                 | Smallest size, acceptable speed |
+**Quick decision**:
+- n < 100 → Use MortonLinearScan
+- n ≥ 100 → Use RStarTree
+- Multi-attribute data → Use LazyPartitionedIndex
 
-See PRODUCTION-GUIDE.md and BENCHMARKS.md for detailed decision tree and current performance data.
+**For detailed decision tree, workload-specific thresholds, and performance data**: See [PRODUCTION-GUIDE.md](./PRODUCTION-GUIDE.md) and [BENCHMARKS.md](./BENCHMARKS.md)
 
-### Statistical Interpretation
-
-When analyzing benchmark results (from `deno task bench:analyze`):
-
-**Metrics**:
-
-- **Mean (μ)**: Average performance
-- **CV%**: Coefficient of Variation = `(σ/μ) × 100`
-  - CV% <5% = Stable ✅
-  - CV% >5% = Variable ⚠️
-- **Sample size**: 5 runs × Deno's 10-100 internal iterations = 50-500 total iterations
-
-**When to trust differences**:
-
-- Report differences **>10%** with CV% <5% (large effect size + stable measurement)
-- Expect ±10-20% absolute variance across different machines (relative rankings stay stable)
-- All major findings (e.g., "2x faster") show >20% differences, well above noise
-
-**Philosophy**: Focus on **effect size** (magnitude) over statistical significance (p-values)
-
-- In microbenchmarks: "2x faster" matters, "2% faster" doesn't
-- We measure magnitude and stability, not hypothesis testing
-
-See docs/analyses/benchmark-statistics.md for full methodology.
+**For statistical methodology and interpreting benchmark results**: See [docs/analyses/benchmark-statistics.md](./docs/analyses/benchmark-statistics.md)
 
 ## Code Conventions
 
@@ -826,14 +842,22 @@ Run through markdown linter mentally:
 - Keep tests with archived implementations
 - Maintain import paths for reproducibility
 
-**Running archived tests** (opt-in, may include failures from failed experiments):
+**Retrieving archived implementations**:
 
 ```bash
-deno test archive/test/specific.test.ts    # Specific test
-deno test archive/test/                    # All archived tests
+# View archived implementation code
+git show <SHA>:packages/@jim/spandex/src/index/X.ts
+
+# Run benchmarks including archived implementations
+deno task bench:archived  # or: deno task bench -- --include-archived
+
+# Temporarily restore archived code for testing
+git checkout <SHA> -- archive/
+deno test archive/test/
+git restore archive/  # Clean up when done
 ```
 
-**Note**: Archived tests may fail (e.g., failed experiments) - this is expected and documented. Use `deno task test` or `deno test packages/` for active tests only.
+**Note**: Archived code exists only in git history. See `archive/IMPLEMENTATION-HISTORY.md` for git SHAs.
 
 See archive/README.md for full archive philosophy and management.
 
@@ -854,9 +878,16 @@ See archive/README.md for full archive philosophy and management.
 ### Directory Structure
 
 ```
-packages/@jim/spandex/
-├── src/index/            # Active implementations (auto-discovered by benchmarks)
-└── test/                 # Active tests (all passing)
+packages/@jim/
+├── spandex/              # Core spatial indexing
+│   ├── src/
+│   │   ├── index/        # Active implementations (mortonlinearscan, rstartree, lazypartitionedindex)
+│   │   ├── adapter/      # GridRange and A1 notation adapters
+│   │   ├── render/       # Rendering utilities
+│   │   └── mod.ts        # Types-only export
+│   └── test/             # Active tests
+├── spandex-ascii/        # ASCII visualization
+└── spandex-html/         # HTML rendering
 packages/@local/
 ├── snapmark/             # Snapshot testing framework
 ├── spandex-testing/      # Testing utilities and axioms
@@ -864,13 +895,13 @@ packages/@local/
 docs/
 ├── active/experiments/   # In-progress work (MUST be empty when done)
 ├── analyses/             # Validated findings
-└── core/                 # Research summary + theory
+├── core/                 # Research summary + theory
+└── diagrams/             # Visual explanations
 archive/
-├── src/implementations/  # Archived impls (opt-in via --include-archived)
-├── test/                 # Archived tests (may include failures)
-├── benchmarks/           # One-off experiment benchmarks
-└── docs/experiments/     # Rejected experiment documentation
-scripts/                  # Automation (update-benchmarks.ts, analyze-benchmarks.ts)
+├── IMPLEMENTATION-HISTORY.md  # All archived impls with git SHAs (code in git history only)
+└── docs/                 # Experiment documentation and summaries
+site/                     # Lume documentation site (publishes to GitHub Pages)
+scripts/                  # Automation (update-benchmarks.ts, analyze-benchmarks.ts, sync-docs.ts)
 benchmarks/               # Benchmark suites (performance.ts)
 ```
 
