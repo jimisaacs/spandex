@@ -12,8 +12,6 @@ Tried to automatically switch from linear scan to R-tree at n=100. Used TypedArr
 
 **Lesson**: Don't try to combine fundamentally different approaches in one implementation. Specialize.
 
-[Full writeup →](./experiments/hybrid-rtree-experiment.md)
-
 ### Fast R-tree: Cheap Quality (1.29x slower)
 
 Used R* axis selection (which is smart) but midpoint splits (which are cheap). The idea was to get R* quality without the full R* cost.
@@ -22,8 +20,6 @@ Used R* axis selection (which is smart) but midpoint splits (which are cheap). T
 
 **Lesson**: Half-measures in algorithms usually don't work. Either commit to the optimization or skip it entirely.
 
-[Full writeup →](./experiments/fast-rtree-experiment.md)
-
 ### Tree Quality: Theory vs Practice (Midpoint faster!)
 
 Hypothesis: R* produces better tree structure, so queries should be faster even if construction is slower.
@@ -31,8 +27,6 @@ Hypothesis: R* produces better tree structure, so queries should be faster even 
 **Why it failed**: Theoretical tree quality metrics (overlap, coverage) didn't correlate with actual query performance. Midpoint splits were 1-30% faster or equivalent despite having "worse" tree structure by academic metrics.
 
 **Lesson**: Measure what matters. Real-world performance beats theoretical metrics.
-
-[Full writeup →](./experiments/tree-quality-experiment.md)
 
 ## Successful Experiments (Later Superseded)
 
@@ -47,15 +41,13 @@ Tested four variants: basic → optimized → TypedArray → Hilbert curve. Each
 
 **Key insight**: Spatial locality matters more than data structure choice for small n.
 
-[Evolution writeup →](./experiments/linearscan-comparison-analysis.md)
-
 ### R-tree Split Algorithms
 
 Compared three approaches: quadratic (slow), midpoint (fast), R* (quality). R* won: 6% slower than midpoint but produced measurably better results.
 
 **Key insight**: Unlike the tree quality experiment above, the R* advantage _does_ show up when you use the full algorithm.
 
-[Comparison →](./experiments/rtree-comparison-analysis.md) • [Current analysis →](../../docs/analyses/r-star-analysis.md)
+[Current analysis →](../../docs/analyses/r-star-analysis.md)
 
 ### Transition Zone Analysis
 
@@ -63,7 +55,7 @@ Measured crossover points where R-tree becomes faster than linear scan. Results 
 
 **Key insight**: Crossover depends heavily on workload characteristics, not just n. See current docs for full analysis.
 
-[Early version →](./experiments/corrected-transition-analysis.md) • [Current analysis →](../../docs/analyses/transition-zone-analysis.md)
+[Current analysis →](../../docs/analyses/transition-zone-analysis.md)
 
 ## Key Takeaways
 

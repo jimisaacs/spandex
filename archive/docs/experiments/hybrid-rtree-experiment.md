@@ -14,14 +14,14 @@
 
 **Current state**: Clear but complex decision tree
 
-```text
+```
 if n < 100:
     use ArrayBufferLinearScanImpl
 elif overlapping + write-heavy + n < 400:
     use ArrayBufferLinearScanImpl
 else:
     use RStarTreeImpl
-```text
+```
 
 **Problem**: Users must:
 
@@ -57,7 +57,7 @@ class AdaptiveImpl {
 		}
 	}
 }
-```text
+```
 
 **Expected**: Match best implementation for each size, with ~5% migration overhead at n=100.
 
@@ -80,7 +80,7 @@ class HybridRTreeImpl {
 		this.index.insert(id, range); // Index refs, not copies
 	}
 }
-```text
+```
 
 **Expected**: Combine R-tree's O(log n) with ArrayBuffer's cache locality.
 
@@ -93,7 +93,7 @@ Current decision tree is actually SIMPLE for real usage:
 ```typescript
 // In practice, users just do:
 const store = n < 100 ? new ArrayBufferLinearScanImpl() : new RStarTreeImpl();
-```text
+```
 
 **Expected**: No single implementation beats this. Current answer is optimal.
 
@@ -205,3 +205,6 @@ Win or lose, document WHY:
 
 - Wins or matches specialized implementations in 80%+ of scenarios
 - No catastrophic losses (>50% slower)
+
+```
+```

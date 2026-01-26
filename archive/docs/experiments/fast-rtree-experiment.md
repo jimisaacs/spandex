@@ -78,7 +78,7 @@ for (let axis = 0; axis < 2; axis++) {
 	// Choose axis with minimum perimeter
 }
 // Then split at midpoint along best axis
-```text
+```
 
 ## Success Criteria
 
@@ -139,3 +139,6 @@ Benchmark query workload (currently minimal in benchmarks):
 ## Status
 
 🔬 **EXPERIMENTAL** — Hypothesis untested, awaiting benchmark results.
+
+```
+```

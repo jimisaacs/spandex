@@ -131,7 +131,7 @@ The conformance test suite (packages/@local/spandex-testing/src/axioms/core.ts) 
 
 2. **Coordinate extremes matter**
    - R*-tree uses TypedArrays (Int32Array) with 32-bit bounds
-   - MortonLinearScan uses 16-bit Morton curve (MAX_COORD = 65536)
+   - MortonLinearScan uses 16-bit Morton curve (MAX_COORD = 65535)
    - Tests verify both handle large coordinates correctly (within their bounds)
 
 3. **Query consistency is testable**

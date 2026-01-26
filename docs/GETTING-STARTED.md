@@ -30,7 +30,7 @@ for (const [bounds, value] of index.query()) {
 
 **Output**:
 
-```text
+```
 [0,0,10,4] red     (red top fragment)
 [0,5,4,10] red     (red left fragment)  
 [5,5,15,15] blue   (blue wins overlap)
@@ -51,7 +51,7 @@ When you insert overlapping rectangles with last-writer-wins semantics, the libr
 
 **Example decomposition:**
 
-```text
+```
 Before: Rectangle A [0,0,10,10] with value 'red'
 Insert: Rectangle B [5,5,15,15] with value 'blue'
 
@@ -102,7 +102,7 @@ for (const [range, color] of sheet.query()) {
 
 **Output**:
 
-```text
+```
 A1:C1 red
 A2:A3 red
 B2:D4 blue
@@ -137,7 +137,7 @@ for (const [range, attrs] of sheet.query()) {
 
 **Output**:
 
-```text
+```
 A1:C1 { background: 'red' }
 A2:A3 { background: 'red' }
 B2:D4 { background: 'red', fontSize: 14 }
@@ -187,7 +187,7 @@ for (const [bounds, entity] of entities.query([110, 110, 250, 130])) {
 
 **Output**:
 
-```text
+```
 Hit: enemy1
 ```
 
@@ -216,7 +216,7 @@ Output will show the grid decomposition (exact format may vary by renderer versi
 
 The library uses **closed intervals** where both endpoints are **included**:
 
-```text
+```
 [0, 0, 4, 4] means:
   x: 0, 1, 2, 3, 4  (all 5 values included)
   y: 0, 1, 2, 3, 4  (all 5 values included)

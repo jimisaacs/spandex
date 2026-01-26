@@ -14,15 +14,19 @@ Create `experiments/[name]-experiment.md` with hypothesis:
 # [Name] Experiment
 
 ## Hypothesis
+
 [What you expect to find]
 
 ## Motivation
+
 [Why this matters]
 
 ## Approach
+
 [How you'll test it]
 
 ## Success Criteria
+
 [How you'll know if it worked]
 ```
 
@@ -62,37 +66,45 @@ Create `docs/analyses/[name]-analysis.md`:
 ---
 
 ## Hypothesis
+
 [What you expected]
 
 ## Methodology
+
 [How you tested]
 
 ## Results
+
 [Data table]
 
 ## Conclusion
+
 [What this means]
 ```
 
 ### 6. Update Status
 
 Mark experiment doc with:
+
 - ✅ **VALIDATED** - Hypothesis confirmed
 - ❌ **REJECTED** - Hypothesis disproven
 
 ### 7. Resolution
 
 **✅ VALIDATED**:
+
 - Update `docs/core/RESEARCH-SUMMARY.md`
 - Keep implementation active
 - **DELETE experiment doc from `active/experiments/`**
 
 **❌ REJECTED (moving on)**:
+
 - Move experiment doc to `archive/docs/experiments/`
 - Archive implementation (see [IMPLEMENTATION-LIFECYCLE](../IMPLEMENTATION-LIFECYCLE.md))
 - **DELETE from `active/experiments/`**
 
 **❌ REJECTED (might revisit)**:
+
 - Leave in `active/experiments/` with notes
 - Mark clearly: "ON HOLD - [reason]"
 
@@ -139,6 +151,7 @@ archive/docs/experiments/failed-experiment-1.md ✅
 ## Why Keep It Empty?
 
 An empty `active/experiments/` directory means:
+
 - All research questions have been answered (for now)
 - Clean workspace ready for next experiment
 - Clear distinction between in-progress and completed work
@@ -146,6 +159,7 @@ An empty `active/experiments/` directory means:
 **Mental model**: `docs/active/` is your scratch pad (work in progress), everything else is permanent record.
 
 New experiments will be added when:
+
 - New use cases emerge that existing implementations don't handle well
 - Technology changes (e.g., WASM becomes practical, new JS engine optimizations)
 - Someone has a promising idea that hasn't been tried yet (check `archive/` first!)

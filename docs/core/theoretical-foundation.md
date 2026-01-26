@@ -43,13 +43,13 @@ Two distinct algorithms, each with multiple implementation strategies:
 
 **Implementations**: See `packages/@jim/spandex/src/index/` for current active implementations.
 
-```text
+```
 INSERT(R, v):
   1. Find overlapping rectangles O (linear scan through flat array)
   2. Remove O from storage
   3. For each r ∈ O: compute fragments r \ R (set subtraction)
   4. Insert R and valid fragments into flat array
-```text
+```
 
 **Complexity**: O(n) insert, O(n²) for n sequential inserts
 
@@ -61,12 +61,12 @@ INSERT(R, v):
 
 ### Algorithm 2: Hierarchical R*-tree (O(log n))
 
-```text
+```
 INSERT(R, v):
   1. Traverse tree to find overlapping rectangles O (O(log n) average)
   2. For each r ∈ O: compute fragments r \ R (set subtraction)
   3. Insert R and fragments into tree with R* node splitting
-```text
+```
 
 R* Split (Beckmann et al., 1990): Choose axis minimizing perimeter sum, choose split minimizing overlap. O(m log m) per split (m=10).
 
@@ -127,6 +127,7 @@ R* Split (Beckmann et al., 1990): Choose axis minimizing perimeter sum, choose s
 - **Minimality**: Optional (most implementations skip)
 
 **Cumulative fragmentation**:
+
 - Theoretical worst-case: ≤4n rectangles after n inserts
 - Empirical typical: ~2.3n rectangles (validated in analyses/adversarial-patterns.md)
 - Practical bound: O(n) due to spatial locality and geometric constraints
@@ -175,11 +176,11 @@ R* Split (Beckmann et al., 1990): Choose axis minimizing perimeter sum, choose s
 
 **Pathological pattern**:
 
-```text
+```
 Insert rectangle that overlaps ALL existing rectangles
 Each overlap creates up to 4 fragments
 Repeat n times
-```text
+```
 
 **Analysis**:
 
@@ -199,6 +200,7 @@ Repeat n times
 3. **Minimum fragment size**: Each fragment covers ≥1 cell → max fragments ≤ total cells
 
 **Practical bounds**:
+
 - **Linear worst-case**: O(n) to O(4n) rectangles after n inserts
 - **Empirical typical**: ~2.3n (k ≈ 2.3 overlaps per insert, validated via adversarial patterns)
 - **Example**: 100 pathological inserts → 232 ranges (2.3x), not 4^100
@@ -254,13 +256,13 @@ Repeat n times
 
 ```typescript
 !(a.xmax < b.xmin || b.xmax < a.xmin || a.ymax < b.ymin || b.ymax < a.ymin);
-```text
+```
 
 **Subtraction**: `A \ B` → ≤4 fragments (cuts rectangle A around B)
 
 **Visual example** (rectangle A minus overlapping B):
 
-```text
+```
 Before:        After decomposition:
 ┌─────────┐    ┌─────────┐  ← Top fragment
 │    A    │    │    A    │
@@ -271,7 +273,7 @@ Before:        After decomposition:
 └─────────┘    └─────────┘
 
 Result: A \ B produces 4 disjoint fragments (Top, Bottom, Left, Right)
-```text
+```
 
 **Inclusive intervals** `[min, max]`:
 
@@ -306,3 +308,6 @@ Result: A \ B produces 4 disjoint fragments (Top, Bottom, Left, Right)
 - [RESEARCH-SUMMARY.md](./RESEARCH-SUMMARY.md) - Executive summary and production recommendations
 - [PRODUCTION-GUIDE.md](../../PRODUCTION-GUIDE.md) - Implementation selection guide
 - [BENCHMARKS.md](../../BENCHMARKS.md) - Empirical performance data
+
+```
+```

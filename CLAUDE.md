@@ -312,7 +312,7 @@ Benchmarks automatically exclude archived implementations (based on filesystem l
 
 **Experiment lifecycle**:
 
-```text
+```
 1. Create hypothesis → docs/active/experiments/[name]-experiment.md
 2. Run benchmarks → OVERWRITES docs/analyses/benchmark-statistics.md
 3. Document findings → docs/analyses/[name]-analysis.md
@@ -364,7 +364,7 @@ Benchmarks automatically exclude archived implementations (based on filesystem l
 
 **Example**:
 
-```text
+```
 # WRONG - Completed experiments still in active/
 docs/active/experiments/
 ├── experiment-1.md (COMPLETED)
@@ -421,14 +421,14 @@ deno task bench:analyze 5 docs/analyses/benchmark-statistics.md  # Updates stats
 
 **When to use specific implementation names**:
 
-| Context | Use Names? | Example |
-| --- | --- | --- |
-| Analysis files (`docs/analyses/*.md`) | ✅ Yes | "MortonLinearScanImpl achieved 6.9µs" |
-| Example code | ✅ Yes | `import createMortonLinearScanIndex from '@jim/spandex/index/mortonlinearscan'` |
-| Operational guides | ✅ Yes | Show what to import in PRODUCTION-GUIDE sections |
-| Diagram files | ✅ Yes | Explain specific algorithm details |
-| Structural docs (README, summaries) | ❌ No | "Spatial locality optimization" not "MortonLinearScanImpl" |
-| Decision tables | ❌ No | Use algorithm approaches, not class names |
+| Context                               | Use Names? | Example                                                                         |
+| ------------------------------------- | ---------- | ------------------------------------------------------------------------------- |
+| Analysis files (`docs/analyses/*.md`) | ✅ Yes     | "MortonLinearScanImpl achieved 6.9µs"                                           |
+| Example code                          | ✅ Yes     | `import createMortonLinearScanIndex from '@jim/spandex/index/mortonlinearscan'` |
+| Operational guides                    | ✅ Yes     | Show what to import in PRODUCTION-GUIDE sections                                |
+| Diagram files                         | ✅ Yes     | Explain specific algorithm details                                              |
+| Structural docs (README, summaries)   | ❌ No      | "Spatial locality optimization" not "MortonLinearScanImpl"                      |
+| Decision tables                       | ❌ No      | Use algorithm approaches, not class names                                       |
 
 **Why this matters**: When implementations are added/removed/renamed, only `packages/@jim/spandex/src/index/` and generated files need updating. Documentation stays valid without edits.
 
@@ -656,19 +656,19 @@ const index = createSomeIndex<T>();
 
 **Introducing concepts**:
 
-```text
+```
 Problem → Solution → Trade-offs → When to use
 ```
 
 **Reporting findings**:
 
-```text
+```
 Hypothesis → Method → Data → Conclusion → Impact
 ```
 
 **Comparing options**:
 
-```text
+```
 Use table with: Feature | Option A | Option B | Winner
 ```
 
@@ -704,15 +704,16 @@ Use table with: Feature | Option A | Option B | Winner
 
 **3. Use fenced code blocks** with language tags:
 
-`````markdown
+````markdown
 ✅ ```typescript
 const x = 1;
-
 ````
+
 ❌ ```
 const x = 1;
-````
-`````
+
+```
+```
 
 **4. Escape underscores in math/algorithms:**
 
@@ -852,7 +853,7 @@ See archive/README.md for full archive philosophy and management.
 
 ### Directory Structure
 
-```text
+```
 packages/@jim/spandex/
 ├── src/index/            # Active implementations (auto-discovered by benchmarks)
 └── test/                 # Active tests (all passing)
@@ -917,7 +918,7 @@ benchmarks/               # Benchmark suites (performance.ts)
 
 **Example workflow**:
 
-```text
+```
 1. User: "Archive SomeImplementation"
 2. You: [runs archive command]
 3. You: [runs `deno task sync-docs` - regenerates BENCHMARKS.md]
@@ -928,7 +929,7 @@ benchmarks/               # Benchmark suites (performance.ts)
 
 When `sync-docs` updates files, mention it:
 
-```text
+```
 ✅ [Task completed]
 📝 Updated: BENCHMARKS.md (auto-discovered N implementations)
 ```

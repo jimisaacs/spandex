@@ -165,7 +165,7 @@ partitioned.clear(); // Remove all partitions
 
 ## Common Patterns
 
-**"Deleting"**: Use Last-Writer-Wins with `null`  
+**"Deleting"**: Use Last-Writer-Wins with `null`\
 **Resetting**: Create new instance
 
 For detailed patterns (switching implementations, diagnostics), see [PRODUCTION-GUIDE.md](https://github.com/jimisaacs/spandex/blob/main/PRODUCTION-GUIDE.md#common-patterns).
@@ -185,6 +185,7 @@ For detailed patterns (switching implementations, diagnostics), see [PRODUCTION-
 ## Compatibility
 
 **Pure JavaScript (ES2020+)** - works in any modern JavaScript runtime:
+
 - Browsers, Node.js, Deno 2+, Bun
 - Constrained environments: Google Apps Script, V8 isolates
 - No WASM, SharedArrayBuffer, or native dependencies required

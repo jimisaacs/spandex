@@ -28,7 +28,7 @@ In Part 1, we learned that Last-Writer-Wins replaces values in overlaps. But wha
 
 ### Starting Point: Empty Grid
 
-```text
+```
      A   B   C   D
    +---+---+---+---+
  0 |   |   |   |   |
@@ -41,7 +41,7 @@ In Part 1, we learned that Last-Writer-Wins replaces values in overlaps. But wha
    +---+---+---+---+
 
 Storage: []
-```text
+```
 
 Same starting point as Part 1!
 
@@ -55,7 +55,7 @@ Same starting point as Part 1!
 
 **The result**:
 
-```text
+```
      A   B   C   D
    +---+---+---+---+
  0 |   |   |   |   |
@@ -72,7 +72,7 @@ Storage: [
 ]
 
 R = { background: 'RED' }
-```text
+```
 
 Nothing new here - one rectangle with one property.
 
@@ -93,7 +93,7 @@ Nothing new here - one rectangle with one property.
 
 **The overlap**:
 
-```text
+```
      A   B   C   D
    +---+---+---+---+
  0 |   | B | B | B |  ← Only blue font (no background)
@@ -106,7 +106,7 @@ Nothing new here - one rectangle with one property.
    +---+---+---+---+
 
 [?] = The magic happens here!
-```text
+```
 
 ---
 
@@ -126,7 +126,7 @@ existing = { background: 'RED' };
 incoming = { fontColor: 'BLUE' };
 merged = { ...existing, ...incoming }; // JavaScript spread operator
 // Result: { background: 'RED', fontColor: 'BLUE' }
-```text
+```
 
 **Step 3**: Store THREE types of regions
 
@@ -136,7 +136,7 @@ merged = { ...existing, ...incoming }; // JavaScript spread operator
 
 **The final result**:
 
-```text
+```
      A   B   C   D
    +---+---+---+---+
  0 |   | B | B | B |  ← { fontColor: BLUE }
@@ -158,7 +158,7 @@ Storage: [
 R = { background: 'RED' }
 B = { fontColor: 'BLUE' }
 R+B = { background: 'RED', fontColor: 'BLUE' } ← Both properties!
-```text
+```
 
 ---
 
@@ -184,7 +184,7 @@ Unlike LWW (which throws away the first transparency), Shallow Merge **keeps bot
 old = 'RED'
 new = 'BLUE'
 result = new  // Just 'BLUE' (replaced)
-```text
+```
 
 **Shallow Merge** (Part 2):
 
@@ -192,7 +192,7 @@ result = new  // Just 'BLUE' (replaced)
 old = { background: 'RED' }
 new = { fontColor: 'BLUE' }
 result = { background: 'RED', fontColor: 'BLUE' }  // Combined!
-```text
+```
 
 ### More Fragments = More Storage
 
@@ -210,14 +210,14 @@ It only merges the **top level** properties:
 ```javascript
 { background: 'RED' } + { fontColor: 'BLUE' }
 = { background: 'RED', fontColor: 'BLUE' }  ✅
-```text
+```
 
 It doesn't merge **nested** objects (that would be "deep merge"):
 
 ```javascript
 { style: { color: 'RED' } } + { style: { weight: 'bold' } }
 = { style: { weight: 'bold' } }  // style.color lost!
-```text
+```
 
 For our spreadsheet use case, shallow is perfect because cell properties are flat.
 
@@ -250,3 +250,6 @@ For our spreadsheet use case, shallow is perfect because cell properties are fla
 **Part 3** (Spatial Join): What if we don't want the complexity of Shallow Merge? What if we keep background colors and font colors in **separate, simple indexes** and only combine them when we render?
 
 That's what Spatial Join does - simple inserts, slightly more complex queries. Let's see how it compares!
+
+```
+```

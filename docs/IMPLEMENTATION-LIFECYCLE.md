@@ -17,7 +17,7 @@ import type { ExtentResult, QueryResult, Rectangle, SpatialIndex } from '../type
  * **Complexity**: O(?)
  * **Memory**: ?
  * **Best for**: ?
- * 
+ *
  * @returns New spatial index instance
  */
 export default function createNewImplIndex<T>(): SpatialIndex<T> {
@@ -40,11 +40,12 @@ class NewImplImpl<T> implements SpatialIndex<T> {
 ```
 
 **Note**: Also update `packages/@jim/spandex/deno.json` exports if using subpath imports:
+
 ```json
 {
-  "exports": {
-    "./index/newimpl": "./src/index/newimpl.ts"
-  }
+	"exports": {
+		"./index/newimpl": "./src/index/newimpl.ts"
+	}
 }
 ```
 

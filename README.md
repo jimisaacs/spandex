@@ -106,10 +106,11 @@ Red region split into 2 fragments, blue wins the overlap (3 total fragments).
 
 ## Algorithm Selection
 
-| Ranges | Use                           | Why             |
-| ------ | ----------------------------- | --------------- |
-| <100   | `createMortonLinearScanIndex` | Fastest O(n)    |
-| ≥100   | `createRStarTreeIndex`        | Scales O(log n) |
+| Data Pattern    | Use                           | Why                    |
+| --------------- | ----------------------------- | ---------------------- |
+| Multi-attribute | `createLazyPartitionedIndex`  | Per-attribute indexing |
+| <100 ranges     | `createMortonLinearScanIndex` | Fastest O(n)           |
+| ≥100 ranges     | `createRStarTreeIndex`        | Scales O(log n)        |
 
 See [PRODUCTION-GUIDE.md](./PRODUCTION-GUIDE.md) for decision tree and [BENCHMARKS.md](./BENCHMARKS.md) for measurements.
 

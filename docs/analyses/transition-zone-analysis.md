@@ -4,8 +4,6 @@
 
 **Finding**: Crossover points where R-tree overtakes linear scan vary by workload and overlap pattern, ranging from n=100 to n=600.
 
-**Source Experiment**: See [corrected-transition-analysis.md](../../archive/docs/experiments/corrected-transition-analysis.md) for full experimental details and methodology.
-
 ## Result
 
 | Workload      | Pattern     | Crossover n | Linear Scan Advantage | R-tree Advantage |
@@ -144,7 +142,6 @@ Single-run data (clear trends, low variance). Discrete sampling every 100. Imple
 
 - Previous analysis: [sparse-data-analysis.md](./sparse-data-analysis.md) (n < 100)
 - R-tree algorithm: [r-star-analysis.md](./r-star-analysis.md)
-- Source experiment: [corrected-transition-analysis.md](../../archive/docs/experiments/corrected-transition-analysis.md)
 
 ---
 

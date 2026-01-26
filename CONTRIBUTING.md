@@ -11,9 +11,9 @@ Thank you for your interest in contributing to Spandex!
 
 **Ready to contribute?**
 
-- [CLAUDE.md](./CLAUDE.md) - Comprehensive development guide
 - [IMPLEMENTATION-LIFECYCLE](./docs/IMPLEMENTATION-LIFECYCLE.md) - Adding/archiving implementations
 - [BENCHMARK-FRAMEWORK](./docs/BENCHMARK-FRAMEWORK.md) - Performance testing
+- [PRODUCTION-GUIDE](./PRODUCTION-GUIDE.md) - Choosing the right implementation
 
 ## Development Workflow
 
@@ -29,7 +29,7 @@ deno task test  # Verify everything works
 
 **Before you start:**
 
-- Read [CLAUDE.md](./CLAUDE.md) for project conventions
+- Read this guide for project conventions and workflows
 - Check [IMPLEMENTATION-LIFECYCLE](./docs/IMPLEMENTATION-LIFECYCLE.md) if adding/modifying algorithms
 
 **While developing:**
@@ -58,7 +58,7 @@ Before committing, ensure:
 
 ### 4. Commit Message Convention
 
-```text
+```
 <type>: <description>
 
 Examples:
@@ -154,14 +154,15 @@ import { createMortonLinearScanIndex } from '@jim/spandex';
 - API changes → Update package README
 - Performance changes → Run `deno task bench:update`
 - New algorithms → Create analysis document in `docs/analyses/`
-- Workflow changes → Update CLAUDE.md or IMPLEMENTATION-LIFECYCLE
+- Workflow changes → Update IMPLEMENTATION-LIFECYCLE
 
 **Documentation style:**
 
-- See [CLAUDE.md](./CLAUDE.md) "Documentation Writing Style" section
 - Use present tense for active research
 - Include runnable code examples
 - Cite academic references
+- Front-load key information (what/why before how)
+- Use tables and lists for comparisons
 
 ## Research Workflow
 
@@ -170,7 +171,7 @@ For the complete experiment lifecycle (hypothesis → implementation → analysi
 ## Questions?
 
 - **Usage questions:** [TROUBLESHOOTING](./docs/TROUBLESHOOTING.md)
-- **Implementation questions:** [CLAUDE.md](./CLAUDE.md)
+- **Implementation questions:** [IMPLEMENTATION-LIFECYCLE](./docs/IMPLEMENTATION-LIFECYCLE.md)
 - **Research questions:** [docs/core/RESEARCH-SUMMARY.md](./docs/core/RESEARCH-SUMMARY.md)
 - **Other questions:** Open an issue on GitHub
 

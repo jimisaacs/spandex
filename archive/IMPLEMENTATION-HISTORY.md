@@ -46,4 +46,7 @@ git show 454e5c9:archive/src/implementations/hilbertlinearscan.ts > /tmp/hilbert
 
 # Restore the entire archive directory as it was
 git checkout 454e5c9 -- archive/
-```text
+```
+
+```
+```

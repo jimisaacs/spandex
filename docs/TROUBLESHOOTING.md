@@ -40,6 +40,7 @@ console.log(`Overlaps: ${overlapping}`);
 ### High Memory
 
 **Expected fragmentation**:
+
 - **Per overlap**: ≤4 fragments created when one rectangle overlaps another
 - **Cumulative worst-case**: ≤4n rectangles after n inserts (theoretical maximum, rarely reached)
 - **Empirical typical**: ~2.3n rectangles (validated via adversarial patterns)
@@ -69,6 +70,7 @@ index.insert([0, 10, 10, 5], 'value');
 ```
 
 **When this happens**:
+
 - Check coordinate order: `[xmin, ymin, xmax, ymax]`
 - Ensure min ≤ max for both dimensions
 - Use `±Infinity` for unbounded edges (allowed)
@@ -102,7 +104,7 @@ console.log(`In region: ${found.length} fragments`);
 
 **Example output**:
 
-```text
+```
 [[0,0,10,4]] = red
 [[0,5,4,10]] = red
 [[5,5,15,15]] = blue
@@ -163,11 +165,13 @@ for (const [bounds, value] of index.query()) {
 **Fix**: Update package manager (Node 16+, npm 8+) to support subpath imports.
 
 Modern import (recommended):
+
 ```typescript
 import createMortonLinearScanIndex from '@jim/spandex/index/mortonlinearscan';
 ```
 
 Or use direct file path:
+
 ```typescript
 import createMortonLinearScanIndex from '@jim/spandex/src/index/mortonlinearscan.ts';
 ```
@@ -236,10 +240,10 @@ deno task bench:analyze 5 /tmp/results.md
 
 ```typescript
 // ❌ Wrong
-index.insert([10, 0, 5, 10], 'value');  // xmin > xmax
+index.insert([10, 0, 5, 10], 'value'); // xmin > xmax
 
 // ✅ Right
-index.insert([5, 0, 10, 10], 'value');  // xmin ≤ xmax
+index.insert([5, 0, 10, 10], 'value'); // xmin ≤ xmax
 ```
 
 ### `Error: Invalid rectangle: ymin (10) > ymax (5)`
@@ -249,11 +253,11 @@ index.insert([5, 0, 10, 10], 'value');  // xmin ≤ xmax
 **Fix**: Same as above - ensure min ≤ max for both dimensions.
 
 ```typescript
-// ❌ Wrong  
-index.insert([0, 10, 10, 5], 'value');  // ymin > ymax
+// ❌ Wrong
+index.insert([0, 10, 10, 5], 'value'); // ymin > ymax
 
 // ✅ Right
-index.insert([0, 5, 10, 10], 'value');  // ymin ≤ ymax
+index.insert([0, 5, 10, 10], 'value'); // ymin ≤ ymax
 ```
 
 ### `TypeError: Cannot read property 'insert' of undefined`
@@ -262,7 +266,7 @@ index.insert([0, 5, 10, 10], 'value');  // ymin ≤ ymax
 
 ```typescript
 // ❌ Wrong
-const index = createMortonLinearScanIndex;  // Missing ()
+const index = createMortonLinearScanIndex; // Missing ()
 
 // ✅ Right
 const index = createMortonLinearScanIndex<string>();

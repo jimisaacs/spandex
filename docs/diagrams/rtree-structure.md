@@ -6,7 +6,7 @@ A **hierarchical spatial index** that organizes rectangles in a tree structure w
 
 ## Simple R-Tree Example (M=4 entries per node)
 
-```text
+```
                      ROOT
                  ┌──────────┐
                  │ [0,0,10,10] │ ← Bounding box of all data
@@ -23,13 +23,13 @@ A **hierarchical spatial index** that organizes rectangles in a tree structure w
 ┌──┴─┐ ┌─┴──┐ ┌─┴──┐       ┌──┴─┐ ┌─┴──┐ ┌─┴──┐
 │ A  │ │ B  │ │ C  │       │ D  │ │ E  │ │ F  │ ← Leaf entries
 └────┘ └────┘ └────┘       └────┘ └────┘ └────┘
-```text
+```
 
 **Key property**: Each internal node's bounding box fully contains all children's bounding boxes.
 
 ## Query Example: Find rectangles intersecting [2,2,4,4]
 
-```text
+```
 Query region: [2,2,4,4]
 
 Step 1: Check ROOT [0,0,10,10]
@@ -52,13 +52,13 @@ Nodes visited: 5 (ROOT, 2 internal, 2 leaves)
 Nodes pruned: 4 (right subtree skipped!)
 
 This is O(log n) vs O(n) for linear scan!
-```text
+```
 
 ## R* Split Algorithm (Production Implementation)
 
 When a node overflows (> M entries), it must split:
 
-```text
+```
 BEFORE SPLIT (Node has 5 entries, M=4):
 ┌─────────────────────────────┐
 │ Node: [0,0,10,10]           │
@@ -86,13 +86,13 @@ AFTER SPLIT (2 nodes with ≤4 entries each):
 └──────────────┘  └──────────────┘
 
 Result: Minimal overlap, balanced nodes, good query performance!
-```text
+```
 
 ## Linear Scan vs R-Tree: Visual Comparison
 
 ### Linear Scan (Flat Array)
 
-```text
+```
 Query [2,2,4,4]:
 
 Memory: [A][B][C][D][E][F] ← All in contiguous array
@@ -107,11 +107,11 @@ Check F ❌
 6 checks (O(n) where n=6)
 
 Cache: All entries likely in cache (small n)
-```text
+```
 
 ### R-Tree (Hierarchical)
 
-```text
+```
 Query [2,2,4,4]:
 
               [ROOT]
@@ -130,11 +130,11 @@ Check C ❌
 5 checks, but PRUNED 3!
 
 For n=1000: Linear scan = 1000 checks, R-tree ≈ log(1000) = ~10 nodes!
-```text
+```
 
 ## When Each Wins
 
-```text
+```
 n < 100 (Sparse):
 ┌────────────────┐
 │  [A][B][C]...  │ ← Flat array in L1 cache
@@ -160,7 +160,7 @@ Linear scan: 1000 checks = 10,000ns ❌ SLOW
       / \   / \   / \
     ...  ......  ...
 R-tree: log(1000) ≈ 10 nodes = 500ns ✅ FASTER
-```text
+```
 
 ## Google Sheets API Context
 
@@ -184,7 +184,7 @@ index.insert({
 	startColumnIndex: 0,
 	endColumnIndex: 3,
 }, 'value');
-```text
+```
 
 ## Quick Reference Table
 
@@ -205,3 +205,6 @@ index.insert({
 - [theoretical-foundation.md](../core/theoretical-foundation.md) - Mathematical model with formal notation
 - [README.md](../../README.md#coordinate-system) - Quick visual examples
 - Google Apps Script GridRange API documentation
+
+```
+```

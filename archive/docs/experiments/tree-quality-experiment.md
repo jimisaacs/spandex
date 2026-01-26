@@ -58,7 +58,7 @@ interface TreeQualityMetrics {
 	actualDataArea: number; // Sum of actual data rectangles
 	deadSpaceRatio: number; // (bounding - actual) / bounding
 }
-```text
+```
 
 ### Phase 2: Query Performance Benchmark
 
@@ -157,4 +157,7 @@ Correlate tree quality metrics with query performance:
 
 - Beckmann, N. et al. (1990) "The R*-tree" - Claims overlap minimization improves queries
 - Guttman, A. (1984) "R-trees" - Original quadratic split algorithm
-- Current analysis: [r-star-analysis.md](../../analyses/r-star-analysis.md) - Construction time only
+- Current analysis: [r-star-analysis.md](../../../docs/analyses/r-star-analysis.md) - Construction time only
+
+```
+```

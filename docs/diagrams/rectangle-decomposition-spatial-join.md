@@ -45,7 +45,7 @@ Then: `backgrounds.insert(B0:D2, 'GREEN')`
 
 **The result**:
 
-```text
+```
      A   B   C   D
    +---+---+---+---+
  0 |   | G | G | G |
@@ -64,7 +64,7 @@ Storage in backgrounds index: [
 
 R = RED background
 G = GREEN background
-```text
+```
 
 Notice: Just 2 ranges! Simple LWW decomposition, exactly like Part 1.
 
@@ -80,7 +80,7 @@ Notice: Just 2 ranges! Simple LWW decomposition, exactly like Part 1.
 
 **The result**:
 
-```text
+```
      A   B   C   D
    +---+---+---+---+
  0 |   |   |   |   |
@@ -97,7 +97,7 @@ Storage in fontColors index: [
 ]
 
 B = BLUE font color
-```text
+```
 
 Again, simple! Just 1 range in this index.
 
@@ -130,7 +130,7 @@ const fontResults = fontColors.query(A0:D3);
 // Returns: [
 //   { bounds: B1:D2, value: 'BLUE' }
 // ]
-```text
+```
 
 Easy! Each index just returns its own ranges.
 
@@ -157,13 +157,13 @@ function spatialJoin(bgResults, fontResults) {
 
   return joined;
 }
-```text
+```
 
 Think of it like putting two transparency sheets on top of each other - you see both!
 
 **Step 3**: The combined result
 
-```text
+```
      A   B   C   D
    +---+---+---+---+
  0 |   | G | G | G |  ← { background: GREEN }
@@ -187,7 +187,7 @@ G = { background: GREEN }
 B = { fontColor: BLUE }
 R+B = { background: RED, fontColor: BLUE } (from join, not storage!)
 G+B = { background: GREEN, fontColor: BLUE } (from join, not storage!)
-```text
+```
 
 **Key insight**: Combined properties only exist in the query result, NOT in storage!
 
@@ -311,3 +311,6 @@ For real-world spreadsheet systems (like Google Sheets), **Spatial Join** is oft
 - Insert performance matters more than query performance
 
 This is a standard technique in spatial databases and GIS systems!
+
+```
+```

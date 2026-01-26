@@ -6,13 +6,14 @@
 
 ## Production Recommendations
 
-| n (size)    | Workload     | Use                     | Why                              |
-| ----------- | ------------ | ----------------------- | -------------------------------- |
-| **< 100**   | All          | Morton spatial locality | O(n) ≈ O(1), faster via locality |
-| **100-200** | Write-heavy  | Context-dependent       | See transition zone analysis     |
-| **100-600** | High overlap | Morton spatial locality | Decomposition cost dominates     |
-| **> 200**   | Read-heavy   | R-tree (R* split)       | O(log n) query pruning wins      |
-| **> 600**   | All          | R-tree (R* split)       | O(log n) hierarchical indexing   |
+| n (size)    | Workload        | Use                     | Why                              |
+| ----------- | --------------- | ----------------------- | -------------------------------- |
+| **Any**     | Multi-attribute | LazyPartitioned wrapper | Independent attribute updates    |
+| **< 100**   | All             | Morton spatial locality | O(n) ≈ O(1), faster via locality |
+| **100-200** | Write-heavy     | Context-dependent       | See transition zone analysis     |
+| **100-600** | High overlap    | Morton spatial locality | Decomposition cost dominates     |
+| **> 200**   | Read-heavy      | R-tree (R* split)       | O(log n) query pruning wins      |
+| **> 600**   | All             | R-tree (R* split)       | O(log n) hierarchical indexing   |
 
 See [PRODUCTION-GUIDE](../../PRODUCTION-GUIDE.md) for implementation details.
 
@@ -74,7 +75,7 @@ See `archive/docs/experiments/` for full analyses.
 
 **Implementation style**: Imperative + TypedArrays required for production (~14x faster than functional style with `.flatMap`/`.filter`).
 
-**Bundle sizes**: Morton ~1.8KB, R-tree ~8.4KB (minified). Already optimal.
+**Bundle sizes**: Morton ~2.3KB, R-tree ~5.9KB, LazyPartitioned ~2.1KB (minified). Already optimal.
 
 ### 7. Comprehensive Testing (35 Benchmark Scenarios)
 
@@ -98,9 +99,9 @@ See [adversarial-patterns.md](../analyses/adversarial-patterns.md) and [benchmar
 
 ## Algorithms
 
-**Linear Scan** (O(n)): Flat array with Morton spatial locality. Best for n<100 (2x faster via cache locality). Bundle: ~1.8KB.
+**Linear Scan** (O(n)): Flat array with Morton spatial locality. Best for n<100 (2x faster via cache locality). Bundle: ~2.3KB.
 
-**R-tree** (O(log n)): Hierarchical index with R* split (Beckmann 1990). Best for n≥100. Bundle: ~8.4KB.
+**R-tree** (O(log n)): Hierarchical index with R* split (Beckmann 1990). Best for n≥100. Bundle: ~5.9KB.
 
 See `packages/@jim/spandex/src/index/` for implementations.
 

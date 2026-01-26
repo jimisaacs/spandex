@@ -17,7 +17,7 @@ Can R\* axis selection + midpoint split achieve better performance than:
 
 ### write: sparse-sequential (n=50)
 
-```text
+```
 Implementation          Mean (µs)    ±Stddev    CV%   Relative
 ----------------------------------------------------------------------
 ArrayBufferLinearScan       21.7  ±    1.0    4.4   1.09x
@@ -28,11 +28,11 @@ FastRTree                   18.1  ±    0.5    2.5   0.91x
 LinearScan                  14.7  ±    0.3    2.3   0.74x
 OptimizedLinearScan         11.5  ±    0.3    2.3   0.58x
 RTree                       19.8  ±    0.4    2.1   (baseline)
-```text
+```
 
 ### write: sparse-overlapping (n=40)
 
-```text
+```
 Implementation          Mean (µs)    ±Stddev    CV%   Relative
 ----------------------------------------------------------------------
 ArrayBufferLinearScan       16.3  ±    1.0    5.8   0.23x
@@ -43,11 +43,11 @@ FastRTree                   75.4  ±    1.9    2.5   1.05x
 LinearScan                  18.3  ±    0.5    2.5   0.26x
 OptimizedLinearScan         11.5  ±    0.3    2.4   0.16x
 RTree                       71.7  ±    2.0    2.8   (baseline)
-```text
+```
 
 ### write: large-sequential (n=2500)
 
-```text
+```
 Implementation          Mean (µs)    ±Stddev    CV%   Relative
 ----------------------------------------------------------------------
 ArrayBufferLinearScan    30539.7  ±  267.4    0.9   15.14x
@@ -58,11 +58,11 @@ FastRTree                 1851.4  ±   40.5    2.2   0.92x
 LinearScan               42047.3  ±  434.0    1.0   20.85x
 OptimizedLinearScan      31291.4  ±  665.8    2.1   15.51x
 RTree                     2016.9  ±   15.2    0.8   (baseline)
-```text
+```
 
 ### write: large-overlapping (n=1250)
 
-```text
+```
 Implementation          Mean (µs)    ±Stddev    CV%   Relative
 ----------------------------------------------------------------------
 ArrayBufferLinearScan     8410.9  ±  131.8    1.6   2.44x
@@ -73,7 +73,7 @@ FastRTree                 3800.8  ±  137.0    3.6   1.10x
 LinearScan               15967.2  ±  147.9    0.9   4.64x
 OptimizedLinearScan       9103.9  ±  153.8    1.7   2.64x
 RTree                     3444.7  ±   24.2    0.7   (baseline)
-```text
+```
 
 ## Conclusion
 
@@ -88,3 +88,6 @@ FastRTree vs ArrayBufferRTree:
 - Average: 1.29x
 
 **Verdict**: ✅ FastRTree is competitive with R\*
+
+```
+```

@@ -47,12 +47,15 @@ import createLazyPartitionedIndex from '@jim/spandex/index/lazypartitionedindex'
 ## Algorithm Details
 
 **Morton Linear Scan** - O(n), uses Z-order curve for spatial locality\
+Bundle: ~2.3KB (minified)\
 Best for: < 100 rectangles (2-8x faster than R-tree at sparse sizes)
 
 **R-Star Tree** - O(log n), hierarchical with smart splits (Beckmann 1990)\
+Bundle: ~5.9KB (minified)\
 Best for: ≥ 100 rectangles (2x faster than linear scan at n=2500, scales better)
 
 **Lazy Partitioned** - Separate indexes per attribute, spatial join on query\
+Bundle: ~2.1KB (minified, wraps another index)\
 Best for: Independent attributes (spreadsheet cells, GIS layers)
 
 ## Performance Data
@@ -70,6 +73,7 @@ See [BENCHMARKS.md](./BENCHMARKS.md) for current data or [benchmark-statistics.m
 - See [transition-zone-analysis](./docs/analyses/transition-zone-analysis.md) for workload-specific thresholds
 
 **How to determine your workload**:
+
 - **Read-heavy** (frequent queries): Use R*-tree at n > 100
 - **High overlap** (many stacked rectangles): Use Morton until n > 600
 - **Low overlap** (sparse inserts): Use R*-tree at n > 200

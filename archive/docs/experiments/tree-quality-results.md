@@ -128,7 +128,7 @@
 
 ### Performance Model
 
-```text
+```
 Total Cost = Construction + (Query × N_queries)
 
 For write-heavy (dominant case):
@@ -139,7 +139,7 @@ For read-heavy (rare case):
   N_queries > 100
   Only grid pattern shows R* advantage (6-11%)
   Sequential/overlapping: Midpoint still wins or equivalent
-```text
+```
 
 ---
 
@@ -179,3 +179,6 @@ We **trusted** Beckmann et al.'s claims without **verifying** they apply to spre
 ---
 
 **Conclusion**: This experiment **invalidates** our core R* recommendation. Simpler is better. Midpoint split wins.
+
+```
+```

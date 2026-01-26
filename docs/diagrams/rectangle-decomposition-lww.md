@@ -24,7 +24,7 @@ Let's see how the spatial index makes this work...
 
 ### Starting Point: Empty Grid
 
-```text
+```
      A   B   C   D
    +---+---+---+---+
  0 |   |   |   |   |
@@ -37,7 +37,7 @@ Let's see how the spatial index makes this work...
    +---+---+---+---+
 
 Storage: []
-```text
+```
 
 Nothing stored yet. Easy!
 
@@ -51,7 +51,7 @@ Nothing stored yet. Easy!
 
 **The result**:
 
-```text
+```
      A   B   C   D
    +---+---+---+---+
  0 |   |   |   |   |
@@ -68,7 +68,7 @@ Storage: [
 ]
 
 R = RED
-```text
+```
 
 Since nothing overlapped, we just store one rectangle. Simple!
 
@@ -84,7 +84,7 @@ Since nothing overlapped, we just store one rectangle. Simple!
 
 **The overlap**:
 
-```text
+```
      A   B   C   D
    +---+---+---+---+
  0 |   | B | B | B |  ← Only blue (no overlap)
@@ -97,7 +97,7 @@ Since nothing overlapped, we just store one rectangle. Simple!
    +---+---+---+---+
 
 [?] = What color should these be?
-```text
+```
 
 ---
 
@@ -122,7 +122,7 @@ The spatial index uses a clever trick called **rectangle decomposition**:
 
 **The final result**:
 
-```text
+```
      A   B   C   D
    +---+---+---+---+
  0 |   | B | B | B |  ← Blue (from new range)
@@ -141,7 +141,7 @@ Storage: [
 
 R = RED
 B = BLUE
-```text
+```
 
 ---
 
@@ -215,3 +215,6 @@ The cells remember the most recent value.
 **Part 3** (Spatial Join): What if we want to keep background colors and font colors in **separate** indexes and combine them only when we need to?
 
 Each approach has different tradeoffs - keep reading to learn when to use each one!
+
+```
+```

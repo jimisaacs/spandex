@@ -148,7 +148,7 @@ class HilbertLinearScanImpl {
 
 ## Limitations and Edge Cases
 
-### Coordinate Range (MAX_COORD = 65536)
+### Coordinate Range (MAX_COORD = 65535)
 
 **Design**: Hilbert index calculation uses 16-bit coordinates for performance (16 iterations vs 20+ for larger ranges).
 
