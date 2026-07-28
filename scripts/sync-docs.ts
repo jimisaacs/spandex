@@ -57,7 +57,8 @@ async function main() {
 
 	// Check if tests changed
 	const testsChanged = changed.some((f) =>
-		(f.startsWith('test/') || f.startsWith('packages/@local/spandex-testing/src/axioms/')) && f.endsWith('.ts')
+		(f.startsWith('packages/@jim/spandex/test/') ||
+			f.startsWith('packages/@local/spandex-testing/src/axiom/')) && f.endsWith('.ts')
 	);
 
 	const updates: string[] = [];
