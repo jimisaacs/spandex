@@ -1,25 +1,29 @@
 # Active Research Workspace
 
-**CRITICAL RULE**: `docs/active/experiments/` must be **EMPTY** after experiment completion.
+`docs/active/experiments/` holds experiments that are in progress right now, and
+nothing else. It is empty between experiments, and that emptiness is the point:
+anyone can see the current research state at a glance, because everything in the
+directory is live work.
 
-This directory is for experiments currently in progress. An empty workspace = clear research state.
+Completed work leaves. Findings go to `docs/analyses/`, rejected approaches go
+to `archive/`, and the experiment document itself is deleted once its outcome is
+recorded somewhere permanent. Think of this directory as a scratch pad and
+everything around it as the record.
 
-## Experiment Lifecycle
+## 1. State the hypothesis
 
-### 1. Start Experiment
-
-Create `experiments/[name]-experiment.md` with hypothesis:
+Create `experiments/[name]-experiment.md` before writing code:
 
 ```markdown
 # [Name] Experiment
 
 ## Hypothesis
 
-[What you expect to find]
+[What you expect to find, stated so it could turn out false]
 
 ## Motivation
 
-[Why this matters]
+[Why this matters — which workload, which current weakness]
 
 ## Approach
 
@@ -27,34 +31,45 @@ Create `experiments/[name]-experiment.md` with hypothesis:
 
 ## Success Criteria
 
-[How you'll know if it worked]
+[The number or behavior that decides it]
 ```
 
-### 2. Implement
+Choosing the success criteria now, rather than after seeing the data, is what
+keeps a marginal result from being narrated into a win.
 
-- Create `packages/@jim/spandex/src/index/[name].ts`
-- Add test files in `packages/@jim/spandex/test/index/[name]/`
-- Generate fixtures: `UPDATE_FIXTURES=1 deno test -A`
+## 2. Implement and iterate
 
-### 3. Iterate with Quick Benchmarks
+Create the implementation at `packages/@jim/spandex/src/index/[name].ts` and its
+tests under `packages/@jim/spandex/test/index/[name]/`, then generate fixtures
+with `UPDATE_FIXTURES=1 deno test -A` and read the resulting diff.
+
+While the design is still moving, stay on quick feedback:
 
 ```bash
-deno task bench:update  # Quick feedback (~2 min)
+deno task bench:update   # ~2 min
 ```
 
-### 4. Run Full Statistical Analysis (Before Completing)
+Running the full statistical analysis on a shape you are about to change is half
+an hour spent measuring the wrong thing.
+
+## 3. Measure for the record
+
+Once the design has settled:
 
 ```bash
-deno task bench:analyze 5 docs/analyses/benchmark-statistics.md  # ~30 min
+deno task bench:analyze 5 docs/analyses/benchmark-statistics.md   # ~30 min
 ```
 
-**CRITICAL**: Always outputs to `benchmark-statistics.md` (OVERWRITES, don't create experiment-specific files).
+Five runs is the minimum for a claim that lands in an analysis document; three
+is a quick validation. The command overwrites `benchmark-statistics.md` on
+purpose. That file answers "how do the current implementations perform", there
+is only one current answer, and the data it holds is the same shape for every
+experiment. Do not create a per-experiment variant of it.
 
-The data is generic (win rates, CV%, scenarios) - same structure for all experiments.
+## 4. Document the findings
 
-### 5. Document Findings
-
-Create `docs/analyses/[name]-analysis.md`:
+Write `docs/analyses/[name]-analysis.md` following the arc from hypothesis
+through method and data to conclusion and impact:
 
 ```markdown
 # [Name] Analysis
@@ -82,90 +97,37 @@ Create `docs/analyses/[name]-analysis.md`:
 [What this means]
 ```
 
-### 6. Update Status
+Keep what you measured separate from what you think caused it. A measured number
+carries its conditions: which scenario, what n, how many runs, what CV%. A
+proposed mechanism stays labelled as a proposal until an experiment rules the
+alternatives out.
 
-Mark experiment doc with:
+## 5. Resolve and clean up
 
-- ✅ **VALIDATED** - Hypothesis confirmed
-- ❌ **REJECTED** - Hypothesis disproven
+Mark the experiment document validated or rejected, then take one of three
+paths:
 
-### 7. Resolution
+| Outcome                 | What happens                                                                                                                                    |
+| ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| Validated               | Update `docs/core/RESEARCH-SUMMARY.md`, keep the implementation active, delete the experiment document                                          |
+| Rejected, moving on     | Move the document to `archive/docs/experiments/` and archive the implementation, per [IMPLEMENTATION-LIFECYCLE](../IMPLEMENTATION-LIFECYCLE.md) |
+| Rejected, might revisit | Leave it here with a note saying why it is parked and what would restart it                                                                     |
 
-**✅ VALIDATED**:
+Before you call the experiment done, check that both benchmark documents are
+current, that the findings are in `docs/analyses/[name]-analysis.md`, that
+`RESEARCH-SUMMARY.md` reflects the outcome, and that
+`ls docs/active/experiments/` shows only work still in progress.
 
-- Update `docs/core/RESEARCH-SUMMARY.md`
-- Keep implementation active
-- **DELETE experiment doc from `active/experiments/`**
+## Starting the next one
 
-**❌ REJECTED (moving on)**:
-
-- Move experiment doc to `archive/docs/experiments/`
-- Archive implementation (see [IMPLEMENTATION-LIFECYCLE](../IMPLEMENTATION-LIFECYCLE.md))
-- **DELETE from `active/experiments/`**
-
-**❌ REJECTED (might revisit)**:
-
-- Leave in `active/experiments/` with notes
-- Mark clearly: "ON HOLD - [reason]"
-
-### 8. Clean Workspace
-
-**CRITICAL**: **DELETE completed experiments from `docs/active/experiments/`**
-
-Before ending any experiment, verify:
-
-- [ ] **Both benchmark docs are current**:
-  - [ ] `BENCHMARKS.md` updated (via `bench:update`)
-  - [ ] `docs/analyses/benchmark-statistics.md` updated (via `bench:analyze`)
-- [ ] Findings documented in `[name]-analysis.md`
-- [ ] Summary updated in `RESEARCH-SUMMARY.md`
-- [ ] Experiment files removed from `docs/active/experiments/`
-- [ ] `ls docs/active/experiments/` shows ONLY in-progress work
-
-## File Naming Convention
-
-Prevents confusion:
-
-- `docs/analyses/benchmark-statistics.md` - Statistical validation (ALWAYS this filename, always overwrite)
-- `docs/analyses/[name]-analysis.md` - Experiment narrative (hypothesis, methodology, findings)
-- `docs/active/experiments/[name]-experiment.md` - Work-in-progress tracking (**DELETE when done**)
-
-## Example Workflow
-
-```bash
-# WRONG - Completed experiments still in active/
-docs/active/experiments/
-├── experiment-1.md (COMPLETED) ❌
-├── experiment-1-results.md ❌
-├── experiment-2.md (IN PROGRESS)
-
-# CORRECT - Only active work
-docs/active/experiments/
-└── experiment-2.md (IN PROGRESS) ✅
-
-# Completed work properly archived
-docs/analyses/experiment-1-analysis.md ✅
-archive/docs/experiments/failed-experiment-1.md ✅
-```
-
-## Why Keep It Empty?
-
-An empty `active/experiments/` directory means:
-
-- All research questions have been answered (for now)
-- Clean workspace ready for next experiment
-- Clear distinction between in-progress and completed work
-
-**Mental model**: `docs/active/` is your scratch pad (work in progress), everything else is permanent record.
-
-New experiments will be added when:
-
-- New use cases emerge that existing implementations don't handle well
-- Technology changes (e.g., WASM becomes practical, new JS engine optimizations)
-- Someone has a promising idea that hasn't been tried yet (check `archive/` first!)
+New experiments tend to come from three places: a use case the current
+implementations handle badly, a change in the platform such as WASM becoming
+practical, or an untried idea. Check `archive/` before the third one. Someone
+may have tried it already, and the record of why it failed is the reason that
+archive exists.
 
 ## See Also
 
-- [RESEARCH-SUMMARY.md](../core/RESEARCH-SUMMARY.md) - Current validated findings
-- [IMPLEMENTATION-LIFECYCLE.md](../IMPLEMENTATION-LIFECYCLE.md) - Managing implementations
-- [BENCHMARK-FRAMEWORK.md](../BENCHMARK-FRAMEWORK.md) - Benchmarking workflows
+- [RESEARCH-SUMMARY](../core/RESEARCH-SUMMARY.md) — current validated findings
+- [IMPLEMENTATION-LIFECYCLE](../IMPLEMENTATION-LIFECYCLE.md) — managing implementations
+- [BENCHMARK-FRAMEWORK](../BENCHMARK-FRAMEWORK.md) — benchmarking workflows
