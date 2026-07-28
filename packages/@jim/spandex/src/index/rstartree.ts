@@ -29,6 +29,7 @@
  */
 
 import { computeExtent } from '../extent.ts';
+import { hits, subtractInto } from '../decompose.ts';
 import * as r from '../r.ts';
 import type { ExtentResult, QueryResult, Rectangle, SpatialIndex } from '../types.ts';
 
@@ -37,7 +38,15 @@ const MAX_ENTRIES = 10; // Maximum entries per node (before split)
 
 interface Node {
 	isLeaf: boolean;
-	bounds: Readonly<Rectangle>;
+	/**
+	 * The node's bounding box, owned and rewritten in place.
+	 *
+	 * `updateBounds` runs once per level on every descent, so re-minting an
+	 * array there produced roughly depth-times-fragments arrays of garbage per
+	 * insert. Nothing aliases this array: it is created with the node and only
+	 * ever read, so mutation is safe.
+	 */
+	bounds: Rectangle;
 	children: number[]; // node or entry indices
 }
 
@@ -45,41 +54,6 @@ interface Entry<T> {
 	bounds: Readonly<Rectangle>;
 	value: T;
 	active: boolean;
-}
-
-function hits(
-	ax1: number,
-	ay1: number,
-	ax2: number,
-	ay2: number,
-	bx1: number,
-	by1: number,
-	bx2: number,
-	by2: number,
-): boolean {
-	return !(ax2 < bx1 || bx2 < ax1 || ay2 < by1 || by2 < ay1);
-}
-
-function subtract(
-	ax1: number,
-	ay1: number,
-	ax2: number,
-	ay2: number,
-	bx1: number,
-	by1: number,
-	bx2: number,
-	by2: number,
-): Array<Readonly<Rectangle>> {
-	const fragments: Array<Readonly<Rectangle>> = [];
-	if (ay1 < by1) fragments.push(r.canonical([ax1, ay1, ax2, by1 - 1]));
-	if (ay2 > by2) fragments.push(r.canonical([ax1, by2 + 1, ax2, ay2]));
-	const yMin = ay1 > by1 ? ay1 : by1;
-	const yMax = ay2 < by2 ? ay2 : by2;
-	if (yMin <= yMax) {
-		if (ax1 < bx1) fragments.push(r.canonical([ax1, yMin, bx1 - 1, yMax]));
-		if (ax2 > bx2) fragments.push(r.canonical([bx2 + 1, yMin, ax2, yMax]));
-	}
-	return fragments;
 }
 
 function area(x1: number, y1: number, x2: number, y2: number): number {
@@ -124,21 +98,10 @@ class RStarTreeImpl<T> implements RStarTreeIndex<T> {
 	private entries: Entry<T>[] = [];
 	private rootIdx = -1;
 	private _size = 0; // Cached count of active entries
+	private deadCount = 0; // Tombstoned entries awaiting compaction
 	private extentCached: ExtentResult | null = null;
-
-	/**
-	 * MEMORY GROWTH NOTE:
-	 * Dead entries (active=false) accumulate in the entries array over time.
-	 * This causes linear memory growth with overlapping updates.
-	 *
-	 * Typical memory usage: ~50 bytes per entry (active + dead)
-	 * After 10k overlapping updates: ~250-500KB for dead entries
-	 *
-	 * For long-running applications with frequent overlaps, consider:
-	 * 1. Periodically rebuild the index from scratch (copy active entries to new instance)
-	 * 2. Monitor memory usage and trigger rebuild at threshold
-	 * 3. Use a different index structure for update-heavy workloads
-	 */
+	/** Reused by `insert`; consumed before the call returns. */
+	private readonly fragScratch: Array<Readonly<Rectangle>> = [];
 
 	insert(bounds: Readonly<Rectangle>, value: T): void {
 		bounds = r.validated(bounds);
@@ -166,35 +129,41 @@ class RStarTreeImpl<T> implements RStarTreeIndex<T> {
 
 		const overlapping = this.searchEntries(root, nx1, ny1, nx2, ny2);
 
-		// Must generate fragments BEFORE marking inactive (need entry.value)
-		const fragments: Array<[Readonly<Rectangle>, T]> = [[bounds, value]];
-
-		for (const idx of overlapping) {
-			const entry = this.entries[idx]!;
-			const [ex1, ey1, ex2, ey2] = entry.bounds;
-
-			for (const frag of subtract(ex1, ey1, ex2, ey2, nx1, ny1, nx2, ny2)) {
-				fragments.push([frag, entry.value]);
-			}
-		}
-
+		// `searchEntries` has already produced its snapshot and entry indices
+		// only ever grow, so new entries can be placed while walking it. There
+		// is no need to buffer the fragments first.
 		for (const entryIdx of overlapping) {
 			this.entries[entryIdx]!.active = false;
 			this._size--;
+			this.deadCount++;
 		}
 
-		for (const [rect, v] of fragments) {
-			const entryIdx = this.addEntry(rect, v);
-			const splitNodeIdx = this.insertIntoNode(root, entryIdx);
+		root = this.place(root, r.owned(bounds), value);
 
-			if (splitNodeIdx !== -1) {
-				const newRootIdx = this.createNode(false);
-				this.nodes[newRootIdx]!.children = [root, splitNodeIdx];
-				this.updateBounds(newRootIdx);
-				this.rootIdx = newRootIdx;
-				root = newRootIdx;
+		const frags = this.fragScratch;
+		for (const idx of overlapping) {
+			const entry = this.entries[idx]!;
+			const [ex1, ey1, ex2, ey2] = entry.bounds;
+			frags.length = 0;
+			subtractInto(ex1, ey1, ex2, ey2, nx1, ny1, nx2, ny2, frags);
+			for (let i = 0; i < frags.length; i++) {
+				root = this.place(root, frags[i]!, entry.value);
 			}
 		}
+
+		this.compactIfNeeded();
+	}
+
+	/** Insert one rectangle, growing a new root if the insert split the old one. */
+	private place(root: number, rect: Readonly<Rectangle>, value: T): number {
+		const splitNodeIdx = this.insertIntoNode(root, this.addEntry(rect, value));
+		if (splitNodeIdx === -1) return root;
+
+		const newRootIdx = this.createNode(false);
+		this.nodes[newRootIdx]!.children = [root, splitNodeIdx];
+		this.updateBounds(newRootIdx);
+		this.rootIdx = newRootIdx;
+		return newRootIdx;
 	}
 
 	*query(bounds: Readonly<Rectangle> = r.ALL): IterableIterator<QueryResult<T>> {
@@ -297,6 +266,43 @@ class RStarTreeImpl<T> implements RStarTreeIndex<T> {
 
 	//#region Node Operations
 
+	/**
+	 * Rebuild from the live entries once tombstones outnumber them.
+	 *
+	 * An overwritten entry is tombstoned rather than removed, so its index stays
+	 * in its leaf and its bounds keep inflating that leaf's box. Left alone, a
+	 * workload that repeatedly rewrites the same region grows the tree without
+	 * bound and defeats pruning: cost tracks every insert the index has ever
+	 * seen rather than what it currently holds, which breaks the O(log n) query
+	 * this structure exists to provide.
+	 *
+	 * Rebuilding when `deadCount > _size` bounds dead entries at half the tree
+	 * and costs O(n log n) amortized over at least `_size` inserts, so the
+	 * amortized cost per insert stays constant.
+	 */
+	private compactIfNeeded(): void {
+		if (this.deadCount <= this._size) return;
+
+		const live: Array<Entry<T>> = [];
+		for (const entry of this.entries) {
+			if (entry.active) live.push(entry);
+		}
+
+		this.entries = [];
+		this.nodes = [];
+		this.rootIdx = -1;
+		this._size = 0;
+		this.deadCount = 0;
+
+		if (live.length === 0) return;
+
+		let root = this.createNode(true);
+		this.rootIdx = root;
+		for (const entry of live) {
+			root = this.place(root, entry.bounds, entry.value);
+		}
+	}
+
 	private createNode(isLeaf: boolean): number {
 		const idx = this.nodes.length;
 		this.nodes.push({
@@ -347,7 +353,11 @@ class RStarTreeImpl<T> implements RStarTreeIndex<T> {
 			}
 		}
 
-		node.bounds = [xmin, ymin, xmax, ymax];
+		const b = node.bounds;
+		b[0] = xmin;
+		b[1] = ymin;
+		b[2] = xmax;
+		b[3] = ymax;
 	}
 	//#endregion Node Operations
 

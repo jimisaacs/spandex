@@ -34,6 +34,7 @@
  */
 
 import { computeExtent } from '../extent.ts';
+import { hits, subtractInto } from '../decompose.ts';
 import * as r from '../r.ts';
 import type { ExtentResult, QueryResult, Rectangle, SpatialIndex } from '../types.ts';
 
@@ -89,31 +90,15 @@ function mortonCode(x: number, y: number): number {
 	return x | (y << 1);
 }
 
-function intersects(a: Readonly<Rectangle>, b: Readonly<Rectangle>): boolean {
-	return !(a[2] < b[0] || a[0] > b[2] || a[3] < b[1] || a[1] > b[3]);
+/** Morton code of a rectangle's centre; infinite edges anchor at 0. */
+function mortonOf(b: Readonly<Rectangle>): number {
+	const centerX = r.isFin(b[0]) && r.isFin(b[2]) ? (b[0] + b[2]) >> 1 : 0;
+	const centerY = r.isFin(b[1]) && r.isFin(b[3]) ? (b[1] + b[3]) >> 1 : 0;
+	return mortonCode(centerX, centerY);
 }
 
-function subtract(a: Readonly<Rectangle>, b: Readonly<Rectangle>): Readonly<Rectangle>[] {
-	const [ax1, ay1, ax2, ay2] = a;
-	const [bx1, by1, bx2, by2] = b;
-
-	if (bx1 <= ax1 && bx2 >= ax2 && by1 <= ay1 && by2 >= ay2) return [];
-
-	const fragments: Readonly<Rectangle>[] = [];
-
-	// Top strip (before B starts in y direction)
-	if (ay1 < by1) fragments.push(r.canonical([ax1, ay1, ax2, by1 - 1]));
-	// Bottom strip (after B ends in y direction)
-	if (ay2 > by2) fragments.push(r.canonical([ax1, by2 + 1, ax2, ay2]));
-	// Side strips (only if overlapping Y range exists)
-	const yMin = Math.max(ay1, by1);
-	const yMax = Math.min(ay2, by2);
-	if (yMin <= yMax) {
-		if (ax1 < bx1) fragments.push(r.canonical([ax1, yMin, bx1 - 1, yMax]));
-		if (ax2 > bx2) fragments.push(r.canonical([bx2 + 1, yMin, ax2, yMax]));
-	}
-
-	return fragments;
+function byMorton(a: { morton: number }, b: { morton: number }): number {
+	return a.morton - b.morton;
 }
 
 function binarySearch(entries: Array<Entry<unknown>>, morton: number): number {
@@ -152,6 +137,13 @@ export interface MortonLinearScanIndex<T> extends SpatialIndex<T> {
 class MortonLinearScanImpl<T> implements MortonLinearScanIndex<T> {
 	private entries: Array<Entry<T>> = [];
 	private extentCached: ExtentResult | null = null;
+	/**
+	 * Reused across inserts. Fully consumed before `insert` returns and never
+	 * handed out, so one buffer serves every call instead of one array per
+	 * overlapping entry.
+	 */
+	private readonly fragScratch: Array<Readonly<Rectangle>> = [];
+	private readonly pending: Array<Entry<T>> = [];
 
 	insert(bounds: Readonly<Rectangle>, value: T): void {
 		bounds = r.validated(bounds);
@@ -164,21 +156,23 @@ class MortonLinearScanImpl<T> implements MortonLinearScanIndex<T> {
 			return;
 		}
 
+		const [nx1, ny1, nx2, ny2] = bounds;
+
 		// Single-pass O(n): decompose overlaps and keep non-overlapping entries
-		const fragments: Array<Entry<T>> = [];
+		const fragments = this.pending;
+		const frags = this.fragScratch;
+		fragments.length = 0;
 		const entries = this.entries;
 		let writeIdx = 0;
 		for (let i = 0; i < entries.length; i++) {
 			const entry = entries[i]!;
-			if (intersects(bounds, entry.bounds)) {
-				const frags = subtract(entry.bounds, bounds);
+			const [ex1, ey1, ex2, ey2] = entry.bounds;
+			if (hits(nx1, ny1, nx2, ny2, ex1, ey1, ex2, ey2)) {
+				frags.length = 0;
+				subtractInto(ex1, ey1, ex2, ey2, nx1, ny1, nx2, ny2, frags);
 				for (let j = 0; j < frags.length; j++) {
 					const frag = frags[j]!;
-					// Handle infinite bounds: use 0 for center if coordinate is infinite
-					const centerX = r.isFin(frag[0]) && r.isFin(frag[2]) ? (frag[0] + frag[2]) >> 1 : 0;
-					const centerY = r.isFin(frag[1]) && r.isFin(frag[3]) ? (frag[1] + frag[3]) >> 1 : 0;
-					const morton = mortonCode(centerX, centerY);
-					fragments.push({ bounds: frag, value: entry.value, morton });
+					fragments.push({ bounds: frag, value: entry.value, morton: mortonOf(frag) });
 				}
 			} else {
 				entries[writeIdx++] = entry;
@@ -186,29 +180,34 @@ class MortonLinearScanImpl<T> implements MortonLinearScanIndex<T> {
 		}
 		entries.length = writeIdx;
 
-		// Handle infinite bounds: use 0 for center if coordinate is infinite
-		const centerX = r.isFin(bounds[0]) && r.isFin(bounds[2]) ? (bounds[0] + bounds[2]) >> 1 : 0;
-		const centerY = r.isFin(bounds[1]) && r.isFin(bounds[3]) ? (bounds[1] + bounds[3]) >> 1 : 0;
-		const morton = mortonCode(centerX, centerY);
-		fragments.push({ bounds, value, morton });
+		fragments.push({ bounds: r.owned(bounds), value, morton: mortonOf(bounds) });
 
-		// Complexity: O(k·n) where k = fragments.length, n = entries.length
-		// Each splice is O(n) due to array element shifting
-		// Trade-off: Maintains sorted order for cache locality (worth it for small k)
-		for (let i = 0; i < fragments.length; i++) {
-			const entry = fragments[i]!;
-			const pos = binarySearch(entries, entry.morton); // O(log n)
-			entries.splice(pos, 0, entry); // O(n) - shifts elements
+		// Merge the fragments into the Morton-ordered entries in one backward
+		// pass. Splicing each fragment in turn shifts O(n) elements per
+		// fragment; sorting the handful of fragments and merging once costs
+		// O(n + F log F) and leaves the same order.
+		fragments.sort(byMorton);
+		const kept = entries.length;
+		const added = fragments.length;
+		entries.length = kept + added;
+		let w = kept + added - 1;
+		let i = kept - 1;
+		let j = added - 1;
+		while (j >= 0) {
+			entries[w--] = (i >= 0 && entries[i]!.morton > fragments[j]!.morton) ? entries[i--]! : fragments[j--]!;
 		}
+		fragments.length = 0;
 	}
 
 	*query(bounds: Readonly<Rectangle> = r.ALL): IterableIterator<QueryResult<T>> {
 		bounds = r.validated(bounds);
 
 		// Linear scan (Morton ordering may help with cache locality)
+		const [qx1, qy1, qx2, qy2] = bounds;
 		const entries = this.entries;
 		for (const entry of entries) {
-			if (intersects(bounds, entry.bounds)) yield [entry.bounds, entry.value];
+			const [ex1, ey1, ex2, ey2] = entry.bounds;
+			if (hits(qx1, qy1, qx2, qy2, ex1, ey1, ex2, ey2)) yield [entry.bounds, entry.value];
 		}
 	}
 

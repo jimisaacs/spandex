@@ -22,12 +22,12 @@ export const isFin: (value: number) => boolean = Number.isFinite;
 /**
  * Universal rectangle covering entire coordinate space: (-∞, +∞) × (-∞, +∞)
  */
-export const ALL: Readonly<Rectangle> = [negInf, negInf, posInf, posInf];
+export const ALL: Readonly<Rectangle> = Object.freeze([negInf, negInf, posInf, posInf]);
 
 /**
  * Zero rectangle (degenerate case): single point at origin (0, 0)
  */
-export const ZERO: Readonly<Rectangle> = [0, 0, 0, 0];
+export const ZERO: Readonly<Rectangle> = Object.freeze([0, 0, 0, 0]);
 
 /**
  * Structural equality: two rectangles are equal iff all coordinates match.
@@ -79,6 +79,19 @@ export function canonical(a: Readonly<Rectangle>): Readonly<Rectangle> {
  */
 export function validated(a: Readonly<Rectangle>): Readonly<Rectangle> {
 	const [xmin, ymin, xmax, ymax] = a;
+	// Coordinates address discrete cells, and decomposition relies on that: a
+	// fragment abutting B starts at `bx1 - 1`, which only lands adjacent to B
+	// when coordinates are whole. A fractional bound makes that arithmetic
+	// produce an inverted or gap-leaving fragment, so it is refused here rather
+	// than stored as a rectangle this function would itself reject.
+	for (const c of a) {
+		if (!Number.isInteger(c) && Number.isFinite(c)) {
+			throw new Error(
+				`Invalid rectangle: coordinate ${c} is not an integer. ` +
+					`Coordinates address discrete cells; use ±Infinity for unbounded edges.`,
+			);
+		}
+	}
 	if (xmin > xmax) {
 		throw new Error(
 			`Invalid rectangle: xmin (${xmin}) > xmax (${xmax}). ` +
@@ -92,6 +105,24 @@ export function validated(a: Readonly<Rectangle>): Readonly<Rectangle> {
 		);
 	}
 	return canonical(a);
+}
+
+/**
+ * Return a rectangle the index can retain safely.
+ *
+ * `validated()` and `canonical()` hand back the caller's own array when it is
+ * not a sentinel, so storing that result would let the caller keep a live
+ * reference into the index and mutate stored bounds afterwards. That breaks
+ * disjointness from outside, where no invariant check can see it coming.
+ *
+ * Sentinels are already frozen and shared, so they are returned as-is; every
+ * other rectangle is copied once and frozen. This is the one copy on the
+ * retention path, and `query` does not pay it.
+ */
+export function owned(a: Readonly<Rectangle>): Readonly<Rectangle> {
+	const c = canonical(a);
+	if (c === ZERO || c === ALL) return c;
+	return Object.freeze([c[0], c[1], c[2], c[3]]) as Readonly<Rectangle>;
 }
 
 /**
@@ -121,9 +152,9 @@ export function contains(a: Readonly<Rectangle>, b: Readonly<Rectangle>): boolea
 }
 
 /** No edges are infinite (all bounds are finite) */
-export const NO_EDGES: Readonly<EdgeFlags> = [false, false, false, false];
+export const NO_EDGES: Readonly<EdgeFlags> = Object.freeze([false, false, false, false]);
 /** All edges are infinite (rectangle covers entire space) */
-export const ALL_EDGES: Readonly<EdgeFlags> = [true, true, true, true];
+export const ALL_EDGES: Readonly<EdgeFlags> = Object.freeze([true, true, true, true]);
 
 /**
  * Canonicalize EdgeFlags to sentinel reference when structurally equivalent.

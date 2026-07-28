@@ -131,6 +131,47 @@ export async function testPropertyAxioms(
 		assertGreater(Array.from(index.query()).length, 1, 'infinite ranges should fragment properly');
 	});
 
+	await t.step('Stored bounds are independent of the caller array', () => {
+		const index = implementation();
+
+		// `insert` must not retain the caller's array. If it does, the caller
+		// still holds a mutable handle on stored bounds and can grow one
+		// rectangle over another from outside, where no check can intervene.
+		const rect: Rectangle = [0, 0, 4, 4];
+		index.insert(rect, 'a');
+		index.insert([10, 10, 14, 14], 'b');
+
+		rect[0] = -100;
+		rect[1] = -100;
+		rect[2] = 100;
+		rect[3] = 100;
+
+		assertInvariants(index, 'after caller mutated the array it passed to insert');
+		const stored = Array.from(index.query()).map(([b]) => b.join(','));
+		assertArrayIncludes(stored, ['0,0,4,4'], 'stored bounds must not follow the caller array');
+	});
+
+	await t.step('Non-integer coordinates are rejected', () => {
+		const index = implementation();
+
+		// Decomposition offsets fragments by one cell, which only produces
+		// abutting rectangles on a discrete grid. A fractional bound yields
+		// inverted fragments that overlap nothing and so pass disjointness
+		// vacuously, so it is refused at the boundary instead.
+		let threw = false;
+		try {
+			index.insert([0, 0.5, 10, 10], 'fractional');
+		} catch (e) {
+			threw = true;
+			assertIsError(e, Error, 'not an integer');
+		}
+		assert(threw, 'fractional coordinates should be rejected');
+
+		index.insert([0, 0, 10, 10], 'ok');
+		index.insert([2, 2, 5, 5], 'overlap');
+		assertInvariants(index, 'after integer inserts');
+	});
+
 	await t.step('Universal rectangle decomposes like any other', () => {
 		const index = implementation();
 
