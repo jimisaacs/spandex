@@ -17,11 +17,26 @@ export interface TestConfig {
 
 /**
  * Invariants that must hold after every operation:
+ * 0. Well-formed: every stored rectangle satisfies xmin <= xmax and ymin <= ymax
  * 1. Non-duplication: No duplicate (bounds, value) pairs
  * 2. Disjoint: No overlapping rectangles (∀ rᵢ, rⱼ: i ≠ j ⟹ rᵢ ∩ rⱼ = ∅)
+ *
+ * Invariant 0 exists because invariant 2 cannot see its violation: an inverted
+ * rectangle overlaps nothing under an AABB test, so a store corrupted into
+ * inverted bounds passes the disjointness check vacuously.
  */
 export const assertInvariants = <T>(index: SpatialIndex<T>, context: string): void => {
 	const ranges = Array.from(index.query());
+
+	// Invariant 0: Well-formed bounds
+	for (const [bounds, value] of ranges) {
+		const [xmin, ymin, xmax, ymax] = bounds;
+		assertFalse(
+			xmin > xmax || ymin > ymax,
+			`${context}: inverted rectangle [${xmin}, ${ymin}, ${xmax}, ${ymax}] (value=${value}). ` +
+				`The index stores bounds its own validator would reject.`,
+		);
+	}
 
 	// Invariant 1: Non-duplication
 	const signatures = ranges.map((result) =>
@@ -114,6 +129,36 @@ export async function testPropertyAxioms(
 		assertInvariants(index, 'infinite columns');
 
 		assertGreater(Array.from(index.query()).length, 1, 'infinite ranges should fragment properly');
+	});
+
+	await t.step('Universal rectangle decomposes like any other', () => {
+		const index = implementation();
+
+		// The universal rectangle is the whole plane. An empty Google Sheets
+		// GridRange is its spelling in the primary deployment path, so this is a
+		// reachable state, not a curiosity.
+		index.insert(r.ALL, 'universe');
+		assertInvariants(index, 'universal rectangle inserted');
+		assertEquals(Array.from(index.query()).length, 1, 'ALL should be stored as one range');
+
+		// Overlapping it must decompose it, exactly as overlapping a finite
+		// rectangle does. Discarding it instead loses the covering value
+		// silently, which no invariant check can observe.
+		index.insert([0, 0, 5, 5], 'sub');
+		assertInvariants(index, 'universal rectangle overlapped');
+
+		const values = Array.from(index.query()).map(([, v]) => v);
+		assertArrayIncludes(values, ['sub'], 'the overlapping insert must be stored');
+		assertArrayIncludes(
+			values,
+			['universe'],
+			'the universal rectangle must survive as fragments, not be discarded',
+		);
+		assertEquals(
+			values.filter((v) => v === 'universe').length,
+			4,
+			'a rectangle strictly inside ALL leaves 4 fragments',
+		);
 	});
 
 	await t.step('Invalid range rejection', () => {

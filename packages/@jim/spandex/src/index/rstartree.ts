@@ -123,7 +123,6 @@ class RStarTreeImpl<T> implements RStarTreeIndex<T> {
 	private nodes: Node[] = [];
 	private entries: Entry<T>[] = [];
 	private rootIdx = -1;
-	private isAll = false;
 	private _size = 0; // Cached count of active entries
 	private extentCached: ExtentResult | null = null;
 
@@ -146,23 +145,18 @@ class RStarTreeImpl<T> implements RStarTreeIndex<T> {
 
 		this.extentCached = null;
 
-		// Global range (infinite bounds) - fast path
+		// The universal rectangle covers every existing entry, so each of them
+		// subtracts to nothing. Reset the tree, then fall through: ALL is stored
+		// as an ordinary entry so a later overlapping insert decomposes it the
+		// same way it decomposes anything else.
 		if (r.isAll(bounds)) {
-			this.entries = [{ bounds: r.ALL, value, active: true }];
+			this.entries = [];
 			this.nodes = [];
-			this.isAll = true;
 			this.rootIdx = -1;
-			this._size = 1;
-			return;
+			this._size = 0;
 		}
 
 		const [nx1, ny1, nx2, ny2] = bounds;
-
-		if (this.isAll) {
-			this.entries = [];
-			this._size = 0;
-		}
-		this.isAll = false;
 
 		if (this.rootIdx === -1) {
 			this.rootIdx = this.createNode(true);
@@ -205,11 +199,6 @@ class RStarTreeImpl<T> implements RStarTreeIndex<T> {
 
 	*query(bounds: Readonly<Rectangle> = r.ALL): IterableIterator<QueryResult<T>> {
 		bounds = r.validated(bounds);
-
-		if (this.isAll) {
-			yield [r.ALL, this.entries[0]!.value];
-			return;
-		}
 
 		const root = this.rootIdx;
 		if (root === -1) return;
