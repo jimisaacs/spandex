@@ -1,5 +1,6 @@
 export * from './cross-implementation.ts';
 export * from './geometry.ts';
+export * from './partitioned.ts';
 export * from './properties.ts';
 export * from './visual.ts';
 
