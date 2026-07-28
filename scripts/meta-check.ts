@@ -962,18 +962,20 @@ async function checkScriptsDocumented(): Promise<void> {
 // ---------------------------------------------------------------------------
 
 /**
- * The site is built from the repository's own markdown, so anything committed
- * as `.md` is a page unless the config says otherwise. Two categories must
- * never become pages: agent scaffolding, which is written for an executor
- * rather than a reader, and committed test fixtures, which are snapshots for
- * review. Both once shipped: `CLAUDE.md` because a bare filename does not match
- * a recursive glob, and two packages' fixtures because only the third package's
- * test tree was named.
+ * The site is built from the repository's own markdown, so what the config
+ * ignores decides what exists, and the sidebar is hand-written and resolves
+ * against nothing. Both halves have failed. `CLAUDE.md` published as a page,
+ * because a bare filename does not match a recursive glob. Then widening the
+ * ignores unpublished the two renderer fixture pages the sidebar links as its
+ * HTML and ASCII examples, and the nav went to 404 with every check green.
+ *
+ * So the rule is not "ignore test trees", which was the wrong lesson. It is
+ * that agent scaffolding must never publish, and every internal nav link must
+ * point at a page the config still emits.
  */
 async function checkSiteIgnores(): Promise<void> {
 	checksRun++;
-	const configPath = join(ROOT, 'site', '_config.ts');
-	const config = await readText(configPath);
+	const config = await readText(join(ROOT, 'site', '_config.ts'));
 
 	// Every agent entry point needs both spellings: the bare name and the glob.
 	for (const entry of ['AGENTS.md', 'CLAUDE.md']) {
@@ -988,23 +990,32 @@ async function checkSiteIgnores(): Promise<void> {
 		}
 	}
 
-	// Test trees are ignored by predicate, not one package at a time, so a new
-	// package cannot arrive with its fixtures exposed.
-	if (!/site\.ignore\(\(path\)\s*=>\s*path\.includes\('\/test\/'\)\)/.test(config)) {
-		fail(
-			'site-ignores',
-			'site/_config.ts',
-			"does not ignore every '/test/' path by predicate, so a package's committed fixtures would publish as pages",
-		);
-	}
+	// Literal prefixes the config drops, plus any `path.includes('x')` predicate.
+	const ignoredPrefixes = [...config.matchAll(/site\.ignore\(([^)]*)\)/g)]
+		.flatMap((m) => [...m[1]!.matchAll(/'([^']+)'/g)].map((s) => s[1]!))
+		.filter((s) => !s.startsWith('**/'));
+	const ignoredSubstrings = [...config.matchAll(/path\.includes\('([^']+)'\)/g)].map((m) => m[1]!);
 
-	// A per-package test ignore is the shape that let two packages leak.
-	for (const match of config.matchAll(/site\.ignore\('(packages\/[^']*\/test)'\)/g)) {
-		fail(
-			'site-ignores',
-			`site/_config.ts:${lineOf(config, match.index!)}`,
-			`ignores one package's tests ("${match[1]}") — the predicate above covers every package; delete this line`,
-		);
+	const layoutPath = join(ROOT, 'site', '_includes', 'layout.vto');
+	const layout = await readText(layoutPath);
+
+	for (const match of layout.matchAll(/href="\/([^"{}]+\.md)"/g)) {
+		const target = match[1]!;
+		const where = `site/_includes/layout.vto:${lineOf(layout, match.index!)}`;
+
+		if (!await exists(join(ROOT, target))) {
+			fail('site-ignores', where, `nav links to "${target}", which does not exist`);
+			continue;
+		}
+		const hit = ignoredPrefixes.find((p) => target === p || target.startsWith(`${p}/`)) ??
+			ignoredSubstrings.find((s) => target.includes(s));
+		if (hit !== undefined) {
+			fail(
+				'site-ignores',
+				where,
+				`nav links to "${target}", which site/_config.ts ignores via "${hit}" — the page will 404`,
+			);
+		}
 	}
 }
 

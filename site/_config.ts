@@ -46,10 +46,12 @@ site.ignore('site');
 site.ignore('.temp');
 site.ignore('.git*');
 
-// Ignore internal packages and every package's test tree. Test fixtures are
-// committed snapshots for review, not pages a reader should land on.
+// Ignore internal packages and the core package's tests. The two renderer
+// packages keep their fixtures published: the nav links to them as the HTML and
+// ASCII examples, since a rendered snapshot is the clearest thing to show for a
+// rendering package.
 site.ignore('packages/@local');
-site.ignore((path) => path.includes('/test/'));
+site.ignore('packages/@jim/spandex/test');
 
 // Ignore agent scaffolding. These are written for an executor, not a reader,
 // and a bare filename does not match a `**/` glob, so each is named twice.
