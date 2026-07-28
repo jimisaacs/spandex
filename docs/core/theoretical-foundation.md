@@ -55,9 +55,9 @@ INSERT(R, v):
 
 **Space**: O(n) entries (≈4n worst case)
 
-**Best for**: Sparse data (n < 100)
+**Best for**: write-heavy sparse data (n < 100)
 
-**Optimizations**: Spatial locality (2x faster), compact storage, TypedArrays
+**Optimizations**: Morton-order storage for spatial locality, compact entry layout
 
 ### Algorithm 2: Hierarchical R*-tree (O(log n))
 
@@ -71,7 +71,7 @@ INSERT(R, v):
 R* Split (Beckmann et al., 1990): Choose axis minimizing perimeter sum, choose split minimizing overlap. O(m log m) per split (m=10).
 
 **Space**: O(n)
-**Best for**: Large datasets (n ≥ 1000)
+**Best for**: read-heavy work from about n=100, and write-heavy work with high overlap from about n=600
 
 ---
 
@@ -205,29 +205,10 @@ Repeat n times
 - **Empirical typical**: ~2.3n (k ≈ 2.3 overlaps per insert, validated via adversarial patterns)
 - **Example**: 100 pathological inserts → 232 ranges (2.3x), not 4^100
 
----
-
-### Geometric Bound (Formal Proof)
-
-**Theorem**: After n insertions into bounded grid (area A), max rectangles R_max ≤ A / A_min.
-
-**Proof**:
-
-1. Grid area = A (finite)
-2. Rectangles disjoint (proven above)
-3. Each rectangle area ≥ A_min
-4. R × A_min ≤ A
-5. Therefore: **R ≤ A / A_min**
-
-**Implication**: Exponential O(4^n) geometrically impossible.
-
-**Example**: 10^6 cell grid → max 10^6 rectangles, not 4^100 ≈ 10^60
-
-**Empirical**: 100 pathological inserts → 232 ranges (2.3x), not 4^100
-
-**Conclusion**: Practical O(n) rectangles after n inserts.
-
-∎
+Stated formally: the rectangles are disjoint and each covers at least `A_min`
+area, so a grid of area `A` holds at most `A / A_min` of them. A grid of 10^6
+cells therefore caps out at 10^6 rectangles, nowhere near 4^100 ≈ 10^60. The
+practical bound is O(n).
 
 ---
 
@@ -242,11 +223,11 @@ Repeat n times
 - **Core**: `Rectangle` with closed intervals `[min, max]`
 - **Adapters**: Convert external API types (GridRange, A1) to Rectangle
 
-| Layer                  | Format                | Example: Rows 0-9           |
-| ---------------------- | --------------------- | --------------------------- |
-| Core (implementations) | Rectangle (closed)    | `[0, 0, 9, 9]`              |
-| Adapter (GridRange)    | GridRange (half-open) | `{startRow: 0, endRow: 10}` |
-| Adapter (A1)           | A1 notation           | `"A1:J10"`                  |
+| Layer                  | Format                | Example: Rows 0-9                     |
+| ---------------------- | --------------------- | ------------------------------------- |
+| Core (implementations) | Rectangle (closed)    | `[0, 0, 9, 9]`                        |
+| Adapter (GridRange)    | GridRange (half-open) | `{startRowIndex: 0, endRowIndex: 10}` |
+| Adapter (A1)           | A1 notation           | `"A1:J10"`                            |
 
 **Conversion**: GridRange ⟷ Rectangle via `±1` on end coordinates. `undefined` → `±∞`.
 

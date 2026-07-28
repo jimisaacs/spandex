@@ -6,14 +6,15 @@
 
 ## Production Recommendations
 
-| n (size)    | Workload        | Use                     | Why                              |
-| ----------- | --------------- | ----------------------- | -------------------------------- |
-| **Any**     | Multi-attribute | LazyPartitioned wrapper | Independent attribute updates    |
-| **< 100**   | All             | Morton spatial locality | O(n) ≈ O(1), faster via locality |
-| **100-200** | Write-heavy     | Context-dependent       | See transition zone analysis     |
-| **100-600** | High overlap    | Morton spatial locality | Decomposition cost dominates     |
-| **> 200**   | Read-heavy      | R-tree (R* split)       | O(log n) query pruning wins      |
-| **> 600**   | All             | R-tree (R* split)       | O(log n) hierarchical indexing   |
+| n (size)    | Workload        | Use                     | Why                            |
+| ----------- | --------------- | ----------------------- | ------------------------------ |
+| **Any**     | Multi-attribute | LazyPartitioned wrapper | Independent attribute updates  |
+| **< 100**   | Write-heavy     | Morton spatial locality | Lower per-insert overhead      |
+| **< 100**   | Read-heavy      | R-tree (R* split)       | Query pruning already pays off |
+| **100-200** | Write-heavy     | Context-dependent       | See transition zone analysis   |
+| **100-600** | High overlap    | Morton spatial locality | Decomposition cost dominates   |
+| **> 200**   | Read-heavy      | R-tree (R* split)       | O(log n) query pruning wins    |
+| **> 600**   | All             | R-tree (R* split)       | O(log n) hierarchical indexing |
 
 See [PRODUCTION-GUIDE](../../PRODUCTION-GUIDE.md) for implementation details.
 
@@ -29,13 +30,20 @@ This section summarizes research outcomes. For detailed methodology and data, se
 
 See [morton-vs-hilbert-analysis.md](../analyses/morton-vs-hilbert-analysis.md) for detailed comparison.
 
-### 2. Linear Scan Wins for Sparse Data (n < 100)
+### 2. Linear Scan Wins Write-Heavy Sparse Data (n < 100)
 
-**Finding**: O(n) linear scan with spatial locality is 5-10x faster than O(log n) R-trees for n < 100.
+**Finding**: on write-heavy sparse workloads below n=100, Morton linear scan runs
+between 1.0x and 4.6x faster than the R-tree over five runs. The widest margin is
+sparse-overlapping at n=40. On read-heavy sparse workloads the R-tree is already
+ahead, by around 4x at n=20 and n=60.
 
-**Why**: Tree construction overhead (node allocation, bbox updates) exceeds traversal benefits at small scales.
+**Likely mechanism**: tree construction work (node allocation, bounding-box
+updates) that a flat array never pays. No experiment has separated this from the
+other differences between the two implementations, so treat it as the proposed
+explanation rather than a measured cause.
 
-**Impact**: Use Morton spatial locality for n<100, R-tree for n≥100. Crossover varies by workload (see transition zone analysis).
+**Impact**: pick by workload, not by size alone, below n=100. Above it the
+crossover varies (see transition zone analysis).
 
 See [sparse-data-analysis.md](../analyses/sparse-data-analysis.md) for performance data.
 
@@ -43,11 +51,13 @@ See [sparse-data-analysis.md](../analyses/sparse-data-analysis.md) for performan
 
 **Finding**: R* split (Beckmann 1990) is fastest for tree construction and provides best query performance on overlapping/large datasets.
 
-**Performance**: 20-25x faster construction than Quadratic split, 30-35% faster queries on overlapping data vs Midpoint.
+**Performance**: the comparison was measured against Quadratic and Midpoint
+splits, neither of which is still in the tree.
 
-**Impact**: Production R-tree algorithm. Optimal balance of construction speed and tree quality.
+**Impact**: production R-tree algorithm. Fastest construction of the three, with
+the best query performance on overlapping data.
 
-See [r-star-analysis.md](../analyses/r-star-analysis.md) for split algorithm comparison.
+See [r-star-analysis.md](../analyses/r-star-analysis.md) for the split comparison, including the scenarios, sizes, and run count behind those numbers.
 
 ### 4. Transition Zone Mapped (100 < n < 600)
 
@@ -71,13 +81,19 @@ See `archive/docs/experiments/` for full analyses.
 
 ### 6. Implementation Constraints
 
-**TypedArrays**: Only performance optimization compatible with constrained runtimes (Google Apps Script). WASM/WebGPU/SharedArrayBuffer unavailable.
+**Runtime constraints**: WASM, WebGPU, and `SharedArrayBuffer` are all unavailable
+on the constrained targets, so every optimization has to work in plain
+JavaScript.
 
-**Implementation style**: Imperative + TypedArrays required for production (~14x faster than functional style with `.flatMap`/`.filter`).
+**Implementation style**: imperative loops on the insert path rather than
+`.flatMap` and `.filter` chains. TypedArray-backed storage was tried twice and
+archived both times as slower; see
+[IMPLEMENTATION-HISTORY](../../archive/IMPLEMENTATION-HISTORY.md).
 
-**Bundle sizes**: Morton ~2.3KB, R-tree ~5.9KB, LazyPartitioned ~2.1KB (minified). Already optimal.
+**Bundle sizes**: measured on every regeneration with `deno bundle --minify` and
+reported in [BENCHMARKS.md](../../BENCHMARKS.md).
 
-### 7. Comprehensive Testing (35 Benchmark Scenarios)
+### 7. Test Coverage (35 Benchmark Scenarios)
 
 **Coverage**:
 
@@ -89,25 +105,33 @@ See `archive/docs/experiments/` for full analyses.
 
 See [adversarial-patterns.md](../analyses/adversarial-patterns.md) and [benchmark-statistics.md](../analyses/benchmark-statistics.md).
 
-### 8. Production Readiness (October 2025)
+### 8. Optimization Ceiling
 
-**Optimization study**: No further micro-optimizations viable (<10% impact threshold). Current performance is algorithmically determined.
+**Optimization study**: no remaining micro-optimization cleared a 10% effect, so
+current performance is set by the algorithms rather than by tuning.
 
-**Test coverage**: Axiom-based conformance, ASCII snapshots, cross-implementation consistency, adversarial worst-case.
-
-**Conclusion**: Implementations production-ready. Future gains require new algorithms, not micro-optimizations.
+**Conclusion**: what is still open is new algorithms, not further tuning of the
+current three.
 
 ## Algorithms
 
-**Linear Scan** (O(n)): Flat array with Morton spatial locality. Best for n<100 (2x faster via cache locality). Bundle: ~2.3KB.
+**Linear Scan** (O(n)): flat array in Morton order. Best for write-heavy work
+below n=100. The proposed mechanism is cache locality from that ordering, which
+no experiment has isolated. Bundle: 3.0KB minified.
 
-**R-tree** (O(log n)): Hierarchical index with R* split (Beckmann 1990). Best for n≥100. Bundle: ~5.9KB.
+**R-tree** (O(log n)): hierarchical index with R* split (Beckmann 1990). Best for
+read-heavy work at any size, and for everything above n=600. Bundle: 7.2KB
+minified.
 
 See `packages/@jim/spandex/src/index/` for implementations.
 
 ## Methodology
 
-**Benchmarks**: 35 scenarios (algorithmic patterns + user patterns + workloads), 5 runs, CV% <5%.
+**Benchmarks**: 35 scenarios (algorithmic patterns, user patterns, workloads)
+over 5 runs. Run-to-run variance on a shared machine is high enough that
+[benchmark-statistics](../analyses/benchmark-statistics.md) marks the current
+numbers unstable, so treat the rankings as indicative and re-run on idle
+hardware before quoting a margin.
 
 **Testing**: Axiom-based correctness (LWW semantics, disjointness, fragment bounds), adversarial worst-case validation (k ≈ 2.3 overlaps/insert), cross-implementation consistency.
 
@@ -148,7 +172,7 @@ See `packages/@jim/spandex/src/index/` for implementations.
 
 ### API Documentation
 
-- **GridRange type** - Custom interface matching Google Sheets GridRange (minus sheetId) defined in `src/adapters/gridrange.ts`
+- **GridRange type** - Custom interface matching Google Sheets GridRange (minus sheetId) defined in `packages/@jim/spandex/src/adapter/gridrange.ts` and published as `@jim/spandex/adapter/gridrange`
 - **Deno Standard Library** - TypeScript runtime and testing framework
 
 ---
