@@ -185,10 +185,15 @@ function buildGrid<T>(
 	usedLegendKeys?: Set<string> | null,
 ): Map<GridKey, CellData> {
 	// Pre-compute legend lookup by serialized value
-	const legendMap = new Map<string, LegendEntry>(
-		Object.values(legend).map(({ label, color, value }) => [
+	// Keyed by serialized value, carrying the record key alongside, because
+	// strict mode reports unused *keys*. Tracking the serialized value instead
+	// made the check compare keys against values, so it only ever agreed when
+	// the two happened to be identical, and threw on the legend shape this
+	// package's own module docs show.
+	const legendMap = new Map<string, LegendEntry & { key: string }>(
+		Object.entries(legend).map(([key, { label, color, value }]) => [
 			serializeValue(value),
-			{ label, color },
+			{ key, label, color },
 		]),
 	);
 
@@ -209,7 +214,7 @@ function buildGrid<T>(
 		}
 
 		// Track usage for strict mode validation
-		usedLegendKeys?.add(serializedValue);
+		usedLegendKeys?.add(entry.key);
 
 		// Track infinite edges
 		const fragmentInfiniteTop = y1 === -Infinity;
@@ -509,7 +514,10 @@ function buildCell(
 	includeOrigin: boolean,
 ): string {
 	const cell = grid.get(`${x},${y}`);
-	const bgColor = cell?.color ?? STYLES.colors.transparent;
+	// Escaped here because this flows into a style attribute below. The legend
+	// swatch already escaped it; the cell path did not, so a crafted colour
+	// closed the attribute and injected markup.
+	const bgColor = escapeHtml(cell?.color ?? STYLES.colors.transparent);
 	const label = cell?.label ?? '';
 	const textColor = cell ? getContrastColor(bgColor) : '#000';
 	const isOrigin = includeOrigin && x === 0 && y === 0;
