@@ -44,33 +44,74 @@ export type GridRangeSpatialJoinResult<T extends Record<string, unknown>> = read
 ];
 
 /**
- * GridRange → Rectangle (lossless, undefined ⟷ ±∞)
+ * GridRange → Rectangle. An omitted index means that edge is unbounded.
+ *
+ * Sheets indices are non-negative, so a negative one is a caller error rather
+ * than a coordinate to reinterpret. Treating it as unbounded would silently
+ * widen a bounded region to an infinite one, and an infinite insert decomposes
+ * everything it covers, so the mistake would surface as missing data far from
+ * its cause.
  *
  * @example `{startRowIndex: 0, endRowIndex: 5, startColumnIndex: 0, endColumnIndex: 10}` → `[0, 0, 9, 4]`
+ * @throws Error if any supplied index is negative
  */
 export function gridRangeToRectangle(
 	{ startColumnIndex: x1, startRowIndex: y1, endColumnIndex: x2, endRowIndex: y2 }: GridRange,
 ): Readonly<Rectangle> {
+	assertNonNegative('startColumnIndex', x1);
+	assertNonNegative('startRowIndex', y1);
+	assertNonNegative('endColumnIndex', x2);
+	assertNonNegative('endRowIndex', y2);
+
 	return r.make(
-		x1 != null && x1 >= 0 ? x1 : r.negInf,
-		y1 != null && y1 >= 0 ? y1 : r.negInf,
+		x1 != null ? x1 : r.negInf,
+		y1 != null ? y1 : r.negInf,
 		x2 != null && x2 < r.posInf ? x2 - 1 : r.posInf,
 		y2 != null && y2 < r.posInf ? y2 - 1 : r.posInf,
 	);
 }
 
+function assertNonNegative(field: string, value: number | undefined): void {
+	if (value != null && value < 0) {
+		throw new Error(
+			`Invalid GridRange: ${field} is ${value}. Sheets indices must be >= 0; ` +
+				`omit the field for an unbounded edge.`,
+		);
+	}
+}
+
 /**
- * Rectangle → GridRange (lossless, negative/∞ → undefined)
+ * Rectangle → GridRange. An infinite edge becomes an omitted index.
+ *
+ * Round-trips exactly for rectangles inside the Sheets domain, which is every
+ * rectangle this adapter can produce. A finite negative coordinate has no
+ * GridRange spelling, so it is refused rather than emitted as an omitted field
+ * that would read back as unbounded.
  *
  * @example `[0, 0, 9, 4]` → `{startRowIndex: 0, endRowIndex: 5, startColumnIndex: 0, endColumnIndex: 10}`
+ * @throws Error if a finite coordinate is negative
  */
 export function rectangleToGridRange([x1, y1, x2, y2]: Readonly<Rectangle>): Readonly<GridRange> {
+	assertRepresentable('xmin', x1);
+	assertRepresentable('ymin', y1);
+	assertRepresentable('xmax', x2);
+	assertRepresentable('ymax', y2);
+
 	const range: GridRange = {};
-	if (x1 >= 0) range.startColumnIndex = x1;
-	if (y1 >= 0) range.startRowIndex = y1;
+	if (x1 > r.negInf) range.startColumnIndex = x1;
+	if (y1 > r.negInf) range.startRowIndex = y1;
 	if (x2 < r.posInf) range.endColumnIndex = x2 + 1;
 	if (y2 < r.posInf) range.endRowIndex = y2 + 1;
 	return range;
+}
+
+function assertRepresentable(field: string, value: number): void {
+	if (r.isFin(value) && value < 0) {
+		throw new Error(
+			`Rectangle is outside the GridRange domain: ${field} is ${value}. ` +
+				`Sheets indices must be >= 0.`,
+		);
+	}
 }
 
 /**
