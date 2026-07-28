@@ -67,7 +67,15 @@ async function discoverImplementations(baseDir: string, label?: string) {
 							// Import the default factory (MortonLinearScan)
 							const defaultFactoryModule = await import('@jim/spandex/index/mortonlinearscan');
 							const wrappedFactory = () => module.default(defaultFactoryModule.default);
-							implementations.push({ name: displayName, factory: wrappedFactory, active: !label });
+							// Composite: query() yields joined grid cells, not stored
+							// rectangles, so its result count is not comparable with a
+							// plain index's fragment count.
+							implementations.push({
+								name: displayName,
+								factory: wrappedFactory,
+								active: !label,
+								composite: true,
+							});
 						} else {
 							implementations.push({ name: displayName, factory: module.default, active: !label });
 						}
@@ -198,7 +206,7 @@ for (const { name, factory } of implementations) {
 			for (let i = 0; i < 100; i++) {
 				const row = i * 5;
 				const col = (i % 10) * 5;
-				index.query([col, row, col + 19, row + 19] as Rectangle);
+				drain(index.query([col, row, col + 19, row + 19] as Rectangle));
 			}
 		});
 	}
@@ -213,7 +221,7 @@ for (const { name, factory } of implementations) {
 			for (let i = 0; i < 100; i++) {
 				const row = i * 10;
 				const col = (i % 10) * 10;
-				index.query([col, row, col + 49, row + 49] as Rectangle);
+				drain(index.query([col, row, col + 49, row + 49] as Rectangle));
 			}
 		});
 	}
@@ -229,7 +237,7 @@ for (const { name, factory } of implementations) {
 		for (let i = 0; i < 50; i++) {
 			index.insert([0, i * 10, 0, i * 10] as Rectangle, `seq_${i}`);
 			if (i % 5 === 0) {
-				index.query([0, 0, 9, 99] as Rectangle);
+				drain(index.query([0, 0, 9, 99] as Rectangle));
 			}
 		}
 	});
@@ -242,7 +250,7 @@ for (const { name, factory } of implementations) {
 				`overlap_${i}`,
 			);
 			if (i % 5 === 0) {
-				index.query([0, 0, 19, 49] as Rectangle);
+				drain(index.query([0, 0, 19, 49] as Rectangle));
 			}
 		}
 	});
@@ -253,7 +261,7 @@ for (const { name, factory } of implementations) {
 		for (let i = 0; i < 1000; i++) {
 			index.insert([0, i, 0, i] as Rectangle, `seq_${i}`);
 			if (i % 5 === 0) {
-				index.query([0, Math.floor(i / 50) * 50, 9, Math.floor(i / 50) * 50 + 99] as Rectangle);
+				drain(index.query([0, Math.floor(i / 50) * 50, 9, Math.floor(i / 50) * 50 + 99] as Rectangle));
 			}
 		}
 	});
@@ -266,7 +274,7 @@ for (const { name, factory } of implementations) {
 				`overlap_${i}`,
 			);
 			if (i % 5 === 0) {
-				index.query([0, Math.floor(i / 50) * 10, 19, Math.floor(i / 50) * 10 + 19] as Rectangle);
+				drain(index.query([0, Math.floor(i / 50) * 10, 19, Math.floor(i / 50) * 10 + 19] as Rectangle));
 			}
 		}
 	});
@@ -276,12 +284,27 @@ for (const { name, factory } of implementations) {
 //#region Query-Only Benchmarks (Construction not measured)
 
 /**
- * Query-only benchmarks: Measure pure query performance by building the index
- * in the warm-up phase (not measured), then running many queries (measured).
+ * Query-only benchmarks: measure query performance against an index built once,
+ * outside the measured function.
  *
- * This isolates query performance from construction cost, testing tree quality
- * and search efficiency under different data patterns.
+ * `Deno.bench` has no separate setup phase, so anything inside `fn` is timed.
+ * Each index below is therefore constructed at module scope and shared across
+ * every iteration, which is what makes these numbers query cost rather than
+ * construction cost.
  */
+
+/**
+ * Consume a query result and return the count.
+ *
+ * `query()` is a generator on every implementation, so its body does not run
+ * until the result is iterated. A benchmark that only holds the returned object
+ * measures generator allocation and nothing else.
+ */
+function drain(results: IterableIterator<unknown>): number {
+	let count = 0;
+	for (const _ of results) count++;
+	return count;
+}
 
 function generateQueryRange(max: number, random: () => number): Rectangle {
 	const row = Math.floor(random() * max);
@@ -292,25 +315,23 @@ function generateQueryRange(max: number, random: () => number): Rectangle {
 
 // Scenario 1: Sequential data (tests best-case tree structure)
 for (const { name, factory } of implementations) {
+	const sequentialIndex = factory();
+	for (let i = 0; i < 1000; i++) {
+		sequentialIndex.insert(
+			[(i % 10) * 10, i * 10, (i % 10) * 10 + 4, i * 10 + 4] as Rectangle,
+			`value${i}`,
+		);
+	}
+
 	Deno.bench({
 		name: `${name} - query-only: sequential (n=1000, 10k queries)`,
 		group: 'query-sequential',
 		fn: () => {
-			const index = factory();
-			// Warm-up: Build index with sequential data (NOT measured)
-			for (let i = 0; i < 1000; i++) {
-				index.insert(
-					[(i % 10) * 10, i * 10, (i % 10) * 10 + 4, i * 10 + 4] as Rectangle,
-					`value${i}`,
-				);
-			}
-
-			// Measured: Pure query performance
+			const index = sequentialIndex;
 			const random = seededRandom(42);
 			for (let i = 0; i < 10000; i++) {
-				const results = index.query(generateQueryRange(1000, random));
-				// Touch results to prevent dead code elimination
-				if (results.length > 1000) throw new Error('Unexpected');
+				const count = drain(index.query(generateQueryRange(1000, random)));
+				if (count > 1000) throw new Error('Unexpected');
 			}
 		},
 	});
@@ -318,24 +339,23 @@ for (const { name, factory } of implementations) {
 
 // Scenario 2: Overlapping data (tests tree quality under stress)
 for (const { name, factory } of implementations) {
+	const overlappingIndex = factory();
+	for (let i = 0; i < 1000; i++) {
+		overlappingIndex.insert(
+			[i % 10, Math.floor(i / 5), (i % 10) + 49, Math.floor(i / 5) + 49] as Rectangle,
+			`value${i}`,
+		);
+	}
+
 	Deno.bench({
 		name: `${name} - query-only: overlapping (n=1000, 10k queries)`,
 		group: 'query-overlapping',
 		fn: () => {
-			const index = factory();
-			// Warm-up: Build index with high overlap (NOT measured)
-			for (let i = 0; i < 1000; i++) {
-				index.insert(
-					[i % 10, Math.floor(i / 5), (i % 10) + 49, Math.floor(i / 5) + 49] as Rectangle,
-					`value${i}`,
-				);
-			}
-
-			// Measured: Query performance with high overlap
+			const index = overlappingIndex;
 			const random = seededRandom(123);
 			for (let i = 0; i < 10000; i++) {
-				const results = index.query(generateQueryRange(200, random));
-				if (results.length > 1000) throw new Error('Unexpected');
+				const count = drain(index.query(generateQueryRange(200, random)));
+				if (count > 1000) throw new Error('Unexpected');
 			}
 		},
 	});
@@ -343,41 +363,49 @@ for (const { name, factory } of implementations) {
 
 // Scenario 3: Large dataset (tests scalability)
 for (const { name, factory } of implementations) {
+	const largeIndex = factory();
+	for (let i = 0; i < 5000; i++) {
+		largeIndex.insert(
+			[(i % 50) * 5, i * 5, (i % 50) * 5 + 9, i * 5 + 9] as Rectangle,
+			`value${i}`,
+		);
+	}
+
 	Deno.bench({
 		name: `${name} - query-only: large (n=5000, 10k queries)`,
 		group: 'query-large',
 		fn: () => {
-			const index = factory();
-			// Warm-up: Build large index (NOT measured)
-			for (let i = 0; i < 5000; i++) {
-				index.insert(
-					[(i % 50) * 5, i * 5, (i % 50) * 5 + 9, i * 5 + 9] as Rectangle,
-					`value${i}`,
-				);
-			}
-
-			// Measured: Query performance at scale
+			const index = largeIndex;
 			const random = seededRandom(456);
 			for (let i = 0; i < 10000; i++) {
-				const results = index.query(generateQueryRange(5000, random));
-				if (results.length > 5000) throw new Error('Unexpected');
+				const count = drain(index.query(generateQueryRange(5000, random)));
+				if (count > 5000) throw new Error('Unexpected');
 			}
 		},
 	});
 }
-//#endregion Query-Only Benchmarks (Construction not measured)
+//#endregion Query-Only Benchmarks (construction hoisted out of the measured function)
 
 //#region Correctness Verification
 
+/**
+ * Every plain index must decompose an identical operation sequence into an
+ * identical number of rectangles. Composite implementations are excluded: their
+ * `query()` yields joined grid cells re-cut at partition boundaries, so a
+ * differing count is correct behavior rather than disagreement.
+ */
 Deno.bench('Correctness verification', () => {
-	const results = implementations.map(({ factory }) => {
+	const comparable = implementations.filter(({ composite }) => !composite);
+	const counts = comparable.map(({ name, factory }) => {
 		const index = factory();
 		largeScenarios['large-overlapping (n=1250)'].forEach((op) => index.insert(op.range, op.value));
-		return index.query().length;
+		return [name, drain(index.query())] as const;
 	});
 
-	if (!results.every((count) => count === results[0])) {
-		throw new Error(`Implementations produce different results: ${results.join(', ')}`);
+	if (!counts.every(([, count]) => count === counts[0]?.[1])) {
+		throw new Error(
+			`Implementations disagree on fragment count: ${counts.map(([n, c]) => `${n}=${c}`).join(', ')}`,
+		);
 	}
 });
 //#endregion Correctness Verification

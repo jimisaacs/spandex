@@ -67,12 +67,31 @@ for (const line of lines) {
 	}
 }
 
-// Sort implementations with RStarTree first (baseline), then alphabetically
+/**
+ * The implementation every "Relative" figure is measured against.
+ *
+ * This must match the name discovery produces, which is the source filename
+ * stem under packages/@jim/spandex/src/index/ and therefore lowercase. When it
+ * did not match, `scenario[BASELINE]` was always undefined and every relative
+ * figure silently became the raw millisecond timing divided by 1.
+ */
+const BASELINE = 'rstartree';
+
+// Sort implementations with the baseline first, then alphabetically
 const implementations = Array.from(implementationNames).sort((a, b) => {
-	if (a === 'RStarTree') return -1;
-	if (b === 'RStarTree') return 1;
+	if (a === BASELINE) return -1;
+	if (b === BASELINE) return 1;
 	return a.localeCompare(b);
 });
+
+if (implementations.length > 0 && !implementations.includes(BASELINE)) {
+	console.error(
+		`Baseline "${BASELINE}" is not among the discovered implementations ` +
+			`(${implementations.join(', ')}). Relative figures would be meaningless.\n` +
+			`Update BASELINE in this script to match the intended baseline's filename stem.`,
+	);
+	Deno.exit(1);
+}
 
 console.log(`Found implementations: ${implementations.join(', ')}`);
 console.log(`Found ${scenarioNames.size} scenarios\n`);
@@ -85,7 +104,7 @@ const queryOnlyScenarios = Array.from(scenarioNames).filter((s) => s.startsWith(
 
 // Generate markdown
 const formatResults = (scenario: Record<string, number>) => {
-	const baseline = scenario['RStarTree'] || 1; // RStarTree is now the baseline
+	const baseline = scenario[BASELINE] || 1;
 	const entries = Object.entries(scenario).sort(([, a], [, b]) => a - b);
 
 	return entries.map(([impl, time]) => {
@@ -112,7 +131,7 @@ const generateSummary = async (
 	const bundleSizes: Record<string, number> = {};
 	for (const impl of implementations) {
 		// Convert implementation name to lowercase filename
-		// "RStarTree" -> "rstartree.ts", "LinearScan" -> "linearscan.ts", etc.
+		// Discovery yields the filename stem already, e.g. "rstartree" -> "rstartree.ts".
 		const filename = impl.toLowerCase().replace(/linearscan/g, 'linearscan') + '.ts';
 		const filePath = `packages/@jim/spandex/src/index/${filename}`;
 		try {
@@ -177,7 +196,7 @@ These benchmarks compare **O(n) linear scan** vs **O(log n) R-tree** for differe
 **Sparse data (n < 100)**: Typical for individual spreadsheet properties (backgrounds, borders, etc.)
 **Large data (n > 1000)**: Consolidated or heavy usage scenarios
 
-**RStarTree is the baseline (1.0x)** - numbers > 1.0x are slower, < 1.0x are faster.
+**${BASELINE} is the baseline (1.0x)** - numbers > 1.0x are slower, < 1.0x are faster.
 `);
 
 	for (const impl of implementations) {
@@ -192,9 +211,7 @@ These benchmarks compare **O(n) linear scan** vs **O(log n) R-tree** for differe
 		summaries.push(`**${impl}** (${formatBytes(size)} minified):
 
 - Fastest in ${fastCount}/${totalScenarios} scenarios, slowest in ${slowCount}/${totalScenarios} scenarios
-- Average ${avg.toFixed(2)}x vs RStarTree (${speedupText})${
-			impl === 'RStarTree' ? '\n- Baseline for comparison' : ''
-		}`);
+- Average ${avg.toFixed(2)}x vs ${BASELINE} (${speedupText})${impl === BASELINE ? '\n- Baseline for comparison' : ''}`);
 	}
 
 	return summaries.join('\n\n');
@@ -234,33 +251,33 @@ const generateComparisonTable = (results: Record<string, Record<string, number>>
 		{ label: 'Large sequential (n ≈ 2500)', key: largeSeqScenario },
 	];
 
-	// Get all implementations except RStarTree (baseline)
-	const impls = implementations.filter((impl) => impl !== 'RStarTree');
+	// Get all implementations except the baseline
+	const impls = implementations.filter((impl) => impl !== BASELINE);
 
 	// Generate table rows dynamically
 	const rows: string[] = [];
 	for (const { label, key } of scenarios) {
 		if (!key) continue; // Skip if scenario not found
-		const rstartreeTime = results[key]?.['RStarTree'] || 1;
+		const baselineTime = results[key]?.[BASELINE] || 1;
 		const ratios = impls.map((impl) => {
 			const time = results[key]?.[impl];
-			return time ? (time / rstartreeTime).toFixed(1) + 'x' : 'N/A';
+			return time ? (time / baselineTime).toFixed(1) + 'x' : 'N/A';
 		});
-		ratios.push('1.0x (baseline)'); // Add RStarTree as baseline
+		ratios.push('1.0x (baseline)'); // the baseline column, appended to match `headers`
 		rows.push(`| ${label} | ${ratios.join(' | ')} |`);
 	}
 
 	if (rows.length === 0) return '';
 
 	// Generate header dynamically
-	const headers = [...impls, 'RStarTree'];
+	const headers = [...impls, BASELINE];
 	const headerRow = `| Scenario | ${headers.join(' | ')} |`;
 	const separatorRow = `| ${'-------- | '.repeat(headers.length + 1).slice(0, -2)}|`;
 
 	return `
 ## Quick Comparison
 
-**Speed relative to RStarTree** (lower is better):
+**Speed relative to ${BASELINE}** (lower is better):
 
 ${headerRow}
 ${separatorRow}
@@ -296,10 +313,10 @@ Comparing **O(n) linear scan** vs **O(log n) R-tree** across:
 
 **Key Question**: When does O(log n) beat O(n)?
 
-**How to read**: Lower time is better. "Relative" compares to RStarTree baseline:
-- **1.0x** = same speed as RStarTree
-- **>1.0x** = slower than RStarTree (e.g., 2.0x = twice as slow)
-- **<1.0x** = faster than RStarTree (e.g., 0.5x = twice as fast)
+**How to read**: Lower time is better. "Relative" compares to the ${BASELINE} baseline:
+- **1.0x** = same speed as ${BASELINE}
+- **>1.0x** = slower than ${BASELINE} (e.g., 2.0x = twice as slow)
+- **<1.0x** = faster than ${BASELINE} (e.g., 0.5x = twice as fast)
 
 ${generateComparisonTable(results, implementations)}`,
 ];
