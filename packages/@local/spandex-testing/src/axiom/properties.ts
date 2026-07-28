@@ -45,24 +45,35 @@ export const assertInvariants = <T>(index: SpatialIndex<T>, context: string): vo
 	assertEquals(signatures.length, new Set(signatures).size, `${context}: duplicate ranges`);
 
 	// Invariant 2: Disjoint (no overlapping rectangles)
-	for (let i = 0; i < ranges.length; i++) {
-		for (let j = i + 1; j < ranges.length; j++) {
-			const r1 = ranges[i]![0];
-			const r2 = ranges[j]![0];
+	//
+	// Sorted by xmin so the inner loop can stop as soon as a candidate starts
+	// past the current rectangle's right edge: everything after it starts at
+	// least as far right, so none of them can overlap either. The check stays
+	// exhaustive, and the failure message is built only when a pair actually
+	// overlaps. Built eagerly it cost one message per pair, which is 944,625
+	// discarded strings on the 1375-fragment scenario.
+	const sorted = ranges.slice().sort((a, b) => a[0][0] - b[0][0]);
+	for (let i = 0; i < sorted.length; i++) {
+		const [r1xmin, r1ymin, r1xmax, r1ymax] = sorted[i]![0];
+		for (let j = i + 1; j < sorted.length; j++) {
+			const [r2xmin, r2ymin, r2xmax, r2ymax] = sorted[j]![0];
+			if (r2xmin > r1xmax) break;
 
-			const [r1xmin, r1ymin, r1xmax, r1ymax] = r1;
-			const [r2xmin, r2ymin, r2xmax, r2ymax] = r2;
-
-			// AABB overlap test
 			const overlaps = r1xmin <= r2xmax && r2xmin <= r1xmax &&
 				r1ymin <= r2ymax && r2ymin <= r1ymax;
 
-			assertFalse(
-				overlaps,
-				`${context}: overlapping ranges found at indices ${i} and ${j}:\n` +
-					`  Range ${i}: rows [${r1ymin}, ${r1ymax}], cols [${r1xmin}, ${r1xmax}], value=${ranges[i]![1]}\n` +
-					`  Range ${j}: rows [${r2ymin}, ${r2ymax}], cols [${r2xmin}, ${r2xmax}], value=${ranges[j]![1]}`,
-			);
+			if (overlaps) {
+				assertFalse(
+					overlaps,
+					`${context}: overlapping ranges found at indices ${i} and ${j}:\n` +
+						`  Range ${i}: rows [${r1ymin}, ${r1ymax}], cols [${r1xmin}, ${r1xmax}], value=${
+							sorted[i]![1]
+						}\n` +
+						`  Range ${j}: rows [${r2ymin}, ${r2ymax}], cols [${r2xmin}, ${r2xmax}], value=${
+							sorted[j]![1]
+						}`,
+				);
+			}
 		}
 	}
 };
@@ -170,6 +181,38 @@ export async function testPropertyAxioms(
 		index.insert([0, 0, 10, 10], 'ok');
 		index.insert([2, 2, 5, 5], 'overlap');
 		assertInvariants(index, 'after integer inserts');
+	});
+
+	await t.step('Coordinates outside the domain are rejected', () => {
+		// NaN is the sharpest case and no invariant can catch it downstream:
+		// every comparison against NaN is false, so the ordering check passes it,
+		// the disjointness check passes it vacuously, and decomposition's
+		// full-cover test and all four fragment guards are equally false. The
+		// overlapping rectangle is then dropped without being covered, which
+		// deletes stored data.
+		const nanIndex = implementation();
+		nanIndex.insert([0, 0, 2, 2], 'keep');
+		let threw = false;
+		try {
+			nanIndex.insert([NaN, 0, 5, 5], 'poison');
+		} catch {
+			threw = true;
+		}
+		assert(threw, 'NaN coordinates should be rejected');
+		assertInvariants(nanIndex, 'after refusing a NaN insert');
+		assertEquals(Array.from(nanIndex.query()).length, 1, 'the refused insert must not disturb the store');
+
+		// An unbounded edge has to open outward. Both ends at the same infinity
+		// passes the ordering check but names no cell, and consumers drop it.
+		for (const bad of [[r.posInf, 0, r.posInf, 0], [0, r.negInf, 0, r.negInf]] as const) {
+			let rejected = false;
+			try {
+				implementation().insert(bad, 'nowhere');
+			} catch {
+				rejected = true;
+			}
+			assert(rejected, `rectangle naming no cell should be rejected: [${bad}]`);
+		}
 	});
 
 	await t.step('Universal rectangle decomposes like any other', () => {

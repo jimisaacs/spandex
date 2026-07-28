@@ -84,13 +84,28 @@ export function validated(a: Readonly<Rectangle>): Readonly<Rectangle> {
 	// when coordinates are whole. A fractional bound makes that arithmetic
 	// produce an inverted or gap-leaving fragment, so it is refused here rather
 	// than stored as a rectangle this function would itself reject.
+	// The domain is the integers plus the two infinities. Testing for that
+	// directly also refuses NaN, which no ordering comparison can catch: every
+	// comparison against NaN is false, so an inverted-bounds check passes it and
+	// so does the disjointness axiom. A NaN rectangle reaches decomposition,
+	// where the full-cover test and all four fragment guards are equally false,
+	// and the overlapping rectangle is dropped without being covered.
 	for (const c of a) {
-		if (!Number.isInteger(c) && Number.isFinite(c)) {
+		if (!Number.isInteger(c) && c !== negInf && c !== posInf) {
 			throw new Error(
 				`Invalid rectangle: coordinate ${c} is not an integer. ` +
 					`Coordinates address discrete cells; use ±Infinity for unbounded edges.`,
 			);
 		}
+	}
+	// An unbounded edge has to open outward. `xmin` at +∞ or `xmax` at -∞ passes
+	// the ordering check when both ends share an infinity, but names no cell at
+	// all, and every consumer then drops it silently.
+	if (xmin === posInf || xmax === negInf || ymin === posInf || ymax === negInf) {
+		throw new Error(
+			`Invalid rectangle: an unbounded edge must open outward. ` +
+				`Use -Infinity only for xmin/ymin and +Infinity only for xmax/ymax.`,
+		);
 	}
 	if (xmin > xmax) {
 		throw new Error(
