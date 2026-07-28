@@ -164,24 +164,26 @@ const generateSummary = async (
 
 	const totalScenarios = allScenarios.length;
 
-	// Calculate average speedup vs Reference for each implementation
+	// Average time relative to the baseline, per implementation.
+	//
+	// This keyed on a literal 'Reference' that no producer ever writes:
+	// implementation names come from the benchmark output and are source
+	// filename stems. Every lookup missed, so every implementation reported
+	// 1.00x, including the one the table above showed as slowest in most
+	// scenarios. The ratio is impl / baseline so that above 1.0 reads as
+	// slower, matching the legend this file emits.
 	const avgSpeedups: Record<string, number> = {};
 	for (const impl of implementations) {
-		if (impl === 'Reference') {
-			avgSpeedups[impl] = 1;
-			continue;
-		}
-
-		const speedups: number[] = [];
+		const ratios: number[] = [];
 		for (const scenario of allScenarios) {
-			const ref = scenario['Reference'];
+			const base = scenario[BASELINE];
 			const implTime = scenario[impl];
-			if (ref && implTime) {
-				speedups.push(ref / implTime);
+			if (base && implTime) {
+				ratios.push(implTime / base);
 			}
 		}
 
-		avgSpeedups[impl] = speedups.length > 0 ? speedups.reduce((a, b) => a + b, 0) / speedups.length : 1;
+		avgSpeedups[impl] = ratios.length > 0 ? ratios.reduce((a, b) => a + b, 0) / ratios.length : 1;
 	}
 
 	const formatBytes = (bytes: number) => bytes < 1024 ? `${bytes}B` : `${(bytes / 1024).toFixed(1)}KB`;
