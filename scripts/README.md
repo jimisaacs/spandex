@@ -49,6 +49,27 @@ in code spans exist, that generated files keep their banners, and that this
 README documents every script beside it. Read the file itself for the full
 list; it is the authority, not this paragraph.
 
+## Documentation Site
+
+### `site.sh`
+
+Builds or serves the documentation site.
+
+**Run**: `deno task site:serve`, then open <http://localhost:3000/>. Use
+`deno task site:build` to write `_site/`.
+
+The site cannot be built with whatever Deno happens to be installed. Lume pulls
+in deno-dom 0.1.56, which imports a type as a value; Deno stopped erasing that
+in 2.9, so the build fails on a module that does not export what it is asked
+for. This script uses the version pinned in `.deno-version-docs`, fetching it
+into `.ci-deno/` the first time and reusing it after. If your own Deno already
+matches the pin, that one is used and nothing is downloaded. The docs workflow
+pins the same file.
+
+Serving and building do not produce the same URLs. A build targets GitHub Pages,
+where the site lives under `/spandex/`, so links carry that prefix. Lume
+overrides that when serving, so the dev server answers at the root.
+
 ## Documentation Sync
 
 ### `sync-docs.ts`

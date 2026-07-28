@@ -37,8 +37,8 @@
 		"hooks:install": "deno run --allow-read=deno.json,.git/hooks/ --allow-write=.git/hooks/ jsr:@hongminhee/deno-task-hooks",
 		"hooks:pre-commit": "deno task fmt --check && deno task lint && deno task check && deno task meta-check && deno task test",
 		"fixtures:clear": "find . -path '*/fixtures/*.md' -type f -delete && echo 'Cleared all fixture files'",
-		"site:build": "cd site && deno task build",
-		"site:serve": "cd site && deno task serve",
+		"site:build": "bash scripts/site.sh build",
+		"site:serve": "bash scripts/site.sh serve",
 		"lint": "deno lint",
 		"fmt": "deno fmt",
 		"check": "deno check packages/**/*.ts scripts/**/*.ts benchmarks/**/*.ts"
