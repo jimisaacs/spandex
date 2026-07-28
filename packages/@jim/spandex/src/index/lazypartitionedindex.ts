@@ -308,6 +308,20 @@ class LazyPartitionedIndexImpl<T extends Record<string, unknown>> implements Laz
 		yield* spatialJoin(partitionResults, bounds);
 	}
 
+	/**
+	 * Extent of the joined view.
+	 *
+	 * This must be derived from `query()`, not folded from the partitions' own
+	 * extents. The spatial join introduces boundary coordinates that no stored
+	 * rectangle carries: two partitions covering [1,3] and [0,inf) yield a cell
+	 * starting at 4, so 4 is a real coordinate of the joined view and of nothing
+	 * else. A fold over `partition.extent()` cannot see it and reports a smaller
+	 * extent than the results this index actually yields.
+	 *
+	 * The cost is therefore a full join per uncached call. Making that cheap means
+	 * first deciding whether `extent()` describes the joined view or the stored
+	 * rectangles, which is a change to a published observable.
+	 */
 	extent(): ExtentResult {
 		return this.extentCached ??= computeExtent(this.query());
 	}
@@ -335,6 +349,7 @@ class LazyPartitionedIndexImpl<T extends Record<string, unknown>> implements Laz
 
 	clear(): void {
 		this.partitions.clear();
+		this.extentCached = null;
 	}
 }
 
