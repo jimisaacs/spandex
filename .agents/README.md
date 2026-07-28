@@ -36,15 +36,17 @@ turns it into a regular file and the overlay dies silently.
 | [doc-drift](rules/doc-drift.md)                   | Living-state docs must match current code or drop the state claim                                       |
 | [doc-voice](rules/doc-voice.md)                   | Readable prose for human docs, plus the Markdown rules this repository's formatter forces               |
 | [project-values](rules/project-values.md)         | Invariants before performance, boundary-owned semantics, published-package posture                      |
+| [serena-mcp](rules/serena-mcp.md)                 | When to use Serena symbol tools instead of text search for TypeScript                                   |
 | [research-integrity](rules/research-integrity.md) | Measured versus hypothesized, archive as a research asset, current-state prose                          |
 | [tests](rules/tests.md)                           | Test taxonomy: which layer, what authority decides correct, what a failure means                        |
 
 ## Skills
 
-| Skill                                    | Purpose                                                                 |
-| ---------------------------------------- | ----------------------------------------------------------------------- |
-| [experiment](skills/experiment/SKILL.md) | The research experiment lifecycle, hypothesis through cleaned workspace |
-| [work](skills/work/SKILL.md)             | Substantial work: assess, then act or prove inaction                    |
+| Skill                                                    | Purpose                                                                         |
+| -------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| [experiment](skills/experiment/SKILL.md)                 | The research experiment lifecycle, hypothesis through cleaned workspace         |
+| [smell-annihilation](skills/smell-annihilation/SKILL.md) | Structural cleanup: move things where they belong, then make the rot impossible |
+| [work](skills/work/SKILL.md)                             | Substantial work: assess, then act or prove inaction                            |
 
 ## Agents
 

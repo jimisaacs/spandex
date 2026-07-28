@@ -41,6 +41,7 @@ change as the state they describe:
 - `packages/@local/spandex-telemetry/README.md`
 - `.github/workflows/README.md`
 - `.agents/**`
+- `.mcp.json`
 - `docs/active/experiments/`
 - test names that encode API contracts
 
