@@ -158,4 +158,4 @@ Not layered! Not priority queue! DECOMPOSITION.
 | Layered (CSS-style)     | Poor      | O(layers) | O(layers)       | Needs merge on export        |
 | Cell-by-cell Map        | Poor      | O(cells)  | O(1)            | Massive memory (10M cells!)  |
 
-**Why decomposition wins**: API returns `GridRange[]` - we store exactly that format!
+**Why decomposition wins**: the stored shape is one rectangle per region, which is a single adapter conversion away from the `GridRange[]` the Sheets API expects.

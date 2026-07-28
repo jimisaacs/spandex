@@ -41,7 +41,7 @@ ASCII diagrams explaining core concepts visually.
 - Order-2 and Order-3 Hilbert patterns
 - How 2D → 1D mapping preserves locality
 - Hilbert vs naive insertion order
-- Why it provides 2x speedup
+- Why spatial ordering is expected to help a linear scan
 
 **Use**: Understanding spatial locality optimization in linear scan
 

@@ -81,7 +81,9 @@ interface TelemetryConfig {
 
 **Privacy**: Aggregate stats only. Never collects cell values, range contents, or user identifiers.
 
-**Performance**: <1ms overhead per operation. Zero when `enabled: false`.
+**Performance**: exactly zero when `enabled: false`, because `wrap` returns the
+index unwrapped. When enabled the overhead is a counter increment per operation,
+which no benchmark here has been able to separate from noise.
 
 ## Apps Script Integration
 
@@ -133,93 +135,17 @@ function onDocumentClose() {
 
 ## Analyzing Results
 
-### Key Questions to Answer
+Four questions decide whether the defaults are right for your workload.
 
-**1. Is n<100 typical?**
+| Question             | Read                                                        | Then                                                                                   |
+| -------------------- | ----------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| Is n < 100 typical?  | `nDistribution.p95`                                         | Under 100, linear scan is the right default. Over 200, make the R-tree the default.    |
+| What is the balance? | `operations.inserts` against `operations.queries`           | Whichever dominates is the side worth optimizing.                                      |
+| Are overlaps common? | `insertPatterns.overlapping / insertPatterns.sequential`    | Below 0.1, sequential inserts dominate. Above 0.5, decomposition cost dominates.       |
+| How big are queries? | `queryPatterns.viewportQueries` against `fullExportQueries` | Mostly viewport reads favour locality. Frequent full exports make tree pruning matter. |
 
-```
-Look at: nDistribution.p95, nDistribution.p99
-If p95 < 100: Linear scan is correct choice
-If p95 > 200: R-tree should be default
-If 100 < p95 < 200: Hybrid/adaptive approach needed
-```
-
-**2. What's the workload balance?**
-
-```
-Look at: operations.inserts vs operations.queries
-If queries >> inserts: Read-optimized matters
-If inserts >> queries: Write-optimized matters
-If balanced: Mixed workload considerations
-```
-
-**3. Are overlaps common?**
-
-```
-Look at: insertPatterns.overlapping / insertPatterns.sequential
-If ratio < 0.1: Sequential optimization matters
-If ratio > 0.5: Decomposition optimization matters
-```
-
-**4. What query sizes are typical?**
-
-```
-Look at: queryPatterns.viewportQueries vs queryPatterns.fullExportQueries
-If viewport >> fullExport: Cache locality critical
-If fullExport common: Tree pruning less valuable
-```
-
-## Data Collection Campaign
-
-**Step 1**: Enable telemetry
-
-```typescript
-// In your production code
-const ENABLE_TELEMETRY = true; // Feature flag
-const telemetry = new TelemetryCollector({
-	enabled: ENABLE_TELEMETRY,
-	reportingInterval: 1000,
-	sessionId: `user_${Session.getActiveUser().getEmail()}`,
-	onReport: (metrics) => {
-		Logger.log(`TELEMETRY: ${JSON.stringify(metrics)}`);
-	},
-});
-```
-
-**Step 2**: Wrap all spatial indices
-
-```typescript
-const backgroundColors = telemetry.wrap(
-	createMortonLinearScanIndex<string>(),
-	'backgroundColor',
-);
-const fontWeights = telemetry.wrap(
-	createMortonLinearScanIndex<string>(),
-	'fontWeight',
-);
-// ... etc
-```
-
-**Step 3**: Analyze
-
-```typescript
-// Aggregate all metrics
-const allMetrics: TelemetrySnapshot[] = [...]; // Load from logs
-
-// Calculate global statistics
-const allNSamples = allMetrics.flatMap(m => m.nDistribution.samples);
-const globalP95 = percentile(allNSamples, 0.95);
-const globalP99 = percentile(allNSamples, 0.99);
-
-console.log(`P95 n = ${globalP95}`);
-console.log(`P99 n = ${globalP99}`);
-
-if (globalP95 < 100) {
-  console.log('✅ n<100 assumption VALIDATED');
-} else {
-  console.log('❌ n<100 assumption REJECTED - need R-tree by default');
-}
-```
+A p95 between 100 and 200 means neither default is clearly right, and the choice
+depends on the read/write balance above.
 
 ## Troubleshooting
 

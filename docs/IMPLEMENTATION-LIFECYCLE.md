@@ -264,13 +264,6 @@ deno task unarchive:impl <Name> <category>
 | List active implementations   | `ls packages/@jim/spandex/src/index/`                                 |
 | List archived implementations | See `archive/IMPLEMENTATION-HISTORY.md`                               |
 
-## Best Practices
-
-1. Document why archived
-2. Benchmark before archiving
-3. Update `docs/analyses/`
-4. Commit conventions: `feat:`, `archive:`, `unarchive:`
-
 ## See Also
 
 - [Archive Management](../archive/README.md)

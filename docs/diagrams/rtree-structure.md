@@ -162,42 +162,6 @@ Linear scan: 1000 checks = 10,000ns ❌ SLOW
 R-tree: log(1000) ≈ 10 nodes = 500ns ✅ FASTER
 ```
 
-## Google Sheets API Context
-
-```typescript
-// Google Sheets GridRange (half-open by design)
-interface GridRange {
-	startRowIndex?: number; // Inclusive
-	endRowIndex?: number; // Exclusive!
-	startColumnIndex?: number; // Inclusive
-	endColumnIndex?: number; // Exclusive!
-}
-
-// Our library works with GridRange via adapter
-import { createGridRangeAdapter } from '@jim/spandex/adapter/gridrange';
-import createMortonLinearScanIndex from '@jim/spandex/index/mortonlinearscan';
-
-const index = createGridRangeAdapter(createMortonLinearScanIndex<string>());
-index.insert({
-	startRowIndex: 0,
-	endRowIndex: 5, // Means rows 0-4
-	startColumnIndex: 0,
-	endColumnIndex: 3,
-}, 'value');
-```
-
-## Quick Reference Table
-
-| Notation | start | end | Rows Included | Length |
-| -------- | ----- | --- | ------------- | ------ |
-| [0, 5)   | 0     | 5   | 0,1,2,3,4     | 5      |
-| [3, 4)   | 3     | 4   | 3             | 1      |
-| [5, 5)   | 5     | 5   | (empty)       | 0      |
-| [0, 10)  | 0     | 10  | 0,1,...,9     | 10     |
-| [a, b)   | a     | b   | a,...,b-1     | b - a  |
-
-**Memory aid**: "The end number is NOT included - it's where you STOP counting"
-
 ---
 
 **See Also**:

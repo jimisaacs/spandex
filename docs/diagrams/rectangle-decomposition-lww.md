@@ -14,7 +14,7 @@
 
 Imagine you're coloring cells in a spreadsheet. You color A1:C2 red, then you color B0:D2 blue. What happens to the cells that overlap (B1, C1, B2, C2)?
 
-**With Last-Writer-Wins**: The blue overwrites the red. Simple!
+**With Last-Writer-Wins**: the blue overwrites the red.
 
 Let's see how the spatial index makes this work...
 
@@ -39,7 +39,7 @@ Let's see how the spatial index makes this work...
 Storage: []
 ```
 
-Nothing stored yet. Easy!
+Nothing stored yet.
 
 ---
 
@@ -70,7 +70,7 @@ Storage: [
 R = RED
 ```
 
-Since nothing overlapped, we just store one rectangle. Simple!
+Nothing overlapped, so this is stored as a single rectangle.
 
 ---
 
@@ -103,7 +103,7 @@ Since nothing overlapped, we just store one rectangle. Simple!
 
 ### How Last-Writer-Wins Solves This
 
-The spatial index uses a clever trick called **rectangle decomposition**:
+The index handles this with **rectangle decomposition**:
 
 **Step 1**: Find the overlap
 
@@ -214,4 +214,4 @@ The cells remember the most recent value.
 
 **Part 3** (Spatial Join): What if we want to keep background colors and font colors in **separate** indexes and combine them only when we need to?
 
-Each approach has different tradeoffs - keep reading to learn when to use each one!
+Each approach trades something different; the next two pages cover when each one fits.

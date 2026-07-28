@@ -11,21 +11,13 @@ Insert overlapping rectangles, get back non-overlapping fragments. O(n) for <100
 
 ## Why Spandex?
 
-You need to track which 2D regions have which properties, and regions can overlap:
+You are tracking which 2D regions carry which properties, and the regions
+overlap. Think of spreadsheet cells with formatting.
 
-**Example**: Spreadsheet cells with formatting (some cells red, some bold, ranges overlap)
-
-**The challenge**: When range `B2:D4` overwrites `A1:C3`, you need:
-
-1. Old region split into non-overlapping pieces
-2. New region preserved intact
-3. Efficient queries ("what formatting applies to C2?")
-
-**Without spandex**: Manual rectangle splitting (tricky, error-prone, easy to get wrong)
-
-**With spandex**: `index.insert()` handles decomposition automatically with mathematical correctness guarantees
-
-**Real-world applications**: Spreadsheets (cell properties), GIS (land parcels), Games (area-of-effect), Databases (2D spatial queries)
+When `B2:D4` is written over `A1:C3`, the old region has to split into pieces
+that do not overlap the new one, the new region has to survive intact, and
+"what applies to C2?" still has to be fast. Splitting rectangles by hand is
+where the bugs live. `index.insert()` does the decomposition for you.
 
 ## Quick Start
 
@@ -77,23 +69,6 @@ for (const [rect, value] of adapter.query()) {
 
 Red region split into 2 fragments, blue wins the overlap (3 total fragments).
 
-## Where to Go Next
-
-**New to spandex?**
-→ [Getting Started Guide](./docs/GETTING-STARTED.md) - 10-minute tutorial with examples
-
-**Choosing an algorithm?**
-→ [Production Guide](./PRODUCTION-GUIDE.md) - Decision tree and performance data
-
-**Hit an error?**
-→ [Troubleshooting](./docs/TROUBLESHOOTING.md) - Common issues and solutions
-
-**Want the details?**
-→ [Research Summary](./docs/core/RESEARCH-SUMMARY.md) - Why these design choices? (5 min)
-
-**Contributing?**
-→ [Contributing Guide](./CONTRIBUTING.md) - Development workflow
-
 ## Published Packages
 
 | Package                                                   | Purpose                 |
@@ -109,7 +84,7 @@ Red region split into 2 fragments, blue wins the overlap (3 total fragments).
 | Data Pattern    | Use                           | Why                    |
 | --------------- | ----------------------------- | ---------------------- |
 | Multi-attribute | `createLazyPartitionedIndex`  | Per-attribute indexing |
-| <100 ranges     | `createMortonLinearScanIndex` | Fastest O(n)           |
+| <100 ranges     | `createMortonLinearScanIndex` | Fastest write-heavy    |
 | ≥100 ranges     | `createRStarTreeIndex`        | Scales O(log n)        |
 
 See [PRODUCTION-GUIDE.md](./PRODUCTION-GUIDE.md) for decision tree and [BENCHMARKS.md](./BENCHMARKS.md) for measurements.

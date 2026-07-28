@@ -42,8 +42,6 @@ import createRStarTreeIndex from '@jim/spandex/index/rstartree';
 import createLazyPartitionedIndex from '@jim/spandex/index/lazypartitionedindex';
 ```
 
-**Historical note**: This is an active research project. Some experimental implementations are archived when superseded by better approaches. Current implementations represent validated, production-ready algorithms. See `archive/README.md` for research history.
-
 ## Algorithm Details
 
 **Morton Linear Scan** - O(n), uses Z-order curve for spatial locality\

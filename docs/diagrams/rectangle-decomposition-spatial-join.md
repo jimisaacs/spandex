@@ -111,7 +111,7 @@ Compare to Shallow Merge (Part 2): 4 ranges in 1 unified index.
 
 ---
 
-## The Magic: Spatial Join at Query Time
+## Spatial Join at Query Time
 
 Now here's where it gets interesting! When you want to see what properties a cell has, you **combine the indexes on the fly**.
 
@@ -132,7 +132,7 @@ const fontResults = fontColors.query(A0:D3);
 // ]
 ```
 
-Easy! Each index just returns its own ranges.
+Each index returns its own ranges.
 
 **Step 2**: Spatial join - combine the results
 
@@ -310,4 +310,4 @@ For real-world spreadsheet systems (like Google Sheets), **Spatial Join** is oft
 - API has separate request types for each property
 - Insert performance matters more than query performance
 
-This is a standard technique in spatial databases and GIS systems!
+This is a standard technique in spatial databases and GIS systems.

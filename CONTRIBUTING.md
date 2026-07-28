@@ -37,6 +37,8 @@ deno task test  # Verify everything works
 ```bash
 deno task test           # Run tests
 deno task test:watch     # Watch mode
+deno task test:morton    # One implementation
+deno task test:adversarial  # Worst-case fragmentation patterns
 deno task fmt            # Format code
 deno task lint           # Lint code
 deno task check          # Type check
@@ -83,23 +85,6 @@ See [IMPLEMENTATION-LIFECYCLE](./docs/IMPLEMENTATION-LIFECYCLE.md) for detailed 
 3. Generate fixtures: `UPDATE_FIXTURES=1 deno test -A`
 4. Run benchmarks: `deno task bench:update`
 5. Document findings in `docs/analyses/`
-
-## Running Tests
-
-```bash
-# All tests
-deno task test
-
-# Specific implementation
-deno task test:morton
-deno task test:rstartree
-
-# Adversarial patterns
-deno task test:adversarial
-
-# Update fixtures (after intentional test changes)
-UPDATE_FIXTURES=1 deno test -A
-```
 
 ## Running Benchmarks
 
@@ -168,13 +153,6 @@ import { createMortonLinearScanIndex } from '@jim/spandex';
 ## Research Workflow
 
 For the complete experiment lifecycle (hypothesis → implementation → analysis → cleanup), see [docs/active/README.md](./docs/active/README.md).
-
-## Questions?
-
-- **Usage questions:** [TROUBLESHOOTING](./docs/TROUBLESHOOTING.md)
-- **Implementation questions:** [IMPLEMENTATION-LIFECYCLE](./docs/IMPLEMENTATION-LIFECYCLE.md)
-- **Research questions:** [docs/core/RESEARCH-SUMMARY.md](./docs/core/RESEARCH-SUMMARY.md)
-- **Other questions:** Open an issue on GitHub
 
 ## License
 

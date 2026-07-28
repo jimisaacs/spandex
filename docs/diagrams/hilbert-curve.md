@@ -86,9 +86,9 @@ Index  Hilbert   Rectangle       Value
 
 When querying region [1,1,5,5]:
 - Linear scan through array
-- Entries 0,1,2,3 are LIKELY in same cache line!
-- Hardware prefetcher loads next entries
-- 2x speedup from cache locality
+- Entries 0,1,2,3 are stored adjacently, so the scan reads them in sequence
+- The proposed mechanism for the measured speedup is cache locality
+- No experiment has separated it from the cheaper encoding
 ```
 
 ## Comparison: Hilbert vs Naive (Insertion Order)

@@ -110,12 +110,6 @@ deno bench benchmarks/performance.ts -- --include-archived --exclude=LinearScan
 
 **Archived**: Code removed from filesystem (preserved in git history). Use `--include-archived` to benchmark if archived implementations are temporarily restored to `archive/src/implementations/`.
 
-## Principles
-
-1. **Active by default** - Auto-discover from `packages/@jim/spandex/src/index/`
-2. **Selective exclusion** - Use `--exclude=` flag for filtering
-3. **No configuration needed** - Zero-config auto-discovery
-
 ## Output Files
 
 ### BENCHMARKS.md (Quick Update)
