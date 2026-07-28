@@ -39,7 +39,5 @@ _cache/
 # Coverage output
 coverage/
 
-# Serena MCP local state (memories are shared only when a maintainer asks)
-.serena/cache/
-.serena/logs/
-.serena/memories/
+# Serena runtime state is ignored by .serena/.gitignore, beside the config it
+# belongs to. The project config itself is tracked.

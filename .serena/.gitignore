@@ -1,0 +1,10 @@
+# Per-clone Serena runtime state. The project config beside this file is
+# tracked, so a fresh clone gets a working server.
+/cache
+/logs
+/memories
+/project.local.yml
+/mcp-server.pid
+/mcp-server.lock
+/index.lock
+/.index-complete

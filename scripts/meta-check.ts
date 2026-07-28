@@ -1,4 +1,4 @@
-#!/usr/bin/env -S deno run --allow-read
+#!/usr/bin/env -S deno run --allow-read --allow-run=git
 
 /**
  * Scaffolding and documentation gate.
@@ -27,11 +27,15 @@
  * or `model:` key swallowed into the description; and a doc naming an archived
  * implementation file or a directory that does not exist; and a link `#anchor`
  * matching no heading, in the same file, across files, and after a heading was
- * renamed out from under an inbound link. All twenty-seven were caught, and a
- * valid anchor was confirmed not to fire.
+ * renamed out from under an inbound link; and a doc naming an untracked,
+ * unignored file or directory. All thirty were caught. Two cases were confirmed
+ * *not* to fire: a valid anchor, and a doc deliberately naming an ignored path.
  *
- * The indented-key case is not hypothetical. It was live in this repository's
- * researcher agent, silently voiding its tool allowlist and model setting.
+ * Two of those defects were not hypothetical, and both had gone green here. A
+ * subagent's `tools:` and `model:` keys were indented under `description:`,
+ * which YAML folded into that string, voiding its allowlist and model. And the
+ * serena rule linked `.serena/project.yml` while that file was untracked, so
+ * every path check passed against a file no other clone would have had.
  *
  * Not measured: whether the prose bans have a false-positive rate on prose
  * nobody has written yet. Code spans and fenced blocks are stripped first,
@@ -57,6 +61,17 @@ interface Failure {
 
 const failures: Failure[] = [];
 let checksRun = 0;
+
+/**
+ * Every repository path a document resolves to, recorded by the link and
+ * named-path checks and evaluated once by `checkTrackedPaths`. Collected rather
+ * than re-extracted so there is one definition of "a path a doc claims".
+ */
+const referencedPaths = new Map<string, string>();
+
+function noteReference(path: string, where: string): void {
+	if (!referencedPaths.has(path)) referencedPaths.set(path, where);
+}
 
 function fail(check: string, where: string, message: string): void {
 	failures.push({ check, where, message });
@@ -422,6 +437,7 @@ async function checkRelativeLinks(files: string[]): Promise<void> {
 				fail('links', where, `link target does not exist: ${raw}`);
 				continue;
 			}
+			if (targetRaw) noteReference(resolved, where);
 			if (!fragment || !resolved.endsWith('.md')) continue;
 
 			if (!anchorCache.has(resolved)) anchorCache.set(resolved, await anchorsOf(resolved));
@@ -525,13 +541,67 @@ async function checkNamedPaths(files: string[]): Promise<void> {
 			// that path is correct; requiring it to exist would be wrong.
 			if (path.startsWith('archive/src/')) continue;
 			if (!roots.some((r) => path.startsWith(r))) continue;
-			if (await exists(join(ROOT, path))) continue;
-			fail(
-				'named-paths',
-				`${relPath}:${lineOf(text, match.index!)}`,
-				`names \`${path}\`, which does not exist`,
-			);
+			const where = `${relPath}:${lineOf(text, match.index!)}`;
+			if (await exists(join(ROOT, path))) {
+				noteReference(join(ROOT, path), where);
+				continue;
+			}
+			fail('named-paths', where, `names \`${path}\`, which does not exist`);
 		}
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Check: paths a doc names are committed, not just present locally
+// ---------------------------------------------------------------------------
+
+/**
+ * A path existing on the author's disk is not the claim a committed document
+ * makes. The claim is that a reader who clones the repository will find it, and
+ * a file that is untracked *and* unignored exists only by accident of the tree
+ * it was written in.
+ *
+ * This is not hypothetical either: `.serena/project.yml` was linked by the
+ * serena rule while being untracked, so every other check went green on a file
+ * nobody else would have had.
+ *
+ * Naming an ignored path stays legitimate — the commands rule lists `.temp/`
+ * and `.serena/cache/` precisely because they are ignored. Only the third
+ * state, neither tracked nor ignored, is the defect.
+ */
+async function checkTrackedPaths(): Promise<void> {
+	checksRun++;
+
+	const git = async (args: string[]): Promise<string[]> => {
+		const { code, stdout } = await new Deno.Command('git', {
+			args,
+			cwd: ROOT,
+			stdout: 'piped',
+			stderr: 'null',
+		}).output();
+		if (code !== 0) return [];
+		return new TextDecoder().decode(stdout).split('\0').filter(Boolean);
+	};
+
+	const tracked = new Set(await git(['ls-files', '-z']));
+	const strays = new Set(await git(['ls-files', '--others', '--exclude-standard', '-z']));
+	if (tracked.size === 0) return; // not a git checkout; nothing to assert
+
+	for (const [absolute, where] of referencedPaths) {
+		const path = rel(absolute);
+		if (tracked.has(path)) continue;
+
+		const prefix = path.endsWith('/') ? path : `${path}/`;
+		const strayHere = strays.has(path) || [...strays].some((s) => s.startsWith(prefix));
+		if (!strayHere) continue; // ignored, or a directory whose contents are all tracked
+		const trackedHere = [...tracked].some((t) => t.startsWith(prefix));
+		if (trackedHere) continue; // partially tracked directory: normal
+
+		fail(
+			'tracked-paths',
+			where,
+			`names ${path}, which is untracked and unignored — it exists in this working tree only`,
+		);
 	}
 }
 
@@ -711,6 +781,7 @@ async function main(): Promise<void> {
 	await checkDocumentedTasks(files);
 	await checkScriptPaths();
 	await checkNamedPaths(files);
+	await checkTrackedPaths();
 	await checkGeneratedBanners();
 	await checkHardcodedCounts(files);
 	await checkProseBans(files);

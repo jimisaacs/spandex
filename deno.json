@@ -28,7 +28,7 @@
 		"bench:analyze": "deno run -A scripts/analyze-benchmarks.ts",
 		"bench:compare": "deno run --allow-read --allow-write scripts/compare-benchmarks.ts",
 		"bench:archived": "deno bench -A benchmarks/performance.ts -- --include-archived",
-		"meta-check": "deno run --allow-read scripts/meta-check.ts",
+		"meta-check": "deno run --allow-read --allow-run=git scripts/meta-check.ts",
 		"sync-docs": "deno run -A scripts/sync-docs.ts",
 		"archive:impl": "deno run -A scripts/archive-impl.ts",
 		"unarchive:impl": "deno run -A scripts/unarchive-impl.ts",
