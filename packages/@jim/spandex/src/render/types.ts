@@ -1,7 +1,7 @@
 /**
  * Rendering abstractions for spatial indexes.
  *
- * Frontend: Query strategy, extent transforms, context creation
+ * Frontend: extent transforms, context creation
  * Backend: Value transformation, output format, composition
  */
 
@@ -43,9 +43,6 @@ export interface ProgressionStep<Index, Params extends RenderParams> {
 	/** Render parameters for this step */
 	params: Params;
 }
-
-/** Query strategy: 'full' = query all, 'scanline' = row-by-row, 'tiled' = tiled regions */
-export type QueryStrategy = 'full' | 'scanline' | 'tiled';
 
 /** Backend context for standalone rendering */
 export interface RenderContext<T, Output, Params extends RenderParams> {

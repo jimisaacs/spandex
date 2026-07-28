@@ -113,5 +113,5 @@ interface ASCIIRenderer {
  * @returns Renderer instance with render, renderLayout, and renderProgression methods
  */
 export function createRenderer(): ASCIIRenderer {
-	return frontend.createRenderer(new ASCIIBackend(), 'full') satisfies ASCIIRenderer;
+	return frontend.createRenderer(new ASCIIBackend()) satisfies ASCIIRenderer;
 }

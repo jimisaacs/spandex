@@ -133,5 +133,5 @@ interface HTMLRenderer {
  * @returns Renderer instance with render, renderLayout, and renderProgression methods
  */
 export function createRenderer(): HTMLRenderer {
-	return frontend.createRenderer(new HTMLBackend(), 'full') satisfies HTMLRenderer;
+	return frontend.createRenderer(new HTMLBackend()) satisfies HTMLRenderer;
 }
