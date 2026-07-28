@@ -27,13 +27,14 @@ if (!['superseded', 'failed-experiments'].includes(category)) {
 }
 
 // Convert implementation name to filename
-const filename = implName.toLowerCase().replace(/impl$/, '') + '.ts';
-const testFilename = filename.replace('.ts', '.test.ts');
+const slug = implName.toLowerCase().replace(/impl$/, '');
+const filename = `${slug}.ts`;
 
 const archiveSrcPath = `archive/src/implementations/${category}/${filename}`;
-const archiveTestPath = `archive/test/${category}/${testFilename}`;
+const archiveTestPath = `archive/test/${category}/${slug}`;
 const srcPath = `packages/@jim/spandex/src/index/${filename}`;
-const testPath = `test/${testFilename}`;
+// Conformance tests live in one directory per implementation.
+const testPath = `packages/@jim/spandex/test/index/${slug}`;
 
 console.log(`\n📂 Unarchiving ${implName}...\n`);
 
@@ -49,13 +50,13 @@ try {
 console.log(`📦 Moving ${archiveSrcPath} → ${srcPath}`);
 await Deno.rename(archiveSrcPath, srcPath);
 
-// Move test file back if exists
+// Move the test directory back if it exists
 try {
 	await Deno.stat(archiveTestPath);
-	console.log(`📦 Moving ${archiveTestPath} → ${testPath}`);
+	console.log(`📦 Moving ${archiveTestPath}/ → ${testPath}/`);
 	await Deno.rename(archiveTestPath, testPath);
 } catch {
-	console.log(`⚠️  No archived test file found (skipping)`);
+	console.log(`⚠️  No archived test directory found (skipping)`);
 }
 
 // Remove archive header

@@ -1,99 +1,108 @@
 # Scripts
 
-**Automation and tooling** - files you run with `deno run`
+The automation behind the `deno task` entries. Most are Deno programs; two are
+bash, because they drive the toolchain itself.
 
----
+Every file in this directory is documented below, and `deno task meta-check`
+fails if one is not.
 
-## ⚠️ CRITICAL: Two Benchmark Scripts - Different Use Cases
+## Verification
 
-| Script                  | Generates                               | Duration | When to run                 |
-| ----------------------- | --------------------------------------- | -------- | --------------------------- |
-| `update-benchmarks.ts`  | `BENCHMARKS.md`                         | ~16 min  | Frequently during iteration |
-| `analyze-benchmarks.ts` | `docs/analyses/benchmark-statistics.md` | ~80 min  | Before completing tasks     |
+### `ci-steps.sh`
 
-**Workflow**:
+The verification sequence, defined once so a local run and CI cannot drift
+apart.
 
-```bash
-# During development - quick feedback:
-deno task bench:update  # Run frequently
+**Run**: `deno task ci`
 
-# Before completing/committing - ensure both docs current:
-deno task bench:update
-deno task bench:analyze 5 docs/analyses/benchmark-statistics.md
-```
+It runs `fmt --check`, `lint`, `check`, `meta-check`, and `test` in order,
+reporting each and failing on the first that fails. `.github/workflows/ci.yml`
+runs this same file, so a green `deno task ci` means the same thing locally as
+it does on a runner.
 
-**Why both?**
+### `ci-local.sh`
 
-1. `BENCHMARKS.md` - Quick performance overview for iteration
-2. `benchmark-statistics.md` - Statistical validation for completion
+Runs `ci-steps.sh` against specific Deno versions.
 
-**Both must be current before completing tasks.**
+**Run**: `deno task ci:matrix`, or `bash scripts/ci-local.sh v2.8.0`
 
----
+The failures this catches are toolchain drift rather than code drift. CI once
+tracked a floating `canary`, so an upstream pre-release could break the build
+with no change here, and no local run could reproduce it because local Deno was
+whatever happened to be installed. Toolchains download into `.ci-deno/` and are
+reused, each with its own module cache so one version cannot mask another's
+resolution failure.
+
+This runs the same steps as CI, not the same environment. It will not reproduce
+a failure that depends on the runner image or on a cold cache.
+
+### `meta-check.ts`
+
+Checks the claims documentation makes about the repository.
+
+**Run**: `deno task meta-check` (also part of `deno task ci`)
+
+It verifies that the agent-scaffolding symlinks resolve, that the rule and skill
+indexes match their directories, that relative links and heading anchors
+resolve, that every `deno task` named in prose is a real task, that paths named
+in code spans exist, that generated files keep their banners, and that this
+README documents every script beside it. Read the file itself for the full
+list; it is the authority, not this paragraph.
 
 ## Documentation Sync
 
 ### `sync-docs.ts`
 
-AI assistant utility to auto-sync documentation when code changes.
+Regenerates derived documentation after implementations or tests change.
 
 **Run**: `deno task sync-docs`
 
-**What it does**:
+It detects changed implementations, tests, and benchmarks, regenerates
+`BENCHMARKS.md`, and reports what it updated. Run it after archiving or
+unarchiving an implementation, or after changing an active one.
 
-1. Detects changed files (implementations, tests, benchmarks)
-2. Regenerates appropriate documentation (`BENCHMARKS.md`)
-3. Reports what was updated
+## Benchmarks
 
-**When to run**: After archiving/unarchiving implementations or modifying active implementations
+Two scripts, easily confused, and both must be current before work is done.
 
-**Note**: This is primarily used by AI assistants (Claude Code, Cursor IDE) to prevent documentation drift. Manually run if you notice docs are out of sync.
+| Script                  | Writes                                  | Duration | When                        |
+| ----------------------- | --------------------------------------- | -------- | --------------------------- |
+| `update-benchmarks.ts`  | `BENCHMARKS.md`                         | ~16 min  | Frequently during iteration |
+| `analyze-benchmarks.ts` | `docs/analyses/benchmark-statistics.md` | ~80 min  | Before finishing work       |
 
----
+```bash
+deno task bench:update                                             # quick feedback
+deno task bench:analyze 5 docs/analyses/benchmark-statistics.md    # statistical validation
+```
 
-## Benchmark Automation
+Both are slow enough to run in the background rather than blocking on.
 
 ### `update-benchmarks.ts`
 
-Runs benchmarks and generates `BENCHMARKS.md`.
+Runs `deno bench benchmarks/performance.ts`, parses the table output, and writes
+`BENCHMARKS.md`. It also measures each implementation's minified bundle size
+with `deno bundle --minify`, which is why those numbers belong there and not in
+hand-written prose.
 
 **Run**: `deno task bench:update`
 
-**What it does**:
-
-1. Runs `deno bench benchmarks/performance.ts` (parses text table output)
-2. Extracts performance data
-3. Generates formatted `BENCHMARKS.md` with comparison tables
-
-**Output**: `BENCHMARKS.md` (auto-generated, don't edit manually)
-
-**Note**: Run this frequently during iteration. Before completing task, also run `bench:analyze` to update stats.
-
 ### `analyze-benchmarks.ts`
 
-Runs benchmarks multiple times for statistical analysis.
+Runs the suite N times and reports mean, standard deviation, and CV% per
+scenario.
 
 **Run**: `deno task bench:analyze <runs> <output-file>`
 
-**Example**: `deno task bench:analyze 5 docs/analyses/benchmark-statistics.md`
-
-**What it does**:
-
-1. Runs `deno bench` N times
-2. Calculates mean, stddev, CV% for each scenario
-3. Generates statistical report with confidence intervals
-
-**Output**: Markdown file with statistical analysis
-
-**Note**: Run before completing tasks to ensure statistical docs are current. Also run `bench:update` to keep both docs in sync.
+Three runs is a quick validation. Five is the minimum for a number that lands in
+an analysis document. Writing to a scratch path rather than the committed one is
+the right move when you are only checking whether your machine reproduces the
+published rankings.
 
 ### `compare-benchmarks.ts`
 
-Compares two benchmark text outputs and detects regressions.
+Compares two benchmark outputs and detects regressions.
 
 **Run**: `deno task bench:compare <pr.txt> <main.txt> <output.md>`
-
-**Example**:
 
 ```bash
 deno bench benchmarks/performance.ts > pr-benchmarks.txt
@@ -102,104 +111,61 @@ deno bench benchmarks/performance.ts > main-benchmarks.txt
 deno task bench:compare pr-benchmarks.txt main-benchmarks.txt comparison.md
 ```
 
-**What it does**:
+It flags anything more than 20% slower as a regression and more than 20% faster
+as an improvement. Exit code 0 means no regressions, 1 means regressions were
+found, and 2 means bad input. Run it with no arguments to test the parser.
 
-1. Parses text table output from `deno bench`
-2. Compares performance metrics
-3. Detects regressions (>20% slower) and improvements (>20% faster)
-4. Generates markdown comparison table
-
-**Exit codes**:
-
-- 0 = No regressions
-- 1 = Regressions detected
-- 2 = Error (invalid input, missing files)
-
-**Used by**: `.github/workflows/performance-regression.yml` (automated PR checks)
-
-**Local testing**:
-
-```bash
-# Run benchmarks and save to files
-deno bench benchmarks/performance.ts > pr-benchmarks.txt
-# ... make changes ...
-deno bench benchmarks/performance.ts > main-benchmarks.txt
-
-# Compare
-deno task bench:compare pr-benchmarks.txt main-benchmarks.txt comparison.md
-echo $?  # 0=no regression, 1=regression, 2=error
-
-# Or run without arguments to test parsing
-deno run --allow-read --allow-run scripts/compare-benchmarks.ts
-```
-
----
+**Used by**: `.github/workflows/performance-regression.yml`
 
 ## Implementation Lifecycle
 
+An archived implementation lives in git history, not on disk.
+`archive/IMPLEMENTATION-HISTORY.md` carries the SHA to retrieve each one, and
+`archive/src/implementations/` is empty. Retrieval is a git command:
+
+```bash
+git show <SHA>:packages/@jim/spandex/src/index/X.ts
+```
+
 ### `archive-impl.ts`
 
-Archives an implementation (moves to `archive/`, updates imports).
+Moves an implementation and its tests out of the active tree.
 
-**Run**: `deno task archive:impl <name> <category>`
+**Run**: `deno task archive:impl <name> <superseded|failed-experiments>`
 
-**Categories**: `superseded` | `failed-experiments`
+It moves `packages/@jim/spandex/src/index/<name>.ts` and the matching test
+directory `packages/@jim/spandex/test/index/<name>/` under `archive/`, adds a
+header saying why the file was archived, and type-checks what remains.
+Benchmarks discover implementations from the source directory, so removing the
+file is the whole deregistration step.
 
-**Example**: `deno task archive:impl HybridRTree failed-experiments`
+**Treat this as one-way.** It rewrites the archived file's relative imports to
+`@jim/spandex`, and `unarchive-impl.ts` does not reverse that, so a round trip
+does not return the file you started with. The reliable way back is the SHA in
+`archive/IMPLEMENTATION-HISTORY.md`.
 
-**What it does**:
-
-1. Moves `packages/@jim/spandex/src/index/X.ts` → `archive/src/implementations/<category>/X.ts`
-2. Moves `packages/@jim/spandex/test/index/X/` → `archive/test/<category>/X/`
-3. Updates imports
-4. Adds archive header
-5. Verifies type-checking
-
-**See**: `docs/IMPLEMENTATION-LIFECYCLE.md` for details
+**See**: `docs/IMPLEMENTATION-LIFECYCLE.md`
 
 ### `unarchive-impl.ts`
 
-Restores an archived implementation (moves back to active).
+Moves an archived implementation back into the active tree.
 
-**Run**: `deno task unarchive:impl <name> <category>`
+**Run**: `deno task unarchive:impl <name> <superseded|failed-experiments>`
 
-**Example**: `deno task unarchive:impl HybridRTree failed-experiments`
-
-**What it does**: Reverse of `archive-impl.ts`
-
----
+It reverses the file moves and strips the archive header. It does not reverse
+the import rewriting described above, so check the imports after running it.
 
 ## Convention
 
-**This directory contains**: Automation, tooling, generators (scripts you `deno run`)
-
-**For benchmark suites**: See `benchmarks/` directory (files you `deno bench`)
-
----
+Scripts here are automation you run through a `deno task`. Benchmark suites live
+in `benchmarks/` and are run with `deno bench`.
 
 ## Adding a New Script
 
-1. Create `scripts/your-script.ts`
-2. Add permissions needed (e.g., `--allow-read`, `--allow-write`)
-3. Optionally add task to `deno.json`:
+1. Create `scripts/your-script.ts`.
+2. Give it the narrowest permissions that work, rather than `-A`.
+3. Add a task to `deno.json`:
    ```json
    "your-task": "deno run --allow-read scripts/your-script.ts"
    ```
-4. Document in this README
-
-Example:
-
-```typescript
-// scripts/example.ts
-console.log('Hello from script!');
-
-// deno.json
-{
-  "tasks": {
-    "example": "deno run scripts/example.ts"
-  }
-}
-
-// Run with:
-// deno task <your-task-name>
-```
+4. Document it in this README. `deno task meta-check` fails until you do.

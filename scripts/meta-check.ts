@@ -28,8 +28,17 @@
  * implementation file or a directory that does not exist; and a link `#anchor`
  * matching no heading, in the same file, across files, and after a heading was
  * renamed out from under an inbound link; and a doc naming an untracked,
- * unignored file or directory. All thirty were caught. Two cases were confirmed
- * *not* to fire: a valid anchor, and a doc deliberately naming an ignored path.
+ * unignored file or directory; and an empty code fence; and a site config
+ * missing either spelling of an agent entry point, missing the test-tree
+ * predicate, or regressed to a per-package test ignore; and a script with no
+ * section in `scripts/README.md`. All thirty-six were caught. Two cases were
+ * confirmed *not* to fire: a valid anchor, and a doc deliberately naming an
+ * ignored path.
+ *
+ * One injection run was itself void and had to be redone: a `*∕` inside a doc
+ * comment closed the comment early, so the file failed to parse and every
+ * injection looked caught. An injection test has to distinguish "the check
+ * fired" from "the script broke".
  *
  * Two of those defects were not hypothetical, and both had gone green here. A
  * subagent's `tools:` and `model:` keys were indented under `description:`,
@@ -923,6 +932,32 @@ async function checkEntryPointBudget(): Promise<void> {
 }
 
 // ---------------------------------------------------------------------------
+// Check: every script is documented beside it
+// ---------------------------------------------------------------------------
+
+/**
+ * `scripts/README.md` tells anyone adding a script to document it there, and
+ * nothing held them to it: three scripts accumulated undocumented, including
+ * the two that define the verification sequence.
+ */
+async function checkScriptsDocumented(): Promise<void> {
+	checksRun++;
+	const readmePath = join(ROOT, 'scripts', 'README.md');
+	const readme = await readText(readmePath);
+
+	for await (const entry of Deno.readDir(join(ROOT, 'scripts'))) {
+		if (!entry.isFile || entry.name === 'README.md') continue;
+		if (!readme.includes(`\`${entry.name}\``)) {
+			fail(
+				'scripts-documented',
+				`scripts/${entry.name}`,
+				'is not documented in scripts/README.md — add a section naming it in a code span',
+			);
+		}
+	}
+}
+
+// ---------------------------------------------------------------------------
 // Check: the site publishes documentation, not scaffolding or fixtures
 // ---------------------------------------------------------------------------
 
@@ -997,6 +1032,7 @@ async function main(): Promise<void> {
 	await checkProseBans(files);
 	await checkEntryPointBudget();
 	await checkSiteIgnores();
+	await checkScriptsDocumented();
 
 	if (failures.length === 0) {
 		console.log(`✅ meta-check: ${checksRun} checks passed over ${files.length} markdown files`);
