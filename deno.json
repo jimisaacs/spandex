@@ -13,7 +13,7 @@
 		"@std/fs": "jsr:@std/fs@^1.0.24",
 		"@std/path": "jsr:@std/path@^1.1.6"
 	},
-	"exclude": [".temp/", "_site/"],
+	"exclude": [".temp/", "_site/", ".deno/", ".ci-deno/"],
 	"tasks": {
 		"test": "deno test -A",
 		"test:watch": "deno test -A --watch",
@@ -28,6 +28,8 @@
 		"bench:analyze": "deno run -A scripts/analyze-benchmarks.ts",
 		"bench:compare": "deno run --allow-read --allow-write scripts/compare-benchmarks.ts",
 		"bench:archived": "deno bench -A benchmarks/performance.ts -- --include-archived",
+		"ci": "bash scripts/ci-steps.sh",
+		"ci:matrix": "bash scripts/ci-local.sh pinned canary",
 		"meta-check": "deno run --allow-read --allow-run=git scripts/meta-check.ts",
 		"sync-docs": "deno run -A scripts/sync-docs.ts",
 		"archive:impl": "deno run -A scripts/archive-impl.ts",
