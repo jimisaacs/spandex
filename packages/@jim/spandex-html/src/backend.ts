@@ -130,13 +130,25 @@ function formatRowNumber(row: number): string {
 
 /**
  * Serialize value to consistent string for legend lookup.
- * Handles primitives directly, falls back to JSON for objects.
+ *
+ * Object keys are sorted so that two structurally equal values serialize
+ * identically. Plain `JSON.stringify` follows insertion order, which made this
+ * renderer refuse an index the ASCII renderer accepts: a stored `{b, a}` did
+ * not match a legend `{a, b}`. Whether an index is renderable must not depend
+ * on which renderer is asked.
  */
 function serializeValue<T>(value: T): string {
 	if (value === null) return 'null';
 	if (value === undefined) return 'undefined';
 	if (typeof value === 'string') return value;
 	if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+	if (typeof value === 'object' && !Array.isArray(value)) {
+		const entries = Object.entries(value as Record<string, unknown>)
+			.sort(([a], [b]) => a.localeCompare(b))
+			.map(([k, v]) => `${JSON.stringify(k)}:${serializeValue(v)}`)
+			.join(',');
+		return `{${entries}}`;
+	}
 	return JSON.stringify(value);
 }
 
