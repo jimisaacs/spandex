@@ -913,6 +913,57 @@ async function checkEntryPointBudget(): Promise<void> {
 }
 
 // ---------------------------------------------------------------------------
+// Check: the site publishes documentation, not scaffolding or fixtures
+// ---------------------------------------------------------------------------
+
+/**
+ * The site is built from the repository's own markdown, so anything committed
+ * as `.md` is a page unless the config says otherwise. Two categories must
+ * never become pages: agent scaffolding, which is written for an executor
+ * rather than a reader, and committed test fixtures, which are snapshots for
+ * review. Both once shipped: `CLAUDE.md` because a bare filename does not match
+ * a recursive glob, and two packages' fixtures because only the third package's
+ * test tree was named.
+ */
+async function checkSiteIgnores(): Promise<void> {
+	checksRun++;
+	const configPath = join(ROOT, 'site', '_config.ts');
+	const config = await readText(configPath);
+
+	// Every agent entry point needs both spellings: the bare name and the glob.
+	for (const entry of ['AGENTS.md', 'CLAUDE.md']) {
+		for (const spelling of [`'${entry}'`, `'**/${entry}'`]) {
+			if (!config.includes(spelling)) {
+				fail(
+					'site-ignores',
+					'site/_config.ts',
+					`does not ignore ${spelling}, so the agent entry point would publish as a page`,
+				);
+			}
+		}
+	}
+
+	// Test trees are ignored by predicate, not one package at a time, so a new
+	// package cannot arrive with its fixtures exposed.
+	if (!/site\.ignore\(\(path\)\s*=>\s*path\.includes\('\/test\/'\)\)/.test(config)) {
+		fail(
+			'site-ignores',
+			'site/_config.ts',
+			"does not ignore every '/test/' path by predicate, so a package's committed fixtures would publish as pages",
+		);
+	}
+
+	// A per-package test ignore is the shape that let two packages leak.
+	for (const match of config.matchAll(/site\.ignore\('(packages\/[^']*\/test)'\)/g)) {
+		fail(
+			'site-ignores',
+			`site/_config.ts:${lineOf(config, match.index!)}`,
+			`ignores one package's tests ("${match[1]}") — the predicate above covers every package; delete this line`,
+		);
+	}
+}
+
+// ---------------------------------------------------------------------------
 // Runner
 // ---------------------------------------------------------------------------
 
@@ -935,6 +986,7 @@ async function main(): Promise<void> {
 	await checkHardcodedCounts(files);
 	await checkProseBans(files);
 	await checkEntryPointBudget();
+	await checkSiteIgnores();
 
 	if (failures.length === 0) {
 		console.log(`✅ meta-check: ${checksRun} checks passed over ${files.length} markdown files`);

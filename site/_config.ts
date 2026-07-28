@@ -46,14 +46,15 @@ site.ignore('site');
 site.ignore('.temp');
 site.ignore('.git*');
 
-// Ignore internal packages and tests
+// Ignore internal packages and every package's test tree. Test fixtures are
+// committed snapshots for review, not pages a reader should land on.
 site.ignore('packages/@local');
-site.ignore('packages/@jim/spandex/test');
+site.ignore((path) => path.includes('/test/'));
 
-// Ignore AI assistant configuration
-site.ignore('AGENTS.md');
-site.ignore('**/AGENTS.md');
-site.ignore('**/CLAUDE.md');
+// Ignore agent scaffolding. These are written for an executor, not a reader,
+// and a bare filename does not match a `**/` glob, so each is named twice.
+site.ignore('AGENTS.md', '**/AGENTS.md');
+site.ignore('CLAUDE.md', '**/CLAUDE.md');
 
 // Plugins
 site.use(
