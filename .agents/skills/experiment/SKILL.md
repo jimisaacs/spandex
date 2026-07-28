@@ -67,11 +67,12 @@ to register.
 
 ```sh
 deno task test && deno task check
-deno task bench:update     # ~2 min, fast feedback
+deno task bench:update     # ~16 min, fast feedback
 ```
 
 Stay on `bench:update` while the design is still moving. Statistical analysis on
-a shape you are about to change is half an hour spent measuring the wrong thing.
+a shape you are about to change is well over an hour spent measuring the wrong
+thing.
 
 ## 4. Measure for the record
 
@@ -81,8 +82,8 @@ Once the design is settled:
 deno task bench:analyze 5 docs/analyses/benchmark-statistics.md
 ```
 
-Five runs minimum. It takes about thirty minutes, so run it in the background
-and watch the log. It overwrites `benchmark-statistics.md` deliberately — do not
+Five runs minimum, which measures at well over an hour, so run it in the
+background and watch the log. It overwrites `benchmark-statistics.md` deliberately — do not
 create an experiment-specific stats file.
 
 ## 5. Document the findings

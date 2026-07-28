@@ -8,8 +8,8 @@
 
 | Script                  | Generates                               | Duration | When to run                 |
 | ----------------------- | --------------------------------------- | -------- | --------------------------- |
-| `update-benchmarks.ts`  | `BENCHMARKS.md`                         | ~2 min   | Frequently during iteration |
-| `analyze-benchmarks.ts` | `docs/analyses/benchmark-statistics.md` | ~30 min  | Before completing tasks     |
+| `update-benchmarks.ts`  | `BENCHMARKS.md`                         | ~16 min  | Frequently during iteration |
+| `analyze-benchmarks.ts` | `docs/analyses/benchmark-statistics.md` | ~80 min  | Before completing tasks     |
 
 **Workflow**:
 

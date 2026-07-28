@@ -90,8 +90,8 @@ Two commands are easy to confuse and both must be current before work is done:
 
 | Command                                                           | Writes                                  | Takes   |
 | ----------------------------------------------------------------- | --------------------------------------- | ------- |
-| `deno task bench:update`                                          | `BENCHMARKS.md`                         | ~2 min  |
-| `deno task bench:analyze 5 docs/analyses/benchmark-statistics.md` | `docs/analyses/benchmark-statistics.md` | ~30 min |
+| `deno task bench:update`                                          | `BENCHMARKS.md`                         | ~16 min |
+| `deno task bench:analyze 5 docs/analyses/benchmark-statistics.md` | `docs/analyses/benchmark-statistics.md` | ~80 min |
 
 After implementations or tests change, run `deno task sync-docs` before
 reporting the work done.

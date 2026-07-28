@@ -46,7 +46,7 @@ with `UPDATE_FIXTURES=1 deno test -A` and read the resulting diff.
 While the design is still moving, stay on quick feedback:
 
 ```bash
-deno task bench:update   # ~2 min
+deno task bench:update   # ~16 min
 ```
 
 Running the full statistical analysis on a shape you are about to change is half
@@ -57,7 +57,7 @@ an hour spent measuring the wrong thing.
 Once the design has settled:
 
 ```bash
-deno task bench:analyze 5 docs/analyses/benchmark-statistics.md   # ~30 min
+deno task bench:analyze 5 docs/analyses/benchmark-statistics.md   # ~80 min
 ```
 
 Five runs is the minimum for a claim that lands in an analysis document; three

@@ -120,7 +120,7 @@ Review generated `packages/@jim/spandex/test/fixtures/*.md` files.
 ```bash
 deno task test              # All tests pass
 deno task check             # Type-checking passes
-deno task bench:update      # Regenerate BENCHMARKS.md (~2 min)
+deno task bench:update      # Regenerate BENCHMARKS.md (~16 min)
 ```
 
 ### 5. Document
@@ -169,8 +169,8 @@ If not already done, create `archive/docs/experiments/[name]-experiment.md` docu
 **4. Regenerate benchmarks:**
 
 ```bash
-deno task bench:update      # Quick update (~2 min)
-deno task bench:analyze 5 docs/analyses/benchmark-statistics.md  # Full stats (~30 min)
+deno task bench:update      # Quick update (~16 min)
+deno task bench:analyze 5 docs/analyses/benchmark-statistics.md  # Full stats (~80 min)
 ```
 
 **5. Commit with archive documentation:**

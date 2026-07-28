@@ -7,13 +7,13 @@ Auto-discovers implementations from `packages/@jim/spandex/src/index/`.
 ## Quick Reference
 
 ```bash
-# Run benchmarks (quick, ~2 min)
+# Run benchmarks (~16 min)
 deno task bench
 
-# Update documentation (quick, ~2 min)
+# Update documentation (~16 min)
 deno task bench:update
 
-# Statistical analysis (slow, ~30 min)
+# Statistical analysis (slow, ~80 min)
 deno task bench:analyze 5 docs/analyses/benchmark-statistics.md
 ```
 
@@ -27,7 +27,7 @@ deno task bench:analyze 5 docs/analyses/benchmark-statistics.md
 - Checking relative performance
 - Quick local testing
 
-**Duration**: ~2 minutes\
+**Duration**: ~16 minutes\
 **Output**: Terminal only
 
 ### `deno task bench:update` - Documentation Update
@@ -38,7 +38,7 @@ deno task bench:analyze 5 docs/analyses/benchmark-statistics.md
 - Before committing code
 - When BENCHMARKS.md is outdated
 
-**Duration**: ~2 minutes\
+**Duration**: ~16 minutes\
 **Output**: Regenerates `BENCHMARKS.md`\
 **Note**: Auto-discovers active implementations from `packages/@jim/spandex/src/index/`
 
@@ -53,13 +53,15 @@ deno task bench:analyze 5 docs/analyses/benchmark-statistics.md
 - For research experiments requiring statistical rigor
 - When you need CV%, confidence intervals
 
-**Duration**: 20-30 minutes (5 runs recommended)\
+**Duration**: ~80 minutes (5 runs)\
 **Output**: Overwrites `docs/analyses/benchmark-statistics.md`\
 **Note**: ALWAYS outputs to `benchmark-statistics.md` (don't create variants)
 
-**⚠️ WARNING**: This is SLOW. Not for quick checks - use `deno task bench` instead.
+**⚠️ WARNING**: This is the slowest thing in the repository. There is no fast
+benchmark alternative: the whole suite is expensive because the query benchmarks
+iterate their results. For fast feedback while developing, use `deno task test`.
 
-**Quick validation** (10-15 min, less rigorous):
+**Quick validation** (~50 min, less rigorous):
 
 ```bash
 deno task bench:analyze 3 docs/analyses/benchmark-statistics.md
@@ -71,15 +73,15 @@ deno task bench:analyze 3 docs/analyses/benchmark-statistics.md
 
 ```bash
 # Iterate quickly
-deno task bench  # Quick feedback (~2 min)
+deno task bench  # Quick feedback (~16 min)
 ```
 
 ### Before Completing Task
 
 ```bash
 # Update both benchmark docs
-deno task bench:update   # Updates BENCHMARKS.md (~2 min)
-deno task bench:analyze 5 docs/analyses/benchmark-statistics.md  # Updates stats (~30 min)
+deno task bench:update   # Updates BENCHMARKS.md (~16 min)
+deno task bench:analyze 5 docs/analyses/benchmark-statistics.md  # Updates stats (~80 min)
 ```
 
 **Both must be current before completing/committing work.**

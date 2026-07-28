@@ -16,12 +16,12 @@ This repository uses GitHub Actions for continuous integration and automated qua
    - Runs all tests (`deno task test`)
 
 2. **Quick Benchmarks job** (runs **in parallel** with Statistical Analysis):
-   - Runs `bench:update` to generate `BENCHMARKS.md` (~2 min)
+   - Runs `bench:update` to generate `BENCHMARKS.md` (~16 min)
    - Auto-commits updated file
    - Typically finishes first due to shorter duration
 
 3. **Statistical Analysis job** (runs **in parallel** with Quick Benchmarks):
-   - Runs `bench:analyze` to generate `docs/analyses/benchmark-statistics.md` (~30 min)
+   - Runs `bench:analyze` to generate `docs/analyses/benchmark-statistics.md` (~80 min)
    - Auto-commits updated file
    - Uses rebase strategy to handle potential race condition with Quick Benchmarks
 
@@ -59,13 +59,13 @@ This repository uses GitHub Actions for continuous integration and automated qua
 
 **Both jobs run in parallel** and push independently:
 
-**Quick Benchmarks** (~2 min):
+**Quick Benchmarks** (~16 min):
 
 - Runs `bench:update`
 - Commits `BENCHMARKS.md`
 - Pushes back to `main` with `[skip ci]`
 
-**Statistical Analysis** (~30 min):
+**Statistical Analysis** (~80 min):
 
 - Runs `bench:analyze`
 - Commits `docs/analyses/benchmark-statistics.md`

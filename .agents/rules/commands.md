@@ -57,14 +57,18 @@ They are different tools and the difference is the thing most often forgotten.
 
 | Task                                                              | Writes                                  | Takes   | Run it                      |
 | ----------------------------------------------------------------- | --------------------------------------- | ------- | --------------------------- |
-| `deno task bench:update`                                          | `BENCHMARKS.md`                         | ~2 min  | Often, while iterating      |
-| `deno task bench:analyze 5 docs/analyses/benchmark-statistics.md` | `docs/analyses/benchmark-statistics.md` | ~30 min | Once, before finishing work |
+| `deno task bench:update`                                          | `BENCHMARKS.md`                         | ~16 min | The cheaper of the two      |
+| `deno task bench:analyze 5 docs/analyses/benchmark-statistics.md` | `docs/analyses/benchmark-statistics.md` | ~80 min | Once, before finishing work |
 
 Both must be current before work is complete, and CI regenerates both on pushes
-to `main`. `bench:analyze` takes roughly five minutes per run, so five runs is
-half an hour; run it in the background and watch the log rather than blocking on
-it. Three runs is a quick validation and is not enough for a claim that lands in
-an analysis document.
+to `main`. A single pass over the suite measures about sixteen minutes, so five
+runs is well over an hour. Run it in the background and watch the log rather
+than blocking on it. Three runs is a quick validation and is not enough for a
+claim that lands in an analysis document.
+
+These are slow because the query benchmarks iterate their results. They once
+appeared to take two minutes, which was the cost of allocating generators that
+were never consumed.
 
 Other benchmark entry points:
 

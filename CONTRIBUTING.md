@@ -40,7 +40,7 @@ deno task test:watch     # Watch mode
 deno task fmt            # Format code
 deno task lint           # Lint code
 deno task check          # Type check
-deno task bench:update   # Update benchmarks (~2 min)
+deno task bench:update   # Update benchmarks (~16 min, run in background)
 ```
 
 ### 3. Pre-Commit Checklist
@@ -106,8 +106,8 @@ UPDATE_FIXTURES=1 deno test -A
 ### During Development (Quick Checks)
 
 ```bash
-deno task bench         # Run benchmarks (~2 min)
-deno task bench:update  # Update BENCHMARKS.md (~2 min)
+deno task bench         # Run benchmarks (~16 min)
+deno task bench:update  # Update BENCHMARKS.md (~16 min)
 ```
 
 ### Before Completing Tasks (Full Update)
@@ -115,11 +115,11 @@ deno task bench:update  # Update BENCHMARKS.md (~2 min)
 **⚠️ IMPORTANT**: Both benchmark documentation files must be current before completing work:
 
 ```bash
-deno task bench:update   # Updates BENCHMARKS.md (~2 min)
-deno task bench:analyze 5 docs/analyses/benchmark-statistics.md  # Updates stats (~30 min) ⚠️
+deno task bench:update   # Updates BENCHMARKS.md (~16 min)
+deno task bench:analyze 5 docs/analyses/benchmark-statistics.md  # Updates stats (~80 min) ⚠️
 ```
 
-**Warning**: `bench:analyze` is **VERY SLOW** (20-30 minutes for 5 runs). Only run before completing/committing major changes. Use `deno task bench` (~2 min) for quick validation during development.
+**Warning**: `bench:analyze` takes ~80 minutes for 5 runs, and a single `bench:update` pass takes ~16. Run either in the background. Neither is a quick check: use `deno task test` for fast feedback while developing, and run the benchmarks before completing work.
 
 For detailed benchmarking workflows and when to use which command, see [BENCHMARK-FRAMEWORK](./docs/BENCHMARK-FRAMEWORK.md).
 
