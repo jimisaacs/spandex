@@ -75,6 +75,23 @@ to quietly ship the break.
 - **Compound for the next agent.** Accurate docs and passing checks matter more
   than session-local narration.
 
+## A Bug Is Not A Verdict On The Design
+
+A defect found while a design is landing is evidence about the implementation
+far more often than about the design. Before reverting, name which one it is:
+
+- **A missing prerequisite** the design assumed and nothing provides yet: a
+  boundary conversion, a shared helper, an invariant nothing yet enforces. Build
+  it. It is usually smaller than the revert, and the revert leaves the hole for
+  the next session to rediscover.
+- **A contradiction in the design's own terms**, where holding one invariant it
+  needs breaks another. Only this earns a retreat, and it is rare.
+
+Reverting on the first is deferral wearing a bug report as its excuse, and the
+follow-up task naming the prerequisite is the tell. Losing confidence does not
+change the answer either: work that was not trusted needs more verification, not
+smaller changes.
+
 ## Setup Litmus
 
 Before adding a task, an export, or a documentation surface, ask:

@@ -83,6 +83,18 @@ hypothesis nobody wrote down gets re-tried.
 Retrieve with `git show <SHA>:packages/@jim/spandex/src/index/X.ts`. Compare
 against archived baselines with `deno task bench:archived`.
 
+**Do not archive a hypothesis for an implementation's defect.** This is the
+research form of the rule in
+[project-values](project-values.md#a-bug-is-not-a-verdict-on-the-design), and it
+is the more expensive one, because the archive is permanent and the next
+researcher reads it as settled. A candidate that fails an axiom, or benchmarks
+badly, is usually evidence that this code is wrong rather than that the idea is.
+Separate the two before writing the entry: fix the defect and measure again, or
+say plainly in the entry that the approach was abandoned with a known bug
+outstanding. "Slower than baseline" and "slower than baseline, though the query
+path was never optimized" are different claims, and only one of them stops
+someone trying again.
+
 ## Reproducibility
 
 - Benchmarks report the environment. CI runs on shared runners, so CV% above
