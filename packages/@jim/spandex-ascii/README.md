@@ -94,8 +94,8 @@ const { renderProgression } = createRenderer();
 const output = renderProgression(
 	createMortonLinearScanIndex<'horizontal' | 'vertical'>,
 	[
-		{ params: {}, action: (idx) => idx.insert([-Infinity, 1, Infinity, 1], 'horizontal') },
-		{ params: {}, action: (idx) => idx.insert([1, -Infinity, 1, Infinity], 'vertical') },
+		{ params: { name: 'horizontal' }, action: (idx) => idx.insert([-Infinity, 1, Infinity, 1], 'horizontal') },
+		{ params: { name: 'vertical' }, action: (idx) => idx.insert([1, -Infinity, 1, Infinity], 'vertical') },
 	],
 	{ legend: { H: 'horizontal', V: 'vertical' } },
 );
@@ -127,10 +127,11 @@ const { renderLayout } = createRenderer();
 
 const output = renderLayout(
 	[
-		{ source: index1, params: { legend: legend1 } },
-		{ source: index2, params: { legend: legend2 } },
+		{ source: index1, params: { name: 'Before' } },
+		{ source: index2, params: { name: 'After' } },
 	],
 	{
+		legend: { R: 'red', B: 'blue' }, // One legend covers every grid in the layout
 		spacing: 5, // Characters between grids
 	},
 );

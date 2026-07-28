@@ -19,6 +19,6 @@ Deno.test('My test', async (t) => {
 
 **Path convention**: `test/foo.test.ts` → `test/fixtures/foo.md`
 
-**Update mode**: `UPDATE_FIXTURES=1 deno test`
+**Update mode**: `UPDATE_FIXTURES=1 deno test -A` (reading the env var needs permission)
 
 **License**: MIT

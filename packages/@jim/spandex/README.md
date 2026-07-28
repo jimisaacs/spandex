@@ -54,7 +54,7 @@ for (const [bounds, value] of adapter.query()) {
 
 | Rectangles  | Algorithm                     | Why                      |
 | ----------- | ----------------------------- | ------------------------ |
-| < 100       | `createMortonLinearScanIndex` | Fastest O(n)             |
+| < 100       | `createMortonLinearScanIndex` | Fastest write-heavy      |
 | ≥ 100       | `createRStarTreeIndex`        | Scales O(log n)          |
 | Partitioned | `createLazyPartitionedIndex`  | Independent spatial join |
 
@@ -79,13 +79,18 @@ const partitioned = createLazyPartitionedIndex<{ color?: 'red' | 'blue'; bold?: 
 
 ```typescript
 interface SpatialIndex<T> {
-	insert(bounds: Rectangle, value: T): void;
-	query(bounds?: Rectangle): IterableIterator<[Rectangle, T]>;
+	insert(bounds: Readonly<Rectangle>, value: T): void;
+	query(bounds?: Readonly<Rectangle>): IterableIterator<QueryResult<T>>;
 	extent(): ExtentResult;
 }
 
-type Rectangle = readonly [xmin, ymin, xmax, ymax];
+type Rectangle = [xmin: number, ymin: number, xmax: number, ymax: number];
+type QueryResult<T> = readonly [bounds: Readonly<Rectangle>, value: T];
 ```
+
+A `Rectangle` you build is an ordinary mutable tuple, so you can construct one
+however you like. What comes back out of `query` is readonly, because those
+bounds belong to the index.
 
 ## Coordinate Semantics
 
@@ -133,12 +138,12 @@ const html = createRenderer().render(index, { legend, showCoordinates: true });
 
 ## Performance
 
-| n     | Algorithm | Performance                     |
-| ----- | --------- | ------------------------------- |
-| < 100 | Morton    | 2-8x faster than R*-tree        |
-| ≥ 100 | R*-tree   | 2x faster than Morton at n≈2500 |
+| n     | Algorithm | Performance                                                         |
+| ----- | --------- | ------------------------------------------------------------------- |
+| < 100 | Morton    | Up to ~5x faster on write-heavy inserts; slower on query-heavy work |
+| ≥ 100 | R*-tree   | 9-19x faster than Morton at n≈2500                                  |
 
-Crossover n≈100. See [BENCHMARKS.md](https://github.com/jimisaacs/spandex/blob/main/BENCHMARKS.md) for current measurements.
+The crossover is around n≈100 on write-heavy workloads; on query-heavy workloads the R*-tree leads from about n≈15. See [BENCHMARKS.md](https://github.com/jimisaacs/spandex/blob/main/BENCHMARKS.md) for current measurements.
 
 ## Implementation-Specific Methods
 

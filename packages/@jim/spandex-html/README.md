@@ -58,7 +58,7 @@ const html = render(index, { legend, gridOnly: true });
 Visualize how an index changes over time:
 
 ```typescript
-const { renderProgression } = createRenderer<'horizontal' | 'vertical'>();
+const { renderProgression } = createRenderer();
 
 const html = renderProgression(
 	createMortonLinearScanIndex<'horizontal' | 'vertical'>,
@@ -84,7 +84,7 @@ Great for test documentation and debugging insertion sequences.
 Compose multiple grids side-by-side:
 
 ```typescript
-const { renderLayout } = createRenderer<string>();
+const { renderLayout } = createRenderer();
 
 const html = renderLayout(
 	[

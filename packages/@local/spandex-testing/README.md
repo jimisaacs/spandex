@@ -22,6 +22,6 @@ Deno.test('MyImpl - Geometry', async (t) => {
 
 **Other exports**: `createRegressionScenarios()`, `validateRoundTrip()`, `assertInvariants()`
 
-**Fixtures**: `UPDATE_FIXTURES=1 deno test`
+**Fixtures**: `UPDATE_FIXTURES=1 deno test -A` (reading the env var needs permission)
 
 **License**: MIT
