@@ -435,40 +435,50 @@ class RStarTreeImpl<T> implements RStarTreeIndex<T> {
 
 		// R* split algorithm (Beckmann et al., 1990)
 		// Phase 1: ChooseSplitAxis - test both X and Y, pick one minimizing perimeter sum (margin)
+		//
+		// Prefix and suffix bounding boxes are accumulated in one pass each, the
+		// same technique phase 2 below already uses, so every split point is O(1)
+		// rather than re-scanning both groups. Both axis orderings are kept so
+		// phase 2 can reuse the winner instead of sorting a third time.
+		const m = children.length;
+		const sortedByAxis: number[][] = [children.slice(), children.slice()];
+		const px1 = new Array<number>(m), py1 = new Array<number>(m);
+		const px2 = new Array<number>(m), py2 = new Array<number>(m);
+		const sx1 = new Array<number>(m), sy1 = new Array<number>(m);
+		const sx2 = new Array<number>(m), sy2 = new Array<number>(m);
 
 		let bestAxis = 0; // 0=X, 1=Y
 		let minPerimeterSum = r.posInf;
 
-		// Test both axes
 		for (let axis = 0; axis < 2; axis++) {
-			// Sort children by lower bound along this axis
-			const sorted = children.slice().sort((a, b) => {
-				return getBounds(a)[axis]! - getBounds(b)[axis]!;
-			});
+			const sortedAxis = sortedByAxis[axis]!;
+			sortedAxis.sort((a, b) => getBounds(a)[axis]! - getBounds(b)[axis]!);
 
-			// Try all distributions with MIN_ENTRIES ≤ k ≤ MAX_ENTRIES
-			for (let k = MIN_ENTRIES; k <= children.length - MIN_ENTRIES; k++) {
-				const group1 = sorted.slice(0, k);
-				const group2 = sorted.slice(k);
+			// Prefix boxes: px*[i] covers sortedAxis[0..i].
+			let ax1 = r.posInf, ay1 = r.posInf, ax2 = r.negInf, ay2 = r.negInf;
+			for (let i = 0; i < m; i++) {
+				const [x1, y1, x2, y2] = getBounds(sortedAxis[i]!);
+				if (x1 < ax1) ax1 = x1;
+				if (y1 < ay1) ay1 = y1;
+				if (x2 > ax2) ax2 = x2;
+				if (y2 > ay2) ay2 = y2;
+				px1[i] = ax1, py1[i] = ay1, px2[i] = ax2, py2[i] = ay2;
+			}
 
-				// Compute bounding boxes
-				let g1x1 = r.posInf, g1y1 = r.posInf, g1x2 = r.negInf, g1y2 = r.negInf;
-				for (const idx of group1) {
-					const [x1, y1, x2, y2] = getBounds(idx);
-					if (x1 < g1x1) g1x1 = x1;
-					if (y1 < g1y1) g1y1 = y1;
-					if (x2 > g1x2) g1x2 = x2;
-					if (y2 > g1y2) g1y2 = y2;
-				}
+			// Suffix boxes: sx*[i] covers sortedAxis[i..m-1].
+			let bx1 = r.posInf, by1 = r.posInf, bx2 = r.negInf, by2 = r.negInf;
+			for (let i = m - 1; i >= 0; i--) {
+				const [x1, y1, x2, y2] = getBounds(sortedAxis[i]!);
+				if (x1 < bx1) bx1 = x1;
+				if (y1 < by1) by1 = y1;
+				if (x2 > bx2) bx2 = x2;
+				if (y2 > by2) by2 = y2;
+				sx1[i] = bx1, sy1[i] = by1, sx2[i] = bx2, sy2[i] = by2;
+			}
 
-				let g2x1 = r.posInf, g2y1 = r.posInf, g2x2 = r.negInf, g2y2 = r.negInf;
-				for (const idx of group2) {
-					const [x1, y1, x2, y2] = getBounds(idx);
-					if (x1 < g2x1) g2x1 = x1;
-					if (y1 < g2y1) g2y1 = y1;
-					if (x2 > g2x2) g2x2 = x2;
-					if (y2 > g2y2) g2y2 = y2;
-				}
+			for (let k = MIN_ENTRIES; k <= m - MIN_ENTRIES; k++) {
+				const g1x1 = px1[k - 1]!, g1y1 = py1[k - 1]!, g1x2 = px2[k - 1]!, g1y2 = py2[k - 1]!;
+				const g2x1 = sx1[k]!, g2y1 = sy1[k]!, g2x2 = sx2[k]!, g2y2 = sy2[k]!;
 
 				// Perimeter sum (margin metric from R* paper)
 				// Handle infinite bounds: skip if any coordinate is infinite
@@ -489,9 +499,7 @@ class RStarTreeImpl<T> implements RStarTreeIndex<T> {
 		}
 
 		// Phase 2: ChooseSplitIndex - along best axis, find split point minimizing overlap
-		const sorted = children.slice().sort((a, b) => {
-			return getBounds(a)[bestAxis]! - getBounds(b)[bestAxis]!;
-		});
+		const sorted = sortedByAxis[bestAxis]!;
 
 		let bestSplit = MIN_ENTRIES;
 		let minOverlap = r.posInf;
