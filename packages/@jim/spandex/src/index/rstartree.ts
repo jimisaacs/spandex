@@ -117,6 +117,10 @@ class RStarTreeImpl<T> implements RStarTreeIndex<T> {
 			this.nodes = [];
 			this.rootIdx = -1;
 			this._size = 0;
+			// deadCount counts inactive rows in `entries`; the array just went
+			// away, so leaving it set would charge the next insert for
+			// tombstones that no longer exist and trigger a needless rebuild.
+			this.deadCount = 0;
 		}
 
 		const [nx1, ny1, nx2, ny2] = bounds;
@@ -452,7 +456,12 @@ class RStarTreeImpl<T> implements RStarTreeIndex<T> {
 
 		for (let axis = 0; axis < 2; axis++) {
 			const sortedAxis = sortedByAxis[axis]!;
-			sortedAxis.sort((a, b) => getBounds(a)[axis]! - getBounds(b)[axis]!);
+			// Subtraction returns NaN when both bounds are the same infinity, and
+			// ALL is stored as an ordinary entry, so compare rather than subtract.
+			sortedAxis.sort((a, b) => {
+				const av = getBounds(a)[axis]!, bv = getBounds(b)[axis]!;
+				return av < bv ? -1 : av > bv ? 1 : 0;
+			});
 
 			// Prefix boxes: px*[i] covers sortedAxis[0..i].
 			let ax1 = r.posInf, ay1 = r.posInf, ax2 = r.negInf, ay2 = r.negInf;

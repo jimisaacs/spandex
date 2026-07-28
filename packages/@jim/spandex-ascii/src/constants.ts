@@ -13,7 +13,6 @@ import type { JunctionChars, LineChars } from './box-drawing.ts';
 /** Width of cell content in characters (excluding borders) */
 export const CELL_WIDTH = 3;
 /** Grid row stride: each data row followed by border line */
-export const GRID_ROW_STRIDE = 2;
 
 //#endregion Grid Structure
 

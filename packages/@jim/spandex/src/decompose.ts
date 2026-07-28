@@ -86,23 +86,3 @@ export function subtractInto(
 
 	return out.length - before;
 }
-
-/**
- * Allocating form of {@link subtractInto}, for callers that want a fresh list.
- *
- * Hot paths should prefer `subtractInto` with a reused buffer.
- */
-export function subtract(
-	ax1: number,
-	ay1: number,
-	ax2: number,
-	ay2: number,
-	bx1: number,
-	by1: number,
-	bx2: number,
-	by2: number,
-): Array<Readonly<Rectangle>> {
-	const out: Array<Readonly<Rectangle>> = [];
-	subtractInto(ax1, ay1, ax2, ay2, bx1, by1, bx2, by2, out);
-	return out;
-}
