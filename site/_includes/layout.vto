@@ -1,72 +1,130 @@
+{{# Nav hrefs are written as literal source paths. Lume's resolve_urls plugin
+    rewrites them to built pages, and scripts/meta-check.ts reads these literals
+    to confirm every one of them still publishes. The aria-current comparison
+    repeats the same path so the two are visibly identical side by side. #}}
+{{ set here = page.data.url === '/' ? '/' : String(page.data.url).replace(/\.html$/, '.md') }}
 <!DOCTYPE html>
 <html lang="en">
 	<head>
 		<meta charset="UTF-8">
 		<meta name="viewport" content="width=device-width, initial-scale=1.0">
-		<title>{{ if title }}{{ title }}{{ else }}Spandex - 2D Spatial Indexing{{ /if }}</title>
+		<title>{{ if title }}{{ title }} — Spandex{{ else }}Spandex — 2D Spatial Indexing{{ /if }}</title>
 		<meta
 			name="description"
-			content="{{ if description }}{{ description }}{{ else }}Fast 2D spatial indexing with last-writer-wins semantics for JavaScript/TypeScript{{ /if }}"
+			content="{{ if description }}{{ description }}{{ else }}Fast 2D spatial indexing with last-writer-wins semantics for JavaScript and TypeScript{{ /if }}"
 		>
 		<link rel="stylesheet" href="{{ '/styles.css' |> url }}">
 	</head>
 	<body>
-		<nav class="sidebar">
-			<div class="sidebar-header">
-				<a href="{{ '/' |> url }}" class="logo">
-					<strong>Spandex</strong>
-				</a>
-				<p class="tagline">2D Spatial Indexing</p>
-			</div>
-			
-			<div class="nav-section">
-				<h3>Learn</h3>
-				<ul>
-					<li><a href="{{ '/' |> url }}">Overview</a></li>
-					<li><a href="/docs/RECTANGLE-DECOMPOSITION-PRIMER.md">Primer</a></li>
-					<li><a href="/packages/@jim/spandex-html/test/fixtures/regression.md">🎨 HTML Examples</a></li>
-					<li><a href="/packages/@jim/spandex-ascii/test/fixtures/regression.md">📟 ASCII Examples</a></li>
-					<li><a href="/PRODUCTION-GUIDE.md">Production Guide</a></li>
-					<li><a href="/BENCHMARKS.md">Benchmarks</a></li>
-					<li><a href="/docs/core/RESEARCH-SUMMARY.md">Research</a></li>
-				</ul>
-			</div>
-			
-			<div class="nav-section">
-				<h3>Use</h3>
-				<ul>
-					<li><a href="/packages/@jim/spandex/README.md">@jim/spandex</a></li>
-					<li><a href="/packages/@jim/spandex-html/README.md">@jim/spandex-html</a></li>
-					<li><a href="/packages/@jim/spandex-ascii/README.md">@jim/spandex-ascii</a></li>
-				</ul>
-			</div>
-			
-			<div class="nav-section">
-				<h3>Develop</h3>
-				<ul>
-					<li><a href="/docs/IMPLEMENTATION-LIFECYCLE.md">Implementation</a></li>
-					<li><a href="/docs/BENCHMARK-FRAMEWORK.md">Benchmarking</a></li>
-				</ul>
-			</div>
-			
-			<div class="nav-section nav-section-links">
-				<ul>
-					<li><a href="https://jsr.io/@jim/spandex" target="_blank">JSR</a></li>
-				</ul>
-			</div>
-		</nav>
+		<a class="skip-link" href="#main">Skip to content</a>
 
-		<main class="content">
-			<article>
-				{{ content }}
-			</article>
+		<div class="layout">
+			<nav class="sidebar" aria-label="Site">
+				<div class="sidebar-header">
+					<a href="{{ '/' |> url }}" class="logo">Spandex</a>
+					<p class="tagline">2D spatial indexing for JavaScript</p>
+				</div>
 
-			<footer>
-				<p>
-					<a href="https://github.com/jimisaacs/spandex">View on GitHub</a> •
-					<a href="https://jsr.io/@jim/spandex">JSR Packages</a>
-				</p>
-			</footer>
-		</main>
+				<div class="nav-section">
+					<h2>Learn</h2>
+					<ul>
+						<li><a href="{{ '/' |> url }}" {{ if here === '/' }}aria-current="page"{{ /if }}>Overview</a></li>
+						<li>
+							<a
+								href="/docs/RECTANGLE-DECOMPOSITION-PRIMER.md"
+								{{ if here === '/docs/RECTANGLE-DECOMPOSITION-PRIMER.md' }}aria-current="page"{{ /if }}
+							>Primer</a>
+						</li>
+						<li>
+							<a
+								href="/packages/@jim/spandex-html/test/fixtures/regression.md"
+								{{ if here === '/packages/@jim/spandex-html/test/fixtures/regression.md' }}aria-current="page"{{ /if }}
+							>HTML examples</a>
+						</li>
+						<li>
+							<a
+								href="/packages/@jim/spandex-ascii/test/fixtures/regression.md"
+								{{ if here === '/packages/@jim/spandex-ascii/test/fixtures/regression.md' }}aria-current="page"{{ /if }}
+							>ASCII examples</a>
+						</li>
+						<li>
+							<a href="/PRODUCTION-GUIDE.md" {{ if here === '/PRODUCTION-GUIDE.md' }}aria-current="page"{{ /if }}>
+								Production guide
+							</a>
+						</li>
+						<li><a href="/BENCHMARKS.md" {{ if here === '/BENCHMARKS.md' }}aria-current="page"{{ /if }}>Benchmarks</a></li>
+						<li>
+							<a
+								href="/docs/core/RESEARCH-SUMMARY.md"
+								{{ if here === '/docs/core/RESEARCH-SUMMARY.md' }}aria-current="page"{{ /if }}
+							>Research</a>
+						</li>
+					</ul>
+				</div>
+
+				<div class="nav-section">
+					<h2>Packages</h2>
+					<ul>
+						<li>
+							<a
+								href="/packages/@jim/spandex/README.md"
+								{{ if here === '/packages/@jim/spandex/README.md' }}aria-current="page"{{ /if }}
+							>@jim/spandex</a>
+						</li>
+						<li>
+							<a
+								href="/packages/@jim/spandex-html/README.md"
+								{{ if here === '/packages/@jim/spandex-html/README.md' }}aria-current="page"{{ /if }}
+							>@jim/spandex-html</a>
+						</li>
+						<li>
+							<a
+								href="/packages/@jim/spandex-ascii/README.md"
+								{{ if here === '/packages/@jim/spandex-ascii/README.md' }}aria-current="page"{{ /if }}
+							>@jim/spandex-ascii</a>
+						</li>
+					</ul>
+				</div>
+
+				<div class="nav-section">
+					<h2>Develop</h2>
+					<ul>
+						<li>
+							<a
+								href="/docs/IMPLEMENTATION-LIFECYCLE.md"
+								{{ if here === '/docs/IMPLEMENTATION-LIFECYCLE.md' }}aria-current="page"{{ /if }}
+							>Adding an implementation</a>
+						</li>
+						<li>
+							<a
+								href="/docs/BENCHMARK-FRAMEWORK.md"
+								{{ if here === '/docs/BENCHMARK-FRAMEWORK.md' }}aria-current="page"{{ /if }}
+							>Benchmark framework</a>
+						</li>
+					</ul>
+				</div>
+
+				<div class="nav-section nav-section-links">
+					<ul>
+						<li><a href="https://jsr.io/@jim/spandex">JSR</a></li>
+						<li><a href="https://github.com/jimisaacs/spandex">GitHub</a></li>
+					</ul>
+				</div>
+			</nav>
+
+			<main class="content" id="main">
+				<article>
+					{{ content }}
+				</article>
+
+				<footer class="site-footer">
+					<ul>
+						<li><a href="https://github.com/jimisaacs/spandex">Source</a></li>
+						<li><a href="https://jsr.io/@jim/spandex">Packages on JSR</a></li>
+						<li><a href="https://github.com/jimisaacs/spandex/blob/main/LICENSE">MIT licence</a></li>
+					</ul>
+				</footer>
+			</main>
+		</div>
 	</body>
 </html>

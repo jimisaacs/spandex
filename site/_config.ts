@@ -59,15 +59,11 @@ site.ignore('AGENTS.md', '**/AGENTS.md');
 site.ignore('CLAUDE.md', '**/CLAUDE.md');
 
 // Plugins
-site.use(
-	prism({
-		theme: {
-			name: 'okaidia', // Dark theme that matches your site
-			cssFile: '/styles.css',
-			placeholder: '/* prism-theme */',
-		},
-	}),
-);
+//
+// No bundled theme. Every prebuilt Prism theme hardcodes its own background, so
+// fenced code stayed dark on a light page while plain <pre> followed the
+// reader's setting. Token colours live in styles.css and follow the scheme.
+site.use(prism());
 site.use(nav());
 site.use(sitemap());
 site.use(resolveUrls());

@@ -29,11 +29,12 @@
  * matching no heading, in the same file, across files, and after a heading was
  * renamed out from under an inbound link; and a doc naming an untracked,
  * unignored file or directory; and an empty code fence; and a site config
- * missing either spelling of an agent entry point, missing the test-tree
- * predicate, or regressed to a per-package test ignore; and a script with no
- * section in `scripts/README.md`. All thirty-six were caught. Two cases were
- * confirmed *not* to fire: a valid anchor, and a doc deliberately naming an
- * ignored path.
+ * missing either spelling of an agent entry point, or a nav link pointing at a
+ * page the config ignores; and a nav link whose `aria-current` comparison was
+ * left behind by an edited `href`, deleted outright, or aimed at a stale path;
+ * and a script with no section in `scripts/README.md`. Every one was caught.
+ * Two cases were confirmed *not* to fire: a valid anchor, and a doc
+ * deliberately naming an ignored path.
  *
  * One injection run was itself void and had to be redone: a `*∕` inside a doc
  * comment closed the comment early, so the file failed to parse and every
@@ -1014,6 +1015,39 @@ async function checkSiteIgnores(): Promise<void> {
 				'site-ignores',
 				where,
 				`nav links to "${target}", which site/_config.ts ignores via "${hit}" — the page will 404`,
+			);
+		}
+	}
+
+	checkNavCurrentMarkers(layout);
+}
+
+/**
+ * Each nav link states its path twice: once in `href`, and once in the
+ * comparison that marks the current page. The `href` has to stay a literal so
+ * the resolution check above can read it, so the repetition is deliberate — but
+ * a mismatched pair fails silently, leaving a page with nothing marked and no
+ * error anywhere. Pair them off and require the two spellings to agree.
+ */
+function checkNavCurrentMarkers(layout: string): void {
+	const links = [...layout.matchAll(/<a\b[^>]*?>/gs)];
+	for (const link of links) {
+		const tag = link[0];
+		const href = /href="\/([^"{}]+\.md)"/.exec(tag)?.[1];
+		const compared = /here === '\/([^']+\.md)'/.exec(tag)?.[1];
+		const where = `site/_includes/layout.vto:${lineOf(layout, link.index!)}`;
+
+		if (href !== undefined && compared === undefined) {
+			fail(
+				'site-ignores',
+				where,
+				`nav link to "${href}" has no aria-current comparison, so it never marks as current`,
+			);
+		} else if (href !== undefined && compared !== href) {
+			fail(
+				'site-ignores',
+				where,
+				`nav link href is "/${href}" but its aria-current comparison tests "/${compared}" — the marker never fires`,
 			);
 		}
 	}

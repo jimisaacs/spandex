@@ -1,344 +1,576 @@
-/* Modern Lume v2 site - Clean & Simple */
+/*
+ * Spandex documentation site.
+ *
+ * Colours are warm-tinted neutrals with a single blue accent. Every
+ * foreground/background pair used for text clears WCAG AA (4.5:1) in both
+ * schemes; the token colours below were picked against the code background
+ * rather than the page background, because that is what they sit on.
+ */
+
 :root {
-	--color-bg: #ffffff;
-	--color-text: #24292f;
-	--color-text-secondary: #57606a;
-	--color-border: #d0d7de;
-	--color-accent: #0969da;
-	--color-accent-hover: #0550ae;
-	--color-code-bg: #f6f8fa;
-	--sidebar-width: 280px;
-	--content-max-width: 900px;
+	color-scheme: light dark;
+
+	--bg: #fcfcfb;
+	--bg-subtle: #f5f4f1;
+	--bg-code: #f7f6f3;
+	--text: #1f1e1c;
+	--text-muted: #5c584f;
+	--border: #e4e2dd;
+	--border-strong: #cdcac2;
+	--accent: #0f5488;
+	--accent-hover: #0a3d66;
+
+	--tok-comment: #6b665c;
+	--tok-string: #256b45;
+	--tok-keyword: #8e3663;
+	--tok-number: #8a5410;
+	--tok-func: #1a5a97;
+
+	--sidebar-width: 17rem;
+	--measure: 46rem;
+
+	--font-body: system-ui, -apple-system, 'Segoe UI', Roboto, 'Noto Sans', Helvetica, Arial, sans-serif;
+	--font-mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'Cascadia Mono', 'DejaVu Sans Mono',
+		'Noto Sans Mono', 'Liberation Mono', monospace;
 }
 
 @media (prefers-color-scheme: dark) {
 	:root {
-		--color-bg: #0d1117;
-		--color-text: #c9d1d9;
-		--color-text-secondary: #8b949e;
-		--color-border: #30363d;
-		--color-accent: #58a6ff;
-		--color-accent-hover: #79c0ff;
-		--color-code-bg: #161b22;
+		--bg: #1a1917;
+		--bg-subtle: #211f1d;
+		--bg-code: #211f1d;
+		--text: #e9e6e0;
+		--text-muted: #a8a399;
+		--border: #302e2a;
+		--border-strong: #454239;
+		--accent: #8ab6e3;
+		--accent-hover: #a9cbf0;
+
+		--tok-comment: #918b80;
+		--tok-string: #8fc9a2;
+		--tok-keyword: #e39ec0;
+		--tok-number: #e0b476;
+		--tok-func: #8fbce8;
 	}
 }
 
-* {
+*,
+*::before,
+*::after {
 	box-sizing: border-box;
-	margin: 0;
-	padding: 0;
 }
 
 body {
-	font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif;
-	line-height: 1.6;
-	color: var(--color-text);
-	background: var(--color-bg);
+	margin: 0;
+	font-family: var(--font-body);
+	font-size: 1rem;
+	line-height: 1.65;
+	color: var(--text);
+	background: var(--bg);
+	-webkit-text-size-adjust: 100%;
+}
+
+/* Keyboard users get the same affordance everywhere, and only when using keys. */
+:focus-visible {
+	outline: 2px solid var(--accent);
+	outline-offset: 2px;
+	border-radius: 2px;
+}
+
+.skip-link {
+	position: absolute;
+	left: 0.5rem;
+	top: -4rem;
+	z-index: 10;
+	padding: 0.5rem 0.875rem;
+	background: var(--bg);
+	border: 1px solid var(--border-strong);
+	border-radius: 4px;
+	color: var(--text);
+	text-decoration: none;
+}
+
+.skip-link:focus {
+	top: 0.5rem;
+}
+
+/* ---------- Layout ---------- */
+
+.layout {
 	display: flex;
+	align-items: flex-start;
 	min-height: 100vh;
 }
 
-/* Hero Section */
-.hero {
-	text-align: center;
-	padding: 3rem 0;
-	border-bottom: 1px solid var(--color-border);
-	margin-bottom: 3rem;
-}
-
-.hero h1 {
-	font-size: 3rem;
-	margin: 0 0 1rem 0;
-	border: none;
-	padding: 0;
-}
-
-.hero .tagline {
-	font-size: 1.25rem;
-	color: var(--color-text-secondary);
-	margin-bottom: 2rem;
-}
-
-.hero .badges {
-	display: flex;
-	gap: 0.5rem;
-	justify-content: center;
-	margin-bottom: 2rem;
-}
-
-.hero .cta {
-	display: flex;
-	gap: 1rem;
-	justify-content: center;
-	margin-top: 2rem;
-}
-
-.button {
-	display: inline-block;
-	padding: 0.75rem 1.5rem;
-	border-radius: 6px;
-	text-decoration: none;
-	font-weight: 500;
-	transition: all 0.2s;
-}
-
-.button.primary {
-	background: var(--color-accent);
-	color: white;
-}
-
-.button.primary:hover {
-	background: var(--color-accent-hover);
-	transform: translateY(-1px);
-}
-
-.button.secondary {
-	border: 1px solid var(--color-border);
-	color: var(--color-text);
-}
-
-.button.secondary:hover {
-	border-color: var(--color-accent);
-	color: var(--color-accent);
-	transform: translateY(-1px);
-}
-
-/* Sidebar */
 .sidebar {
+	flex: 0 0 var(--sidebar-width);
 	width: var(--sidebar-width);
-	background: var(--color-bg);
-	border-right: 1px solid var(--color-border);
-	position: fixed;
+	position: sticky;
+	top: 0;
+	/* A full viewport height, so the tinted column reaches the bottom of the
+	 * window on a short page instead of stopping under the last link. */
 	height: 100vh;
 	overflow-y: auto;
-	padding: 2rem 1.5rem;
+	padding: 2rem 1.25rem 2rem 1.75rem;
+	border-right: 1px solid var(--border);
+	background: var(--bg-subtle);
 }
 
+.content {
+	flex: 1 1 auto;
+	min-width: 0; /* lets wide code blocks scroll instead of stretching the page */
+	padding: 3rem 2.5rem 5rem;
+}
+
+article {
+	max-width: var(--measure);
+}
+
+/* ---------- Sidebar ---------- */
+
 .sidebar-header {
-	margin-bottom: 2rem;
+	padding-bottom: 1.25rem;
+	margin-bottom: 1.5rem;
+	border-bottom: 1px solid var(--border);
 }
 
 .logo {
-	font-size: 1.5rem;
-	text-decoration: none;
-	color: var(--color-text);
 	display: block;
-	margin-bottom: 0.25rem;
-}
-
-.logo strong {
-	font-weight: 600;
+	font-size: 1.25rem;
+	font-weight: 650;
+	letter-spacing: -0.01em;
+	color: var(--text);
+	text-decoration: none;
 }
 
 .sidebar-header .tagline {
+	margin: 0.125rem 0 0;
 	font-size: 0.8125rem;
-	color: var(--color-text-secondary);
-	margin: 0;
-	padding-bottom: 1.5rem;
-	border-bottom: 1px solid var(--color-border);
+	line-height: 1.4;
+	color: var(--text-muted);
 }
 
-.nav-section {
-	margin-bottom: 2rem;
+.nav-section + .nav-section {
+	margin-top: 1.75rem;
 }
 
-.nav-section h3 {
-	font-size: 0.875rem;
-	font-weight: 600;
+.nav-section h2 {
+	margin: 0 0 0.5rem;
+	padding: 0;
+	border: 0;
+	font-size: 0.6875rem;
+	font-weight: 650;
 	text-transform: uppercase;
-	letter-spacing: 0.05em;
-	color: var(--color-text-secondary);
-	margin-bottom: 0.75rem;
+	letter-spacing: 0.08em;
+	color: var(--text-muted);
 }
 
 .nav-section ul {
+	margin: 0;
+	padding: 0;
 	list-style: none;
 }
 
 .nav-section li {
-	margin-bottom: 0.5rem;
+	margin: 0;
 }
 
+/*
+ * Navigation state is carried by type, not by decoration: the list is set in
+ * the muted tone, and the page you are on is the one at full strength. No
+ * chips, rails, or tinted backgrounds.
+ */
 .nav-section a {
-	color: var(--color-text);
-	text-decoration: none;
-	font-size: 0.9375rem;
 	display: block;
-	padding: 0.25rem 0;
-	border-radius: 4px;
-	transition: color 0.2s;
+	padding: 0.1875rem 0;
+	font-size: 0.9375rem;
+	line-height: 1.45;
+	color: var(--text-muted);
+	text-decoration: none;
 }
 
 .nav-section a:hover {
-	color: var(--color-accent);
+	color: var(--text);
+	text-decoration: underline;
+	text-underline-offset: 0.15em;
 }
 
-/* Links section - minimal styling */
+.nav-section a[aria-current='page'] {
+	color: var(--text);
+	font-weight: 600;
+}
+
 .nav-section-links {
-	border-top: 1px solid var(--color-border);
+	margin-top: 1.75rem;
 	padding-top: 1rem;
-	margin-top: auto;
-}
-
-.nav-section-links ul {
-	list-style: none;
-	display: flex;
-	gap: 1rem;
-}
-
-.nav-section-links li {
-	margin-bottom: 0;
+	border-top: 1px solid var(--border);
 }
 
 .nav-section-links a {
 	font-size: 0.875rem;
-	color: var(--color-text-secondary);
+	color: var(--text-muted);
 }
 
-/* Main content */
-.content {
-	margin-left: var(--sidebar-width);
-	flex: 1;
-	padding: 3rem;
-	max-width: calc(var(--content-max-width) + 6rem);
-}
+/* ---------- Prose ---------- */
 
-article {
-	max-width: var(--content-max-width);
-}
-
-/* Typography */
-h1,
-h2,
-h3,
-h4,
-h5,
-h6 {
-	margin-top: 2rem;
-	margin-bottom: 1rem;
-	font-weight: 600;
+article h1,
+article h2,
+article h3,
+article h4 {
 	line-height: 1.25;
+	font-weight: 650;
+	letter-spacing: -0.01em;
+	scroll-margin-top: 1rem;
 }
 
-h1 {
-	font-size: 2rem;
-	border-bottom: 1px solid var(--color-border);
-	padding-bottom: 0.5rem;
-	margin-top: 0;
+article h1 {
+	margin: 0 0 1.25rem;
+	font-size: 2.125rem;
 }
 
-h2 {
-	font-size: 1.5rem;
-	border-bottom: 1px solid var(--color-border);
+article h2 {
+	margin: 2.75rem 0 1rem;
 	padding-bottom: 0.375rem;
+	font-size: 1.4375rem;
+	border-bottom: 1px solid var(--border);
 }
 
-h3 {
-	font-size: 1.25rem;
+article h3 {
+	margin: 2rem 0 0.75rem;
+	font-size: 1.125rem;
 }
 
-p {
-	margin-bottom: 1rem;
+article h4 {
+	margin: 1.5rem 0 0.5rem;
+	font-size: 1rem;
 }
 
-a {
-	color: var(--color-accent);
-	text-decoration: none;
+article p {
+	margin: 0 0 1.125rem;
 }
 
-a:hover {
+/* The lead paragraph. Markdown blockquotes right under the title are taglines. */
+article > h1 + blockquote {
+	margin: -0.5rem 0 1.75rem;
+	padding: 0;
+	border: 0;
+	font-size: 1.1875rem;
+	line-height: 1.5;
+	color: var(--text-muted);
+}
+
+article a {
+	color: var(--accent);
 	text-decoration: underline;
+	text-underline-offset: 0.15em;
+	text-decoration-thickness: 0.06em;
+	text-decoration-color: var(--border-strong);
 }
 
-/* Code */
+article a:hover {
+	color: var(--accent-hover);
+	text-decoration-color: currentColor;
+}
+
+article ul,
+article ol {
+	margin: 0 0 1.125rem;
+	padding-left: 1.375rem;
+}
+
+/* Scoped to article: a global `li + li` also spaces the footer's flex row. */
+article li + li {
+	margin-top: 0.25rem;
+}
+
+article li > ul,
+article li > ol {
+	margin-top: 0.25rem;
+	margin-bottom: 0;
+}
+
+article blockquote {
+	margin: 1.25rem 0;
+	padding: 0.125rem 0 0.125rem 1rem;
+	border-left: 3px solid var(--border-strong);
+	color: var(--text-muted);
+}
+
+article hr {
+	height: 1px;
+	margin: 2.5rem 0;
+	border: 0;
+	background: var(--border);
+}
+
+article img {
+	max-width: 100%;
+	height: auto;
+}
+
+/* Badges sit on the baseline of the line they share. */
+article img[src*='jsr.io/badges'] {
+	display: inline-block;
+	vertical-align: middle;
+	margin-right: 0.375rem;
+}
+
+/* ---------- Code ---------- */
+
 code {
-	font-family: 'SF Mono', Monaco, Menlo, Consolas, 'Courier New', monospace;
+	font-family: var(--font-mono);
 	font-size: 0.875em;
-	background: var(--color-code-bg);
-	padding: 0.2em 0.4em;
+}
+
+:not(pre) > code {
+	padding: 0.1em 0.3em;
+	background: var(--bg-subtle);
 	border-radius: 3px;
+	white-space: nowrap;
 }
 
 pre {
-	background: var(--color-code-bg);
-	border: 1px solid var(--color-border);
-	border-radius: 6px;
-	padding: 1rem;
+	margin: 1.25rem 0;
+	padding: 0.875rem 1rem;
 	overflow-x: auto;
-	margin: 1rem 0;
+	background: var(--bg-code);
+	border: 1px solid var(--border);
+	border-radius: 6px;
+	line-height: 1.55;
+	tab-size: 2;
 }
 
 pre code {
-	background: none;
+	display: block;
 	padding: 0;
-	font-size: 0.875rem;
+	background: none;
+	border: 0;
+	font-size: 0.8125rem;
+	color: var(--text);
+	white-space: pre;
 }
 
-/* Tables */
-table {
-	border-collapse: collapse;
-	width: 100%;
-	margin: 1rem 0;
+/*
+ * Box-drawing glyphs only meet up when lines sit close together and the font is
+ * not allowed to substitute ligatures for the runs of them.
+ */
+pre code[class*='language-ascii'] {
+	line-height: 1.15;
+	font-variant-ligatures: none;
 }
 
-th,
-td {
-	border: 1px solid var(--color-border);
-	padding: 0.5rem 0.75rem;
-	text-align: left;
+/* Prism tokens. Defined here rather than injecting a prebuilt theme, because
+ * every prebuilt theme hardcodes its own background and would leave fenced code
+ * dark on a light page. */
+.token.comment,
+.token.prolog,
+.token.doctype,
+.token.cdata {
+	color: var(--tok-comment);
+	font-style: italic;
 }
 
-th {
-	background: var(--color-code-bg);
+.token.punctuation,
+.token.operator {
+	color: var(--text-muted);
+}
+
+.token.string,
+.token.char,
+.token.attr-value,
+.token.regex,
+.token.inserted {
+	color: var(--tok-string);
+}
+
+.token.keyword,
+.token.boolean,
+.token.atrule,
+.token.important,
+.token.selector,
+.token.tag,
+.token.deleted {
+	color: var(--tok-keyword);
+}
+
+.token.number,
+.token.constant,
+.token.symbol,
+.token.builtin,
+.token.entity,
+.token.url {
+	color: var(--tok-number);
+}
+
+.token.function,
+.token.class-name,
+.token.attr-name,
+.token.property,
+.token.variable {
+	color: var(--tok-func);
+}
+
+.token.bold {
 	font-weight: 600;
 }
 
-/* Lists */
-ul,
-ol {
-	margin: 1rem 0;
-	padding-left: 2rem;
+.token.italic {
+	font-style: italic;
 }
 
-li {
-	margin-bottom: 0.5rem;
+/* ---------- Tables ---------- */
+
+/*
+ * Scoped away from .spatial-index-grid. That table is rendered by
+ * @jim/spandex-html with its own inline styles, and a global th background
+ * tints its row and column labels.
+ */
+article table:not(.spatial-index-grid) {
+	width: 100%;
+	margin: 1.25rem 0;
+	border-collapse: collapse;
+	font-size: 0.9375rem;
 }
 
-/* Blockquotes */
-blockquote {
-	border-left: 4px solid var(--color-border);
-	padding-left: 1rem;
-	margin: 1rem 0;
-	color: var(--color-text-secondary);
+article table:not(.spatial-index-grid) th,
+article table:not(.spatial-index-grid) td {
+	padding: 0.5rem 0.75rem;
+	text-align: left;
+	vertical-align: top;
+	border-bottom: 1px solid var(--border);
 }
 
-/* Footer */
-footer {
+article table:not(.spatial-index-grid) th {
+	font-weight: 650;
+	border-bottom: 2px solid var(--border-strong);
+}
+
+/* Rendered grids are wider than the measure, so they scroll on their own. */
+article div:has(> table.spatial-index-grid),
+article div:has(> div > table.spatial-index-grid) {
+	overflow-x: auto;
+	padding-bottom: 0.25rem;
+}
+
+/* ---------- Footer ---------- */
+
+.site-footer {
+	max-width: var(--measure);
 	margin-top: 4rem;
-	padding-top: 2rem;
-	border-top: 1px solid var(--color-border);
-	color: var(--color-text-secondary);
+	padding-top: 1.25rem;
+	border-top: 1px solid var(--border);
 	font-size: 0.875rem;
+	color: var(--text-muted);
 }
 
-/* Responsive */
-@media (max-width: 768px) {
+.site-footer ul {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 1.25rem;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.site-footer a {
+	color: var(--text-muted);
+	text-decoration: underline;
+	text-underline-offset: 0.15em;
+	text-decoration-color: var(--border-strong);
+}
+
+.site-footer a:hover {
+	color: var(--accent);
+}
+
+/* ---------- Narrow screens ---------- */
+
+/*
+ * The sidebar becomes a horizontal strip above the content rather than
+ * disappearing. Hiding it left a phone with no navigation at all.
+ */
+@media (max-width: 60rem) {
+	.layout {
+		display: block;
+	}
+
 	.sidebar {
+		width: auto;
+		height: auto;
+		position: static;
+		padding: 1.25rem 1.25rem 1rem;
+		border-right: 0;
+		border-bottom: 1px solid var(--border);
+	}
+
+	.sidebar-header {
+		padding-bottom: 1rem;
+		margin-bottom: 1rem;
+	}
+
+	.nav-section,
+	.nav-section + .nav-section {
+		display: flex;
+		align-items: baseline;
+		gap: 0.75rem;
+		margin-top: 0.625rem;
+	}
+
+	.nav-section h2 {
+		flex: 0 0 4.25rem;
+		margin: 0;
+	}
+
+	/* The links carry no padding of their own, so the gap is what separates
+	 * them; too little and the row reads as one run-on sentence. */
+	.nav-section ul {
+		display: flex;
+		gap: 1.125rem;
+		overflow-x: auto;
+		padding-bottom: 0.125rem;
+		scrollbar-width: thin;
+	}
+
+	.nav-section a {
+		white-space: nowrap;
+	}
+
+	.nav-section-links {
+		margin-top: 0.75rem;
+		padding-top: 0.75rem;
+	}
+
+	.content {
+		padding: 2rem 1.25rem 3rem;
+	}
+
+	article h1 {
+		font-size: 1.75rem;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	*,
+	*::before,
+	*::after {
+		animation-duration: 0.01ms !important;
+		animation-iteration-count: 1 !important;
+		transition-duration: 0.01ms !important;
+		scroll-behavior: auto !important;
+	}
+}
+
+@media print {
+	.sidebar,
+	.skip-link {
 		display: none;
 	}
 
 	.content {
-		margin-left: 0;
-		padding: 2rem 1.5rem;
+		padding: 0;
+	}
+
+	article {
+		max-width: none;
 	}
 }
-
-/* JSR Badges */
-img[src*='jsr.io/badges'] {
-	display: inline-block;
-	vertical-align: middle;
-	margin-right: 0.5rem;
-}
-
-/* Prism syntax highlighting theme */
-/* prism-theme */
