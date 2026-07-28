@@ -1,6 +1,16 @@
-# ASCII Regression Scenarios
+# ASCII Rendering Examples
 
-## Test: Overlap Decomposition (fragments)
+Every example below is rendered by `@jim/spandex-ascii` from a real index, and
+regenerated whenever the renderer changes. They double as the package's
+regression snapshots, so what you see here is exactly what the current code
+produces.
+
+Each one shows a short sequence of inserts and the resulting grid. Where a new
+rectangle overlaps an existing one, the old region has decomposed into disjoint
+fragments and the newer value has won the overlap. Rows are numbered from 1 and
+columns are lettered from A.
+
+## Example: Overlap Decomposition (fragments)
 
 ```ascii
     Shape A       Add B (decomposes A)   Add C (further decomp)
@@ -23,7 +33,7 @@ C = "C"
 
 ---
 
-## Test: Cross Formation (LWW decomposition)
+## Example: Cross Formation (LWW decomposition)
 
 ```ascii
  Empty    Add Horizontal   Add Vertical (LWW)
@@ -39,7 +49,7 @@ V = "V"
 
 ---
 
-## Test: Data Density Variations
+## Example: Data Density Variations
 
 ```ascii
 Single Cell               Sparse                     Dense 4×4
@@ -70,7 +80,7 @@ X = "X"
 
 ---
 
-## Test: Partitioned Index - Multiple attributes
+## Example: Partitioned Index - Multiple attributes
 
 ```ascii
     Add BG              Add FG              Override BG
@@ -94,7 +104,7 @@ X = { "bg": "BACK", "fg": "FORE" }
 
 ---
 
-## Test: Partitioned Index - Attribute override
+## Example: Partitioned Index - Attribute override
 
 ```ascii
           Set RED                    Override BLUE
@@ -110,7 +120,7 @@ R = { "color": "RED" }
 
 ---
 
-## Test: Global Override Evolution
+## Example: Global Override Evolution
 
 ```ascii
 Global Fill   Positive Local Wins         Negative Local Wins
@@ -139,7 +149,7 @@ G = "GLOBAL"
 
 ---
 
-## Test: Origin Excluded
+## Example: Origin Excluded
 
 ```ascii
 No Origin 1   No Origin 2       No Origin 3
@@ -158,7 +168,7 @@ D = "DATA"
 
 ---
 
-## Test: Origin Included
+## Example: Origin Included
 
 ```ascii
        Origin Included 1                 Origin Included 2               Origin Included 3
@@ -187,7 +197,7 @@ D = "DATA"
 
 ---
 
-## Test: Infinity Edges (all directions)
+## Example: Infinity Edges (all directions)
 
 ```ascii
  Top ∞    Right ∞   Bottom ∞   Left ∞
@@ -205,7 +215,7 @@ T = "TOP"
 
 ---
 
-## Test: Infinity Corners
+## Example: Infinity Corners
 
 ```ascii
 Top-Left   Top-Right   Bottom-Left   Bottom-Right
@@ -223,7 +233,7 @@ Top-Left   Top-Right   Bottom-Left   Bottom-Right
 
 ---
 
-## Test: Infinity Bands (3 edges)
+## Example: Infinity Bands (3 edges)
 
 ```ascii
 Horizontal Band   Vertical Band
@@ -239,7 +249,7 @@ V = "VBAND"
 
 ---
 
-## Test: Empty Index
+## Example: Empty Index
 
 ```ascii
  Empty
@@ -252,7 +262,7 @@ V = "VBAND"
 
 ---
 
-## Test: All Infinity (no finite data)
+## Example: All Infinity (no finite data)
 
 ```ascii
 Origin Excluded   Origin Included
@@ -267,7 +277,7 @@ Origin Excluded   Origin Included
 
 ---
 
-## Test: Two-state progression
+## Example: Two-state progression
 
 ```ascii
 After H       After V
@@ -283,7 +293,7 @@ V = "VERTICAL"
 
 ---
 
-## Test: Three-state progression with empty state
+## Example: Three-state progression with empty state
 
 ```ascii
  Empty    After H       After V
@@ -299,7 +309,7 @@ V = "VERTICAL"
 
 ---
 
-## Test: Custom spacing between grids
+## Example: Custom spacing between grids
 
 ```ascii
    A             B
@@ -315,7 +325,7 @@ Y = "Y"
 
 ---
 
-## Test: Independent states (non-cumulative)
+## Example: Independent states (non-cumulative)
 
 ```ascii
   Index A         Index B

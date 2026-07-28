@@ -49,20 +49,31 @@ export interface FixtureFile {
 	readonly fixtures: Map<string, FixtureMetadata>;
 }
 
+/** Default heading label for a fixture section. */
+export const DEFAULT_SECTION_LABEL = 'Test';
+
+/** Escape a label for use inside a RegExp. */
+function escapeLabel(label: string): string {
+	return label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 /**
  * Parse markdown snapshot file
  *
- * Extracts "## Test: Name" sections with content (code blocks or raw markdown).
+ * Extracts "## <label>: Name" sections with content (code blocks or raw
+ * markdown). The label defaults to `Test`; a group that publishes its fixture
+ * as a documentation page can choose another, such as `Example`.
  */
-export function parseFixtureFile(markdown: string): FixtureFile {
+export function parseFixtureFile(markdown: string, sectionLabel: string = DEFAULT_SECTION_LABEL): FixtureFile {
 	const fixtures = new Map<string, FixtureMetadata>();
+	const marker = new RegExp(`^## ${escapeLabel(sectionLabel)}:`, 'm');
 
-	// Extract header (everything before first "## Test:")
-	const firstTestMatch = markdown.match(/^## Test:/m);
+	// Extract header (everything before the first section)
+	const firstTestMatch = markdown.match(marker);
 	const header = firstTestMatch ? markdown.substring(0, firstTestMatch.index).trim() : markdown.trim();
 
-	// Find all "## Test: Name" sections
-	const testSections = markdown.matchAll(/^## Test: (.+?)$/gm);
+	// Find all "## <label>: Name" sections
+	const testSections = markdown.matchAll(new RegExp(`^## ${escapeLabel(sectionLabel)}: (.+?)$`, 'gm'));
 
 	let index = 0;
 	for (const match of testSections) {
@@ -72,8 +83,8 @@ export function parseFixtureFile(markdown: string): FixtureFile {
 		}
 		const startPos = match.index! + match[0].length;
 
-		// Find next "## Test:" or end of file
-		const nextTestMatch = markdown.substring(startPos).match(/^## Test:/m);
+		// Find the next section or the end of file
+		const nextTestMatch = markdown.substring(startPos).match(marker);
 		const endPos = nextTestMatch ? startPos + nextTestMatch.index! : markdown.length;
 
 		const section = markdown.substring(startPos, endPos);
@@ -116,7 +127,11 @@ export function parseFixtureFile(markdown: string): FixtureFile {
  *
  * Preserves language tag settings.
  */
-export function writeFixtureFile(file: FixtureFile, defaultLanguageTag?: string): string {
+export function writeFixtureFile(
+	file: FixtureFile,
+	defaultLanguageTag?: string,
+	sectionLabel: string = DEFAULT_SECTION_LABEL,
+): string {
 	const parts: string[] = [];
 
 	if (file.header) {
@@ -125,7 +140,7 @@ export function writeFixtureFile(file: FixtureFile, defaultLanguageTag?: string)
 	}
 
 	for (const [name, fixture] of file.fixtures.entries()) {
-		parts.push(`## Test: ${name}`);
+		parts.push(`## ${sectionLabel}: ${name}`);
 		parts.push('');
 
 		if (fixture.purpose) {

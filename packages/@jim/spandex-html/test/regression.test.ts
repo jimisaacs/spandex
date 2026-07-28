@@ -51,6 +51,19 @@ Deno.test('HTML Regression Scenarios', async (t) => {
 	const { assertMatch, flush } = createFixtureGroup(htmlCodec(), {
 		context: t,
 		filePath: FIXTURE_PATH,
+		// This fixture is published as a documentation page, so it carries a
+		// reader's header and its sections are labelled as examples.
+		header: `# HTML Rendering Examples
+
+Every example below is rendered by \`@jim/spandex-html\` from a real index, and
+regenerated whenever the renderer changes. They double as the package's
+regression snapshots, so what you see here is exactly what the current code
+produces.
+
+Each one shows a short sequence of inserts and the resulting grid. Where a new
+rectangle overlaps an existing one, the old region has decomposed into disjoint
+fragments and the newer value has won the overlap.`,
+		sectionLabel: 'Example',
 	});
 
 	//#region SECTION 1: CORE BEHAVIOR - What the library does

@@ -26,6 +26,20 @@ Deno.test('ASCII Regression Scenarios', async (t) => {
 	const { assertMatch, flush } = createFixtureGroup(asciiStringCodec(), {
 		context: t,
 		filePath: FIXTURE_PATH,
+		// This fixture is published as a documentation page, so it carries a
+		// reader's header and its sections are labelled as examples.
+		header: `# ASCII Rendering Examples
+
+Every example below is rendered by \`@jim/spandex-ascii\` from a real index, and
+regenerated whenever the renderer changes. They double as the package's
+regression snapshots, so what you see here is exactly what the current code
+produces.
+
+Each one shows a short sequence of inserts and the resulting grid. Where a new
+rectangle overlaps an existing one, the old region has decomposed into disjoint
+fragments and the newer value has won the overlap. Rows are numbered from 1 and
+columns are lettered from A.`,
+		sectionLabel: 'Example',
 	});
 
 	//#region SECTION 1: CORE BEHAVIOR - What the library does

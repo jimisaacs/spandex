@@ -39,6 +39,14 @@ interface FixtureGroupCommonOptions {
 	updateMode?: boolean;
 	/** Fixture file header to use if file isn't saved to disk yet */
 	header?: string;
+	/**
+	 * Heading label for each section, written as `## <label>: Name`.
+	 *
+	 * Defaults to `Test`. A fixture file that is also published as a
+	 * documentation page can set `Example`, so a reader does not land on a page
+	 * of headings labelled as tests.
+	 */
+	sectionLabel?: string;
 }
 
 interface FixtureGroupManualOptions {
@@ -131,15 +139,17 @@ class FixtureGroupImpl<T> {
 	private readonly absFilePath: string;
 	private readonly codec: FixtureCodec<T>;
 	private readonly defaultLanguageTag: string | undefined;
+	private readonly sectionLabel: string | undefined;
 
 	/** partial file to update only if we are in update mode */
 	private readonly encountered?: { header: string | undefined } & Omit<FixtureFile, 'header'>;
 
 	constructor(codec: FixtureCodec<T>, options: Readonly<FixtureGroupOptions>) {
-		const { languageTag, updateMode = isUpdateMode(), context, header } = options;
+		const { languageTag, updateMode = isUpdateMode(), context, header, sectionLabel } = options;
 		this.absFilePath = resolvedPath(options.filePath ?? inferFixturePath(context!));
 		this.codec = codec;
 		this.defaultLanguageTag = codec.languageTag ?? languageTag;
+		this.sectionLabel = sectionLabel;
 
 		/// If we're in update mode, we'll create a new file
 		if (updateMode) {
@@ -153,7 +163,7 @@ class FixtureGroupImpl<T> {
 	async assertMatch(value: T, options: AssertMatchOptions): Promise<void> {
 		const name = resolveFixtureName(options);
 		const content = this.codec.encode(value);
-		const file = await readFixtureFile(this.absFilePath);
+		const file = await readFixtureFile(this.absFilePath, this.sectionLabel);
 
 		if (this.encountered) {
 			const existing = file?.fixtures.get(name);
@@ -213,13 +223,13 @@ class FixtureGroupImpl<T> {
 		const encountered = this.encountered;
 		if (!encountered) return;
 
-		const existing = await readFixtureFile(this.absFilePath);
+		const existing = await readFixtureFile(this.absFilePath, this.sectionLabel);
 		const newFile = {
 			header: encountered.header ?? existing?.header ?? DEFAULT_HEADER,
 			fixtures: encountered.fixtures,
 		};
 		const fixtureCount = newFile.fixtures.size;
-		await writeFixtureFile(this.absFilePath, newFile, this.defaultLanguageTag, options);
+		await writeFixtureFile(this.absFilePath, newFile, this.defaultLanguageTag, options, this.sectionLabel);
 		encountered.fixtures.clear();
 
 		console.log(`✓ Updated fixtures: ${path.relative(Deno.cwd(), this.absFilePath)}`);
