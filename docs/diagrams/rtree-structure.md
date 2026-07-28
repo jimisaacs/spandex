@@ -203,7 +203,7 @@ index.insert({
 **See Also**:
 
 - [theoretical-foundation.md](../core/theoretical-foundation.md) - Mathematical model with formal notation
-- [README.md](../../README.md#coordinate-system) - Quick visual examples
+- [coordinate-system.md](./coordinate-system.md) - Interval semantics with visual examples
 - Google Apps Script GridRange API documentation
 
 ```

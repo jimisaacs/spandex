@@ -209,7 +209,7 @@ For i = 0 to 199:
 
 ### Why O(4^n) is Impossible
 
-**Geometric Proof** (see [theoretical-foundation.md](../core/theoretical-foundation.md#geometric-bound-on-fragmentation-formal-proof)):
+**Geometric Proof** (see [theoretical-foundation.md](../core/theoretical-foundation.md#geometric-bound-formal-proof)):
 
 Given:
 
@@ -254,7 +254,7 @@ Then: **R ≤ A / A_min**
 
 ## Related Documentation
 
-- **Formal Proof**: [theoretical-foundation.md](../core/theoretical-foundation.md#geometric-bound-on-fragmentation-formal-proof)
+- **Formal Proof**: [theoretical-foundation.md](../core/theoretical-foundation.md#geometric-bound-formal-proof)
 - **R-Tree Complexity**: [r-star-analysis.md](./r-star-analysis.md)
 - **Conformance Tests**: Available in source repository (geometry.ts, properties.ts, visual.ts)
 

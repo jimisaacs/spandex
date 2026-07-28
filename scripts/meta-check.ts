@@ -25,8 +25,10 @@
  * CLAUDE.md; an unlisted subagent and a broken `.claude/agents` symlink; a
  * subagent whose frontmatter name mismatches its filename; an indented `tools:`
  * or `model:` key swallowed into the description; and a doc naming an archived
- * implementation file or a directory that does not exist. All twenty-four were
- * caught.
+ * implementation file or a directory that does not exist; and a link `#anchor`
+ * matching no heading, in the same file, across files, and after a heading was
+ * renamed out from under an inbound link. All twenty-seven were caught, and a
+ * valid anchor was confirmed not to fire.
  *
  * The indented-key case is not hypothetical. It was live in this repository's
  * researcher agent, silently voiding its tool allowlist and model setting.
@@ -376,19 +378,55 @@ async function checkLivingStateRegistry(): Promise<void> {
 // Check: relative links resolve
 // ---------------------------------------------------------------------------
 
-/** A link that 404s teaches an agent that the path it names exists. */
+/** Turn a Markdown heading into the anchor slug GitHub would generate. */
+function headingSlug(heading: string): string {
+	return heading
+		.trim()
+		.toLowerCase()
+		.replace(/`[^`]*`/g, (s) => s.slice(1, -1))
+		.replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')
+		.replace(/[^\w\s-]/g, '')
+		.replace(/\s+/g, '-');
+}
+
+async function anchorsOf(path: string): Promise<Set<string>> {
+	const text = await readText(path);
+	const slugs = new Set<string>();
+	for (const match of text.matchAll(/^#{1,6}\s+(.+?)\s*$/gm)) slugs.add(headingSlug(match[1]!));
+	// Explicit anchor targets authors sometimes add by hand.
+	for (const match of text.matchAll(/<a\s+(?:id|name)="([^"]+)"/g)) slugs.add(match[1]!);
+	return slugs;
+}
+
+/**
+ * A link that 404s teaches an agent that the path it names exists. A link whose
+ * `#fragment` does not resolve is the same failure one level down: the file
+ * opens, the section it promised is gone, and a rule that cited a specific
+ * section now cites the whole document.
+ */
 async function checkRelativeLinks(files: string[]): Promise<void> {
 	checksRun++;
+	const anchorCache = new Map<string, Set<string>>();
+
 	for (const file of files) {
 		const text = await readText(file);
 		for (const match of text.matchAll(/\[[^\]\n]*\]\(([^)\s]+)(?:\s+"[^"]*")?\)/g)) {
 			const raw = match[1]!.trim();
-			if (/^(https?:|mailto:|data:|#|<)/.test(raw)) continue;
-			const target = raw.split('#')[0]!;
-			if (!target) continue;
-			const resolved = normalize(join(dirname(file), decodeURIComponent(target)));
-			if (!await exists(resolved)) {
-				fail('links', `${rel(file)}:${lineOf(text, match.index!)}`, `link target does not exist: ${raw}`);
+			if (/^(https?:|mailto:|data:|<)/.test(raw)) continue;
+			const [targetRaw, fragment] = raw.split('#');
+			const where = `${rel(file)}:${lineOf(text, match.index!)}`;
+
+			// A bare "#anchor" points within the same file.
+			const resolved = targetRaw ? normalize(join(dirname(file), decodeURIComponent(targetRaw))) : file;
+			if (targetRaw && !await exists(resolved)) {
+				fail('links', where, `link target does not exist: ${raw}`);
+				continue;
+			}
+			if (!fragment || !resolved.endsWith('.md')) continue;
+
+			if (!anchorCache.has(resolved)) anchorCache.set(resolved, await anchorsOf(resolved));
+			if (!anchorCache.get(resolved)!.has(fragment.toLowerCase())) {
+				fail('links', where, `no heading matches the anchor "#${fragment}" in ${rel(resolved)}`);
 			}
 		}
 	}

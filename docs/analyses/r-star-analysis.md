@@ -166,7 +166,7 @@ Total: O(m log m) per split
 
 **Empirical**: Adversarial tests show average k ≈ 2.3 even under pathological patterns (run via `deno task test:adversarial`), validating that practical complexity is O(log n).
 
-For full proof, see [theoretical-foundation.md](../core/theoretical-foundation.md#r-tree-insert-complexity-detailed-analysis).
+For full proof, see [theoretical-foundation.md](../core/theoretical-foundation.md#r-tree-insert-complexity).
 
 ### When R* Wins
 
