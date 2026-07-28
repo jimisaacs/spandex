@@ -1,13 +1,21 @@
-# Interval Notation: Half-Open vs Closed
+# Interval Conversion at the Adapter Boundary
 
-## What are Half-Open Intervals?
+Spandex stores closed intervals. `[0, 0, 4, 4]` includes both endpoints, so it
+covers five columns and five rows. Google Sheets `GridRange` uses half-open
+intervals, where `endRowIndex: 5` stops before row 5 and covers four.
 
-**Notation**: `[start, end)` where:
+Neither notation is better, and you are not asked to pick one. The core uses
+closed intervals because the geometry is simpler without `+1` and `-1`
+corrections in every comparison. `GridRange` uses half-open intervals because
+adjacent ranges then meet without overlapping. The adapter converts between them,
+and it is the only place in the library where that conversion happens.
 
-- `start` is **included** (closed bracket `[`)
-- `end` is **excluded** (open parenthesis `)`)
+This page is about getting the conversion right, which means reading the
+half-open side well enough to hand it correct input.
 
-## Visual Examples
+## Reading a Half-Open Range
+
+`[start, end)` includes `start` and excludes `end`.
 
 ### Example 1: Simple Range
 
@@ -60,51 +68,26 @@ Row  Included?
  6   ❌ NO
 ```
 
-## Why Half-Open Intervals?
+## Why the Two Notations Differ
 
-### 1. **Adjacent Ranges Don't Overlap**
+Half-open ranges make adjacency free. `[0, 5)` and `[5, 10)` sit next to each
+other with no gap and no overlap, and one number ends the first and starts the
+second. Length is `end - start`, with nothing to remember. Array slices, Python's
+`range`, and `GridRange` all work this way.
 
-```
-✅ Half-open:
-Range A: [0, 5) = rows 0-4
-Range B: [5, 10) = rows 5-9
+Closed intervals make geometry free, which is what the index does all day. Two
+rectangles intersect when `aMin <= bMax && bMin <= aMax`, with no corrections. A
+decomposition fragment that stops one cell short of its neighbour is `max - 1`,
+and that arithmetic is the same whether the edge is finite or infinite. Half-open
+storage would put a `+1` or a `-1` on nearly every comparison in the hot path,
+and each one is somewhere to be off by one.
 
-        NO GAP, NO OVERLAP!
-
-❌ Closed intervals:
-Range A: [0, 4] = rows 0-4
-Range B: [5, 9] = rows 5-9
-
-        GAP at row 4.5? NO!
-
-OR:
-
-Range A: [0, 5] = rows 0-5
-Range B: [5, 10] = rows 5-10
-
-        OVERLAP at row 5! Ambiguous!
-```
-
-### 2. **Range Length is Simple**
-
-```
-✅ Half-open: length = end - start
-   [0, 5) has length 5 - 0 = 5 ✓
-
-❌ Closed: length = end - start + 1
-   [0, 4] has length 4 - 0 + 1 = 5 (extra +1 is error-prone!)
-```
-
-### 3. **Matches Programming Conventions**
-
-```
-Array slicing:  arr[0:5] means indices 0-4
-Python range:   range(0, 5) yields 0,1,2,3,4
-Google Sheets:  GridRange uses half-open
-Our library:    Matches the API!
-```
+So the library keeps closed intervals inside and converts at the edge.
 
 ## Common Mistakes & How to Avoid
+
+These are mistakes on the half-open side, which is the side you write when you
+are talking to the Sheets API.
 
 ### Mistake 1: Including the End
 

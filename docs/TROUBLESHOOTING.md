@@ -59,23 +59,42 @@ const index = createLazyPartitionedIndex(createMortonLinearScanIndex);
 
 ### Invalid Rectangle Coordinates
 
-The library validates all inserted rectangles and throws `Error` for invalid coordinates:
+Every inserted rectangle is validated, and an invalid one throws rather than
+being stored. There are four ways to fail, all reported as `Invalid rectangle:`.
 
 ```typescript
 index.insert([10, 0, 5, 10], 'value');
-// Error: Invalid rectangle: xmin (10) > xmax (5). Coordinates must satisfy xmin ≤ xmax.
+// Invalid rectangle: xmin (10) > xmax (5). Coordinates must satisfy xmin ≤ xmax.
 
 index.insert([0, 10, 10, 5], 'value');
-// Error: Invalid rectangle: ymin (10) > ymax (5). Coordinates must satisfy ymin ≤ ymax.
+// Invalid rectangle: ymin (10) > ymax (5). Coordinates must satisfy ymin ≤ ymax.
+
+index.insert([0, 0, 1.5, 10], 'value');
+// Invalid rectangle: coordinate 1.5 is not an integer.
+
+index.insert([Infinity, 0, 10, 10], 'value');
+// Invalid rectangle: an unbounded edge must open outward.
 ```
 
-**When this happens**:
+The first two mean the coordinates arrived in the wrong order. The format is
+`[xmin, ymin, xmax, ymax]`, and both dimensions need min ≤ max.
 
-- Check coordinate order: `[xmin, ymin, xmax, ymax]`
-- Ensure min ≤ max for both dimensions
-- Use `±Infinity` for unbounded edges (allowed)
+The third catches fractional coordinates, and `NaN` along with them, since `NaN`
+is not an integer either. Coordinates address discrete cells, so a fraction has
+no meaning. `NaN` is the one worth knowing about: it compares false against
+everything, so before this check it could pass through and quietly drop stored
+rectangles during decomposition.
 
-**Other operations never throw**: Query and extent operations are non-throwing.
+The fourth is about infinite edges. They are allowed and useful, but only when
+they point away from the rectangle: `-Infinity` for `xmin` and `ymin`,
+`+Infinity` for `xmax` and `ymax`. An `xmin` of `+Infinity` describes a rectangle
+starting after every possible column, which is empty rather than unbounded.
+
+```typescript
+index.insert([-Infinity, 0, Infinity, 10], 'row band'); // fine
+```
+
+Nothing else throws. Queries and extent calculations are total.
 
 ## Correctness
 
@@ -232,33 +251,8 @@ deno task bench:analyze 5 /tmp/results.md
 
 ## Common Error Messages
 
-### `Error: Invalid rectangle: xmin (10) > xmax (5)`
-
-**Cause**: Coordinates are out of order or swapped.
-
-**Fix**: Ensure rectangle format is `[xmin, ymin, xmax, ymax]` with `xmin ≤ xmax` and `ymin ≤ ymax`.
-
-```typescript
-// ❌ Wrong
-index.insert([10, 0, 5, 10], 'value'); // xmin > xmax
-
-// ✅ Right
-index.insert([5, 0, 10, 10], 'value'); // xmin ≤ xmax
-```
-
-### `Error: Invalid rectangle: ymin (10) > ymax (5)`
-
-**Cause**: Y-coordinates are out of order.
-
-**Fix**: Same as above - ensure min ≤ max for both dimensions.
-
-```typescript
-// ❌ Wrong
-index.insert([0, 10, 10, 5], 'value'); // ymin > ymax
-
-// ✅ Right
-index.insert([0, 5, 10, 10], 'value'); // ymin ≤ ymax
-```
+Anything starting `Invalid rectangle:` is covered under
+[Error Handling](#error-handling) above.
 
 ### `TypeError: Cannot read property 'insert' of undefined`
 
