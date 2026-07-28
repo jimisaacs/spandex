@@ -231,6 +231,3 @@ Result: [0, 5) in half-open notation
 
 - [theoretical-foundation.md](../core/theoretical-foundation.md) - Formal mathematical model
 - Google Apps Script `GridRange` API documentation
-
-```
-```

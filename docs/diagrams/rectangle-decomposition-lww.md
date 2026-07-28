@@ -215,6 +215,3 @@ The cells remember the most recent value.
 **Part 3** (Spatial Join): What if we want to keep background colors and font colors in **separate** indexes and combine them only when we need to?
 
 Each approach has different tradeoffs - keep reading to learn when to use each one!
-
-```
-```

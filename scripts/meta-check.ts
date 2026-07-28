@@ -875,6 +875,16 @@ async function checkProseBans(files: string[]): Promise<void> {
 			);
 		}
 
+		// An empty fence renders as a blank box. Eight files acquired one at EOF
+		// without anyone noticing, because `deno fmt` accepts it.
+		for (const match of raw.matchAll(/^```[a-z]*\n```$/gm)) {
+			fail(
+				'prose',
+				`${relPath}:${lineOf(raw, match.index!)}`,
+				'empty code fence renders as a blank box — delete it',
+			);
+		}
+
 		// Agent scaffolding must not leak into human first-read pages.
 		if (!isRule && relPath !== 'CONTRIBUTING.md' && relPath !== 'AGENTS.md') {
 			if (HUMAN_PREFIXES.some((p) => relPath === p || relPath.startsWith(p))) {

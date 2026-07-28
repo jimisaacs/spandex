@@ -165,6 +165,3 @@ See:
 
 - Hilbert, D. (1891). "Über die stetige Abbildung einer Linie auf ein Flächenstück." _Mathematische Annalen_, 38(3), pp. 459-460.
 - Moon, B., Jagadish, H. V., Faloutsos, C., & Saltz, J. H. (2001). "Analysis of the Clustering Properties of the Hilbert Space-Filling Curve." _IEEE TKDE_, 13(1), pp. 124-141.
-
-```
-```

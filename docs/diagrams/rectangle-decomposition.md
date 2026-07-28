@@ -159,6 +159,3 @@ Not layered! Not priority queue! DECOMPOSITION.
 | Cell-by-cell Map        | Poor      | O(cells)  | O(1)            | Massive memory (10M cells!)  |
 
 **Why decomposition wins**: API returns `GridRange[]` - we store exactly that format!
-
-```
-```

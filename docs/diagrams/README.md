@@ -74,25 +74,3 @@ ASCII diagrams explaining core concepts visually.
 - Linear scan vs R-tree comparison
 
 **Use**: Understanding when O(log n) beats O(n)
-
----
-
-## Integration with Documentation
-
-These diagrams complement the text documentation:
-
-- **README.md** → Links to coordinate-system.md
-- **theoretical-foundation.md** → Links to rectangle-decomposition.md
-- **hilbert-curve-analysis.md** → Links to hilbert-curve.md
-- **RESEARCH-SUMMARY.md** → Links to rtree-structure.md
-
-## Design Philosophy
-
-**Why ASCII diagrams?**
-
-- Version control friendly (text diffs work)
-- Accessible (no image rendering needed)
-- Inline in documentation
-- Easy to update
-
-**Future**: Could add SVG/PNG versions for presentations, but ASCII ensures accessibility.

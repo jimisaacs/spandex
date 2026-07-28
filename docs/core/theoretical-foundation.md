@@ -308,6 +308,3 @@ Result: A \ B produces 4 disjoint fragments (Top, Bottom, Left, Right)
 - [RESEARCH-SUMMARY.md](./RESEARCH-SUMMARY.md) - Executive summary and production recommendations
 - [PRODUCTION-GUIDE.md](../../PRODUCTION-GUIDE.md) - Implementation selection guide
 - [BENCHMARKS.md](../../BENCHMARKS.md) - Empirical performance data
-
-```
-```

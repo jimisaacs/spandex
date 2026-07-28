@@ -311,6 +311,3 @@ For real-world spreadsheet systems (like Google Sheets), **Spatial Join** is oft
 - Insert performance matters more than query performance
 
 This is a standard technique in spatial databases and GIS systems!
-
-```
-```

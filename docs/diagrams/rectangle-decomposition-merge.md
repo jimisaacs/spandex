@@ -250,6 +250,3 @@ For our spreadsheet use case, shallow is perfect because cell properties are fla
 **Part 3** (Spatial Join): What if we don't want the complexity of Shallow Merge? What if we keep background colors and font colors in **separate, simple indexes** and only combine them when we render?
 
 That's what Spatial Join does - simple inserts, slightly more complex queries. Let's see how it compares!
-
-```
-```
