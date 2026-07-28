@@ -664,6 +664,21 @@ async function checkCiParity(): Promise<void> {
 			);
 		}
 
+		// A referenced version file has to exist and hold an exact version, or
+		// the workflow resolves a toolchain nothing local can reproduce.
+		for (const match of text.matchAll(/^\s*deno-version-file:\s*(\S+)/gm)) {
+			const file = match[1]!;
+			const where = `${rel}:${lineOf(text, match.index!)}`;
+			if (!await exists(join(ROOT, file))) {
+				fail('ci-parity', where, `resolves its toolchain from ${file}, which does not exist`);
+				continue;
+			}
+			const held = (await readText(join(ROOT, file))).trim();
+			if (!/^\d+\.\d+\.\d+$/.test(held)) {
+				fail('ci-parity', where, `${file} holds "${held}"; it must be an exact version`);
+			}
+		}
+
 		// A job that runs the checks must call the shared script.
 		if (/deno task (fmt|lint|check|meta-check|test)\b/.test(text)) {
 			fail(

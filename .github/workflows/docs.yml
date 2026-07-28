@@ -27,10 +27,21 @@ jobs:
             - name: Checkout
               uses: actions/checkout@v7
 
+            # Pinned separately from .deno-version, and behind it.
+            #
+            # Lume reaches deno-dom 0.1.56, whose src/dom/node.ts imports the
+            # NodeListMutator *interface* as a value. Deno 2.9 stopped erasing
+            # that, so the emitted module asks for a runtime binding that does
+            # not exist and the build dies before it starts. 0.1.56 is the
+            # latest release and the JSR copy carries the same source, so there
+            # is nothing to upgrade to.
+            #
+            # 2.8.0 builds the site; 2.9.4 does not. Retire this file and point
+            # back at .deno-version once Lume ships a fixed deno-dom.
             - name: Setup Deno
               uses: denoland/setup-deno@v2
               with:
-                  deno-version-file: .deno-version
+                  deno-version-file: .deno-version-docs
 
             - name: Setup GitHub Pages
               id: pages
