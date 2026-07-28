@@ -31,5 +31,10 @@ export async function writeFixtureFile(
 	const content = md.writeFixtureFile(file, defaultLanguageTag);
 	await Deno.mkdir(path.dirname(absFilePath), { recursive: true });
 	await Deno.writeTextFile(absFilePath, content, options);
-	cache.set(absFilePath, file);
+	// The cache owns its entry, so it takes a snapshot rather than the caller's
+	// live map. A fixture group clears its own map after flushing, and two
+	// groups can share one file — the morton and rstartree geometry suites both
+	// write test/index/fixtures/geometry-test.md — so caching the caller's map
+	// would leave the second group reading an emptied file it had just written.
+	cache.set(absFilePath, { header: file.header, fixtures: new Map(file.fixtures) });
 }
