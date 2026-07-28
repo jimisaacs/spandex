@@ -21,10 +21,10 @@ jobs:
 
         steps:
             - name: Checkout code
-              uses: actions/checkout@v4
+              uses: actions/checkout@v7
 
             - name: Setup Deno
-              uses: denoland/setup-deno@v1
+              uses: denoland/setup-deno@v2
               with:
                   deno-version: ${{ matrix.deno-version }}
 
@@ -61,10 +61,10 @@ jobs:
 
         steps:
             - name: Checkout code
-              uses: actions/checkout@v4
+              uses: actions/checkout@v7
 
             - name: Setup Deno
-              uses: denoland/setup-deno@v1
+              uses: denoland/setup-deno@v2
               with:
                   deno-version: 2.x
 
@@ -72,7 +72,7 @@ jobs:
               run: deno task bench:update
 
             - name: Commit and push benchmark results
-              uses: stefanzweifel/git-auto-commit-action@v5
+              uses: stefanzweifel/git-auto-commit-action@v7
               with:
                   commit_message: '📊 Update BENCHMARKS.md [skip ci]'
                   file_pattern: 'BENCHMARKS.md'
@@ -94,10 +94,10 @@ jobs:
 
         steps:
             - name: Checkout code
-              uses: actions/checkout@v4
+              uses: actions/checkout@v7
 
             - name: Setup Deno
-              uses: denoland/setup-deno@v1
+              uses: denoland/setup-deno@v2
               with:
                   deno-version: 2.x
 
@@ -105,7 +105,7 @@ jobs:
               run: deno task bench:analyze 5 docs/analyses/benchmark-statistics.md
 
             - name: Commit and push benchmark statistics
-              uses: stefanzweifel/git-auto-commit-action@v5
+              uses: stefanzweifel/git-auto-commit-action@v7
               with:
                   commit_message: '📊 Update benchmark statistics [skip ci]'
                   file_pattern: 'docs/analyses/benchmark-statistics.md'
@@ -127,10 +127,10 @@ jobs:
 
         steps:
             - name: Checkout code
-              uses: actions/checkout@v4
+              uses: actions/checkout@v7
 
             - name: Setup Deno
-              uses: denoland/setup-deno@v1
+              uses: denoland/setup-deno@v2
               with:
                   deno-version: 2.x
 

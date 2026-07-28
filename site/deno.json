@@ -1,9 +1,9 @@
 {
 	"imports": {
-		"lume/": "https://cdn.jsdelivr.net/gh/lumeland/lume@3.1.1/",
+		"lume/": "https://cdn.jsdelivr.net/gh/lumeland/lume@3.2.6/",
 		"lume/jsx-runtime": "https://cdn.jsdelivr.net/gh/oscarotero/ssx@0.1.12/jsx-runtime.ts",
-		"prism/typescript": "npm:prismjs@1.29.0/components/prism-typescript.js",
-		"prism/bash": "npm:prismjs@1.29.0/components/prism-bash.js"
+		"prism/typescript": "npm:prismjs@1.30.0/components/prism-typescript.js",
+		"prism/bash": "npm:prismjs@1.30.0/components/prism-bash.js"
 	},
 	"tasks": {
 		"lume": {
@@ -24,7 +24,7 @@
 			"exclude": ["no-import-prefix"]
 		},
 		"plugins": [
-			"https://cdn.jsdelivr.net/gh/lumeland/lume@3.1.1/lint.ts"
+			"https://cdn.jsdelivr.net/gh/lumeland/lume@3.2.6/lint.ts"
 		]
 	},
 	"compilerOptions": {
