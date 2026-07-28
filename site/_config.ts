@@ -34,6 +34,34 @@ site.preprocess(['.md'], (pages) => {
 	}
 });
 
+/*
+ * Give every prose table a scroll container.
+ *
+ * A table cannot be laid out narrower than its own content, so `max-width`
+ * does not restrain one: a wide table pushes the whole page sideways, and on a
+ * phone the reader gets a horizontally scrolling document. Markdown offers no
+ * place to hang a wrapper, so it is added here instead of guessing a breakpoint
+ * that happens to fit today's tables.
+ *
+ * The rendered `.spatial-index-grid` tables are left alone. They sit inside a
+ * flex row the renderer emits, and that row already scrolls as a unit; wrapping
+ * each table on its own would break the row apart.
+ */
+site.process(['.html'], (pages) => {
+	for (const page of pages) {
+		const doc = page.document;
+		if (!doc) continue;
+		for (const node of doc.querySelectorAll('article table')) {
+			const table = node as unknown as Element;
+			if (table.classList.contains('spatial-index-grid')) continue;
+			const wrapper = doc.createElement('div');
+			wrapper.className = 'table-scroll';
+			table.parentNode?.insertBefore(wrapper, table);
+			wrapper.appendChild(table);
+		}
+	}
+});
+
 // Copy static assets
 site.copy('.nojekyll');
 site.copy('./site/_includes/styles.css', 'styles.css');

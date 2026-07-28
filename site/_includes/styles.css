@@ -27,7 +27,15 @@
 	--tok-func: #1a5a97;
 
 	--sidebar-width: 17rem;
+	/*
+	 * Two widths, because the page carries two kinds of content. Prose at
+	 * --measure runs about 82 characters a line, which is already the upper edge
+	 * of comfortable, so it does not grow with the window. Code blocks, tables,
+	 * and the rendered grids do grow, out to --column, since those get worse when
+	 * they are cramped and no better when they are narrow.
+	 */
 	--measure: 46rem;
+	--column: 68rem;
 
 	--font-body: system-ui, -apple-system, 'Segoe UI', Roboto, 'Noto Sans', Helvetica, Arial, sans-serif;
 	--font-mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'Cascadia Mono', 'DejaVu Sans Mono',
@@ -122,7 +130,21 @@ body {
 	padding: 3rem 2.5rem 5rem;
 }
 
+/*
+ * The column is the wide one; running text is inset within it. That keeps a
+ * section's rule and its table on the same edge, so nothing appears to break
+ * out of the layout.
+ */
 article {
+	max-width: var(--column);
+}
+
+article > p,
+article > ul,
+article > ol,
+article > blockquote,
+article > h3,
+article > h4 {
 	max-width: var(--measure);
 }
 
@@ -251,6 +273,8 @@ article p {
 
 /* The lead paragraph. Markdown blockquotes right under the title are taglines. */
 article > h1 + blockquote {
+	/* Restated because this rule outranks the measure rule above it. */
+	max-width: var(--measure);
 	margin: -0.5rem 0 1.75rem;
 	padding: 0;
 	border: 0;
@@ -326,7 +350,10 @@ code {
 	padding: 0.1em 0.3em;
 	background: var(--bg-subtle);
 	border-radius: 3px;
-	white-space: nowrap;
+	/* Breaks only when the token would not otherwise fit, which keeps short
+	 * names whole while letting a long file path wrap on a phone instead of
+	 * widening the page. */
+	overflow-wrap: break-word;
 }
 
 pre {
@@ -425,9 +452,25 @@ pre code[class*='language-ascii'] {
  * @jim/spandex-html with its own inline styles, and a global th background
  * tints its row and column labels.
  */
-article table:not(.spatial-index-grid) {
-	width: 100%;
+/*
+ * Sized to its content rather than stretched to the column: a four-column
+ * comparison spread across the full width puts more space between a row's
+ * figures than a reader can track. It still starts at the prose measure so a
+ * small table does not look stranded, and it may grow to the column when the
+ * content genuinely needs it.
+ */
+/* The wrapper site/_config.ts puts around every prose table. It owns the
+ * spacing, so the table itself sits flush inside it. */
+.table-scroll {
 	margin: 1.25rem 0;
+	overflow-x: auto;
+}
+
+article table:not(.spatial-index-grid) {
+	width: auto;
+	min-width: min(100%, var(--measure));
+	max-width: 100%;
+	margin: 0;
 	border-collapse: collapse;
 	font-size: 0.9375rem;
 }
@@ -455,7 +498,8 @@ article div:has(> div > table.spatial-index-grid) {
 /* ---------- Footer ---------- */
 
 .site-footer {
-	max-width: var(--measure);
+	/* Aligned to the column, so its rule matches the section rules above it. */
+	max-width: var(--column);
 	margin-top: 4rem;
 	padding-top: 1.25rem;
 	border-top: 1px solid var(--border);
@@ -481,6 +525,14 @@ article div:has(> div > table.spatial-index-grid) {
 
 .site-footer a:hover {
 	color: var(--accent);
+}
+
+/* On a large monitor the column has room to sit off the sidebar rather than
+ * starting against it. */
+@media (min-width: 100rem) {
+	.content {
+		padding-left: 4.5rem;
+	}
 }
 
 /* ---------- Narrow screens ---------- */
