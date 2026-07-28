@@ -54,7 +54,10 @@ jobs:
             github.event_name == 'workflow_dispatch'
         permissions:
             contents: write
-        timeout-minutes: 10
+        # Measured at 16 minutes locally. The query benchmarks iterate their
+        # results, so this is real query work rather than generator allocation,
+        # and hosted runners are slower than a dev container.
+        timeout-minutes: 30
 
         steps:
             - name: Checkout code
@@ -85,7 +88,9 @@ jobs:
             github.event_name == 'workflow_dispatch'
         permissions:
             contents: write
-        timeout-minutes: 60
+        # Five runs of the above plus cooldowns, measured at about 80 minutes
+        # locally. Well inside the six-hour job ceiling.
+        timeout-minutes: 150
 
         steps:
             - name: Checkout code
