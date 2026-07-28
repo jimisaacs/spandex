@@ -86,7 +86,18 @@ function a1ToGridRange(a1: A1SheetRange): GridRange {
 	throw new Error(`Invalid A1 notation: ${a1}`);
 }
 
-function gridRangeToA1({ startRowIndex: r1, endRowIndex: r2, startColumnIndex: c1, endColumnIndex: c2 }: GridRange) {
+/**
+ * The return type is declared rather than inferred on purpose.
+ *
+ * Inferring it makes the compiler build the union of every branch, and
+ * `A1CellRange` alone spans 26 × 26 template literal types with two numeric
+ * placeholders each. Newer TypeScript refuses to materialize that and reports
+ * the expression as too complex. Declaring the type turns construction into a
+ * per-branch assignability check, which is cheap.
+ */
+function gridRangeToA1(
+	{ startRowIndex: r1, endRowIndex: r2, startColumnIndex: c1, endColumnIndex: c2 }: GridRange,
+): A1SheetRange {
 	const hasRow = r1 != null, hasCol = c1 != null;
 
 	// Row range: "5:10"
