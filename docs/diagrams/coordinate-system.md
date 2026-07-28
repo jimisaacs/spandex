@@ -182,35 +182,40 @@ Covers 3 rows × 3 columns = 9 cells
 
 ## Converting Between Notations
 
-### Half-Open → Inclusive (Internal Storage)
+You should not need to do this by hand. `createGridRangeAdapter` wraps an index
+so that it takes and returns `GridRange` objects, and the two conversion
+functions are exported if you need them directly.
 
 ```typescript
-// GridRange uses [start, end)
-const gridRange = { startRowIndex: 0, endRowIndex: 5 };
+import { gridRangeToRectangle, rectangleToGridRange } from '@jim/spandex/adapter/gridrange';
 
-// Convert to inclusive [min, max] for internal math
-const inclusive = [
-    gridRange.startRowIndex,      // 0 (same)
-    gridRange.endRowIndex - 1     // 5-1 = 4 (subtract 1!)
-];
+gridRangeToRectangle({ startRowIndex: 0, endRowIndex: 5, startColumnIndex: 0, endColumnIndex: 10 });
+// [0, 0, 9, 4]   — each end index loses one
 
-Result: [0, 4] in inclusive notation
+rectangleToGridRange([0, 0, 9, 4]);
+// { startColumnIndex: 0, startRowIndex: 0, endColumnIndex: 10, endRowIndex: 5 }
 ```
 
-### Inclusive → Half-Open (API Return)
+The start indices carry across unchanged. Each end index gains one going out and
+loses one coming in, which is the whole of the conversion for a bounded range.
+
+### Unbounded Edges
+
+`GridRange` marks an unbounded edge by leaving the field out, and the index marks
+it with an infinity. That is the part worth remembering, because an omitted field
+does not mean zero.
 
 ```typescript
-// Internal: [0, 4] inclusive
-const inclusive = [0, 4];
+gridRangeToRectangle({ startRowIndex: 2 });
+// [-Infinity, 2, Infinity, Infinity]  — an unbounded band from row 2 down
 
-// Convert to GridRange [start, end)
-const gridRange = {
-    startRowIndex: inclusive[0],      // 0 (same)
-    endRowIndex: inclusive[1] + 1     // 4+1 = 5 (add 1!)
-};
-
-Result: [0, 5) in half-open notation
+rectangleToGridRange([-Infinity, 2, Infinity, Infinity]);
+// { startRowIndex: 2 }
 ```
+
+Round-tripping is exact for any rectangle the adapter can produce. A finite
+negative coordinate has no `GridRange` spelling, so it is refused rather than
+written out as an omitted field that would read back as unbounded.
 
 ## Quick Reference
 
