@@ -79,7 +79,12 @@ number is a hypothesis: mark it **measure**, do not ship it as fact.
 2. **Review with two independent lenses.** Spawn two subagents on the real tree
    rather than reviewing your own work, where you have blind spots. Give them
    different lenses so they can disagree usefully — typically one on
-   correctness and invariants, one on cost and complexity. Order both:
+   correctness and invariants, one on cost and complexity.
+
+   **Use a read-only agent type**, such as `Explore`. A reviewer that can write
+   will eventually write, and a reviewer holding a file it read minutes ago will
+   silently undo edits you made in the meantime. "Propose, do not edit" in the
+   prompt is a request; the agent type is the guarantee. Order both:
 
    > Read the code, do not hand-wave. Be honest where something is already
    > right, and do not invent nits. Propose, do not edit; I will execute.
