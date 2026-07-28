@@ -94,6 +94,12 @@ const OWNED_MARKDOWN_SKIP = [
 	/\/fixtures\//,
 	/\.serena\//,
 	/coverage\//,
+	// Module caches. These land inside the workspace when DENO_DIR points here,
+	// which is what setup-deno configures and what scripts/ci-local.sh does per
+	// toolchain, and they carry third-party markdown this repository neither
+	// wrote nor can fix.
+	/\.deno\//,
+	/\.ci-deno\//,
 ];
 
 /** Human-facing first-read surfaces, per the audience split in doc-voice.md. */
@@ -606,6 +612,84 @@ async function checkTrackedPaths(): Promise<void> {
 }
 
 // ---------------------------------------------------------------------------
+// Check: CI and the local runner cannot drift apart
+// ---------------------------------------------------------------------------
+
+/**
+ * A workflow that names a Deno version inline is a version local runs cannot
+ * match, and a floating one (`2.x`, `canary`) is a version nothing can match
+ * twice. Both have already broken this repository: a canary regression failed
+ * the build with no change to the code, and no local run could reproduce it.
+ *
+ * So every workflow resolves its toolchain from `.deno-version`, with one
+ * deliberate exception — the canary job, which exists precisely to run ahead of
+ * the pin and is marked non-blocking.
+ *
+ * The verification sequence itself lives in `scripts/ci-steps.sh`, and CI must
+ * invoke that rather than restating the steps, so `deno task ci` runs what CI
+ * runs by construction rather than by a comment asking an editor to remember.
+ */
+async function checkCiParity(): Promise<void> {
+	checksRun++;
+
+	const pinPath = join(ROOT, '.deno-version');
+	if (!await exists(pinPath)) {
+		fail(
+			'ci-parity',
+			'.deno-version',
+			'missing; workflows and scripts/ci-local.sh both resolve the toolchain from it',
+		);
+		return;
+	}
+	const pin = (await readText(pinPath)).trim();
+	if (!/^\d+\.\d+\.\d+$/.test(pin)) {
+		fail('ci-parity', '.deno-version', `holds "${pin}"; it must be an exact version so a run is reproducible`);
+	}
+
+	const workflowDir = join(ROOT, '.github/workflows');
+	if (!await exists(workflowDir)) return;
+
+	for await (const entry of Deno.readDir(workflowDir)) {
+		if (!entry.isFile || !entry.name.endsWith('.yml')) continue;
+		const rel = `.github/workflows/${entry.name}`;
+		const text = await readText(join(workflowDir, entry.name));
+
+		for (const match of text.matchAll(/^\s*deno-version:\s*(\S+)/gm)) {
+			const version = match[1]!;
+			if (version === 'canary') continue; // the deliberate non-blocking job
+			fail(
+				'ci-parity',
+				`${rel}:${lineOf(text, match.index!)}`,
+				`pins deno-version "${version}" inline; use \`deno-version-file: .deno-version\` so local runs can match`,
+			);
+		}
+
+		// A job that runs the checks must call the shared script.
+		if (/deno task (fmt|lint|check|meta-check|test)\b/.test(text)) {
+			fail(
+				'ci-parity',
+				rel,
+				'restates verification steps; run `bash scripts/ci-steps.sh` so CI and `deno task ci` cannot diverge',
+			);
+		}
+	}
+
+	// The canary job must not gate.
+	const ciPath = join(ROOT, '.github/workflows/ci.yml');
+	if (await exists(ciPath)) {
+		const ci = await readText(ciPath);
+		const canaryJob = ci.slice(ci.indexOf('test-canary:'));
+		if (ci.includes('test-canary:') && !/continue-on-error:\s*true/.test(canaryJob.slice(0, 600))) {
+			fail(
+				'ci-parity',
+				'.github/workflows/ci.yml',
+				'the canary job gates the build; a pre-release toolchain must be continue-on-error',
+			);
+		}
+	}
+}
+
+// ---------------------------------------------------------------------------
 // Check: generated files keep their banner
 // ---------------------------------------------------------------------------
 
@@ -782,6 +866,7 @@ async function main(): Promise<void> {
 	await checkScriptPaths();
 	await checkNamedPaths(files);
 	await checkTrackedPaths();
+	await checkCiParity();
 	await checkGeneratedBanners();
 	await checkHardcodedCounts(files);
 	await checkProseBans(files);

@@ -12,12 +12,8 @@ on:
 
 jobs:
     test:
-        name: Test (deno ${{ matrix.deno-version }})
+        name: Test (pinned)
         runs-on: ubuntu-latest
-
-        strategy:
-            matrix:
-                deno-version: [2.x, canary]
 
         steps:
             - name: Checkout code
@@ -26,24 +22,33 @@ jobs:
             - name: Setup Deno
               uses: denoland/setup-deno@v2
               with:
-                  deno-version: ${{ matrix.deno-version }}
+                  deno-version-file: .deno-version
 
-            # These steps mirror the hooks:pre-commit task in deno.json
-            # Keep in sync when modifying CI checks
-            - name: Verify formatting
-              run: deno task fmt --check
+            # The sequence lives in scripts/ci-steps.sh so that `deno task ci`
+            # runs exactly what CI runs. Reproduce a specific toolchain with
+            # `deno task ci:matrix`.
+            - name: Verify
+              run: bash scripts/ci-steps.sh
 
-            - name: Run linter
-              run: deno task lint
+    test-canary:
+        name: Test (canary, non-blocking)
+        runs-on: ubuntu-latest
+        # Canary is a pre-release: an upstream regression can fail this with no
+        # change to the repository, and the pinned job above is what gates. This
+        # is an early warning, so it reports without blocking.
+        continue-on-error: true
 
-            - name: Type check
-              run: deno task check
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v7
 
-            - name: Check scaffolding and doc claims
-              run: deno task meta-check
+            - name: Setup Deno
+              uses: denoland/setup-deno@v2
+              with:
+                  deno-version: canary
 
-            - name: Run tests
-              run: deno task test
+            - name: Verify
+              run: bash scripts/ci-steps.sh
 
     benchmark-quick:
         name: Quick Benchmarks
@@ -66,7 +71,7 @@ jobs:
             - name: Setup Deno
               uses: denoland/setup-deno@v2
               with:
-                  deno-version: 2.x
+                  deno-version-file: .deno-version
 
             - name: Update BENCHMARKS.md
               run: deno task bench:update
@@ -99,7 +104,7 @@ jobs:
             - name: Setup Deno
               uses: denoland/setup-deno@v2
               with:
-                  deno-version: 2.x
+                  deno-version-file: .deno-version
 
             - name: Run statistical analysis
               run: deno task bench:analyze 5 docs/analyses/benchmark-statistics.md
@@ -132,7 +137,7 @@ jobs:
             - name: Setup Deno
               uses: denoland/setup-deno@v2
               with:
-                  deno-version: 2.x
+                  deno-version-file: .deno-version
 
             - name: Publish @jim/spandex to JSR
               run: cd packages/@jim/spandex && deno publish

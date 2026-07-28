@@ -41,3 +41,6 @@ coverage/
 
 # Serena runtime state is ignored by .serena/.gitignore, beside the config it
 # belongs to. The project config itself is tracked.
+
+# Toolchains downloaded by scripts/ci-local.sh
+.ci-deno/
