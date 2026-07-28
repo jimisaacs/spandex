@@ -201,5 +201,5 @@ console.log('Hello from script!');
 }
 
 // Run with:
-// deno task example
+// deno task <your-task-name>
 ```

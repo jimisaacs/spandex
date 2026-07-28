@@ -39,6 +39,9 @@ jobs:
             - name: Type check
               run: deno task check
 
+            - name: Check scaffolding and doc claims
+              run: deno task meta-check
+
             - name: Run tests
               run: deno task test
 

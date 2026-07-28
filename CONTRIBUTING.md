@@ -51,6 +51,7 @@ Before committing, ensure:
 - [ ] Code formatted: `deno task fmt`
 - [ ] No linter errors: `deno task lint`
 - [ ] Type-checked: `deno task check`
+- [ ] Doc and scaffolding claims verified: `deno task meta-check`
 - [ ] Benchmarks updated if implementation changed: `deno task bench:update`
 - [ ] Documentation updated if behavior changed
 - [ ] No `any` types in source code
