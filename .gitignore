@@ -35,3 +35,11 @@ _cache/
 
 # Environment
 .env
+
+# Coverage output
+coverage/
+
+# Serena MCP local state (memories are shared only when a maintainer asks)
+.serena/cache/
+.serena/logs/
+.serena/memories/
