@@ -45,6 +45,7 @@ import type {
 	ExtentResult,
 	PartitionedQueryResult,
 	PartitionedSpatialIndex,
+	QueryResult,
 	Rectangle,
 	SpatialIndex,
 } from '../types.ts';
@@ -64,8 +65,30 @@ import type {
  * @param partitionResults - Results from each partition's query
  * @returns Iterator yielding partitioned query results (tuples)
  */
+/** Index of the last band whose start is <= `value`, clamped to 0. */
+function lastBandAtOrBefore(sorted: number[], value: number): number {
+	let lo = 0, hi = sorted.length - 1, best = 0;
+	while (lo <= hi) {
+		const mid = (lo + hi) >> 1;
+		if (sorted[mid]! <= value) best = mid, lo = mid + 1;
+		else hi = mid - 1;
+	}
+	return best;
+}
+
+/** Exclusive upper band index: the first band starting past `value`. */
+function firstBandAfter(sorted: number[], value: number): number {
+	let lo = 0, hi = sorted.length - 1, best = sorted.length - 1;
+	while (lo <= hi) {
+		const mid = (lo + hi) >> 1;
+		if (sorted[mid]! > value) best = mid, hi = mid - 1;
+		else lo = mid + 1;
+	}
+	return best;
+}
+
 function* spatialJoin<T extends Record<string, unknown>>(
-	partitionResults: Map<keyof T, Array<{ bounds: Readonly<Rectangle>; value: unknown }>>,
+	partitionResults: Map<keyof T, Array<QueryResult<unknown>>>,
 	queryBounds: Readonly<Rectangle>,
 ): IterableIterator<PartitionedQueryResult<T>> {
 	// Phase 1: Collect all unique row and column boundaries
@@ -74,7 +97,7 @@ function* spatialJoin<T extends Record<string, unknown>>(
 
 	for (const results of partitionResults.values()) {
 		for (const result of results) {
-			const [xmin, ymin, xmax, ymax] = result.bounds;
+			const [xmin, ymin, xmax, ymax] = result[0];
 			colBoundaries.add(xmin);
 			colBoundaries.add(xmax + 1); // +1 for sweep to capture edges
 			rowBoundaries.add(ymin);
@@ -90,33 +113,40 @@ function* spatialJoin<T extends Record<string, unknown>>(
 	// find which partitions cover it and merge their attributes
 	const [qXmin, qYmin, qXmax, qYmax] = queryBounds;
 
-	for (let i = 0; i < sortedRows.length - 1; i++) {
-		for (let j = 0; j < sortedCols.length - 1; j++) {
-			const bounds: Readonly<Rectangle> = [
-				sortedCols[j]!,
-				sortedRows[i]!,
-				sortedCols[j + 1]! - 1, // -1 to convert back to closed interval
-				sortedRows[i + 1]! - 1,
-			];
-			// Skip cells outside query bounds
-			const [xmin, ymin, xmax, ymax] = bounds;
-			if (xmin > qXmax || ymin > qYmax || xmax < qXmin || ymax < qYmin) {
-				continue;
-			}
+	// Restrict the sweep to the bands the query actually touches. The boundary
+	// lists are sorted, so the first and last relevant band are found by binary
+	// search; without this a one-cell query still walks every band in the index.
+	const rowStart = lastBandAtOrBefore(sortedRows, qYmin);
+	const rowEnd = firstBandAfter(sortedRows, qYmax);
+	const colStart = lastBandAtOrBefore(sortedCols, qXmin);
+	const colEnd = firstBandAfter(sortedCols, qXmax);
 
+	for (let i = rowStart; i < rowEnd; i++) {
+		const cellYmin = sortedRows[i]!;
+		const cellYmax = sortedRows[i + 1]! - 1;
+		if (cellYmin > qYmax || cellYmax < qYmin) continue;
+
+		for (let j = colStart; j < colEnd; j++) {
+			const cellXmin = sortedCols[j]!;
+			const cellXmax = sortedCols[j + 1]! - 1;
+			if (cellXmin > qXmax || cellXmax < qXmin) continue;
+
+			const bounds: Readonly<Rectangle> = [cellXmin, cellYmin, cellXmax, cellYmax];
 			const attributes: Partial<T> = {};
 
 			// Check which partitions cover this cell
+			let covered = false;
 			for (const [key, results] of partitionResults.entries()) {
 				for (const result of results) {
-					if (r.contains(result.bounds, bounds)) {
-						attributes[key] = result.value as T[keyof T];
+					if (r.contains(result[0], bounds)) {
+						attributes[key] = result[1] as T[keyof T];
+						covered = true;
 						break;
 					}
 				}
 			}
 
-			if (Object.keys(attributes).length) {
+			if (covered) {
 				yield [bounds, attributes];
 			}
 		}
@@ -294,10 +324,10 @@ class LazyPartitionedIndexImpl<T extends Record<string, unknown>> implements Laz
 	 * ```
 	 */
 	*query(bounds: Readonly<Rectangle> = r.ALL): IterableIterator<PartitionedQueryResult<T>> {
-		const partitionResults = new Map<keyof T, Array<{ bounds: Readonly<Rectangle>; value: unknown }>>();
+		const partitionResults = new Map<keyof T, Array<QueryResult<unknown>>>();
 
 		for (const [key, partition] of this.partitions.entries()) {
-			const results = Array.from(partition.query(bounds)).map(([bounds, value]) => ({ bounds, value }));
+			const results = Array.from(partition.query(bounds));
 			if (results.length) {
 				partitionResults.set(key, results);
 			}
@@ -344,7 +374,10 @@ class LazyPartitionedIndexImpl<T extends Record<string, unknown>> implements Laz
 
 	sizeOf(key: keyof T): number {
 		const partition = this.partitions.get(key);
-		return partition ? Array.from(partition.query()).length : 0;
+		if (!partition) return 0;
+		let count = 0;
+		for (const _ of partition.query()) count++;
+		return count;
 	}
 
 	clear(): void {
