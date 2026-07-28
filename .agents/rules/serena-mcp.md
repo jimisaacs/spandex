@@ -1,3 +1,8 @@
+---
+description: 'When to use Serena symbol tools instead of text search for TypeScript.'
+globs: packages/**/*.ts, .serena/*.yml, .mcp.json, .cursor/mcp.json
+---
+
 # spandex — Serena MCP Discipline
 
 Serena is the symbol-aware tool for this TypeScript codebase. It is configured

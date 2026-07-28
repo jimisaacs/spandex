@@ -1,3 +1,8 @@
+---
+description: 'Measured versus hypothesized, archive as a research asset, current-state prose.'
+globs: docs/**/*.md, archive/**/*.md, packages/@jim/spandex/src/index/*.ts, benchmarks/**/*.ts
+---
+
 # spandex — Research Integrity
 
 This is an active research project. The rules below keep its record honest: what

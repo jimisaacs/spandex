@@ -1,7 +1,12 @@
+---
+description: 'Agent scaffolding is a public API: living-state discipline, the gate, the ratchet, the token budget.'
+globs: .agents/**, .claude/**, .cursor/**, AGENTS.md, scripts/meta-check.ts
+---
+
 # spandex — Agent Scaffolding
 
-The scaffolding — `CLAUDE.md`, everything under `.agents/`, the `.claude/`
-overlay, `.cursorrules` — is a public API whose consumers are agents. Every
+The scaffolding — `AGENTS.md`, everything under `.agents/`, and the `.claude/`
+and `.cursor/` overlays — is a public API whose consumers are agents. Every
 value this project holds about public surfaces therefore applies to it, and
 applies harder, because the consumers act on what the surface says, every
 session, at machine speed. A stale README misleads a reader who might notice. A
@@ -64,7 +69,7 @@ the drift mode of scaffolding and it kills documents slowly: the load-bearing
 lines drown, the voice flattens, and agents start skimming the very text that
 was meant to stop them skimming.
 
-`CLAUDE.md` is the surface this budget binds hardest, because it loads in full
+`AGENTS.md` is the surface this budget binds hardest, because it loads in full
 every session. It is a routing table and a statement of principles. Procedure
 belongs in a skill, constraint belongs in a rule, and neither belongs inline.
 

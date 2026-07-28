@@ -1,3 +1,8 @@
+---
+description: 'Invariants before performance, boundary-owned semantics, published-package posture.'
+globs: packages/**/*.ts, deno.json, packages/**/deno.json
+---
+
 # spandex — Project Values
 
 spandex is a 2D spatial indexing library and the research project around it. It

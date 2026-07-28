@@ -1,3 +1,8 @@
+---
+description: 'Test taxonomy: which layer, what authority decides correct, what a failure means.'
+globs: packages/**/test/**/*.ts, packages/@local/spandex-testing/**/*.ts, packages/**/*.test.ts
+---
+
 # spandex — Tests and Conformance
 
 Every test answers three questions: which **layer** is under test, what

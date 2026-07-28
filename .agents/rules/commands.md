@@ -1,3 +1,8 @@
+---
+description: 'The canonical command surface: gates, the two benchmark scripts, fixtures, generated state, git posture.'
+globs: deno.json, scripts/**/*.ts, .github/workflows/*.yml, .deno-version*
+---
+
 # spandex — Execution Model
 
 This is the canonical command surface. Other documents point here rather than

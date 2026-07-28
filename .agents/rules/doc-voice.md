@@ -1,3 +1,8 @@
+---
+description: 'Readable prose for human docs, plus the Markdown rules deno fmt forces here.'
+globs: **/*.md
+---
+
 # spandex — Documentation Voice
 
 ## Audience Split
@@ -8,7 +13,7 @@ executor. Do not mix the two voices.
 | Audience | Surfaces                                                                                                       |
 | -------- | -------------------------------------------------------------------------------------------------------------- |
 | Humans   | `README.md`, `PRODUCTION-GUIDE.md`, `CONTRIBUTING.md`, all of `docs/**`, package READMEs, JSDoc on public APIs |
-| Agents   | `.agents/**`, plus `CLAUDE.md` and its `.cursorrules` symlink as the entry point                               |
+| Agents   | `.agents/**`, plus `AGENTS.md` and its `CLAUDE.md` symlink as the entry point                                  |
 
 Human pages name the product in sentences a newcomer can follow. Agent
 scaffolding may be terse and imperative, because its reader is executing rather

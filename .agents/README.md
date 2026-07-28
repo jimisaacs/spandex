@@ -19,10 +19,14 @@ the tables already cover.
 Tool overlays point back to the canonical rules here rather than duplicating
 them:
 
-- `.claude/rules` is one directory symlink to `.agents/rules`.
-- `.claude/skills` is one directory symlink to `.agents/skills`.
-- `.claude/agents` is one directory symlink to `.agents/agents`.
-- `.cursorrules` is one symlink to `CLAUDE.md`, the shared entry point.
+- `AGENTS.md` at the root is the shared entry point, and `CLAUDE.md` is a
+  symlink to it.
+- `.claude/rules`, `.claude/skills`, and `.claude/agents` are directory symlinks
+  to the matching `.agents/` directories.
+- `.cursor/rules/<name>.mdc` is one symlink per rule, because Cursor discovers
+  rules by `.mdc` file rather than by directory. The `description` and `globs`
+  frontmatter Cursor scopes each rule by lives in the canonical `.md`.
+- `.cursor/skills` is a directory symlink to `.agents/skills`.
 
 Edit only the canonical files. A bulk in-place edit that follows a symlink
 turns it into a regular file and the overlay dies silently.

@@ -1,3 +1,8 @@
+---
+description: 'Living-state docs must match current code or drop the state claim.'
+globs: **/*.md
+---
+
 # spandex — Doc Drift Prevention
 
 This rule keeps doc claims _true_. Its sibling, [doc-voice](doc-voice.md), keeps
@@ -17,7 +22,7 @@ change as the state they describe:
 - `README.md`
 - `CONTRIBUTING.md`
 - `PRODUCTION-GUIDE.md`
-- `CLAUDE.md`
+- `AGENTS.md`
 - `docs/README.md`
 - `docs/GETTING-STARTED.md`
 - `docs/IMPLEMENTATION-LIFECYCLE.md`
@@ -42,6 +47,8 @@ change as the state they describe:
 - `.github/workflows/README.md`
 - `.agents/**`
 - `.mcp.json`
+- `.claude/README.md`
+- `.cursor/README.md`
 - `docs/active/experiments/`
 - test names that encode API contracts
 

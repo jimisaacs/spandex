@@ -22,7 +22,7 @@
  * file stripped of its banner; a hardcoded implementation count; each prose ban
  * (bolded `R*`, a bracketed code span with no target, a habitual em-dash, an
  * over-long sentence, an `.agents/` link on a human page); an over-budget
- * CLAUDE.md; an unlisted subagent and a broken `.claude/agents` symlink; a
+ * AGENTS.md; an unlisted subagent and a broken `.claude/agents` symlink; a
  * subagent whose frontmatter name mismatches its filename; an indented `tools:`
  * or `model:` key swallowed into the description; and a doc naming an archived
  * implementation file or a directory that does not exist; and a link `#anchor`
@@ -156,11 +156,33 @@ function lineOf(text: string, index: number): number {
 async function checkOverlaySymlinks(): Promise<void> {
 	checksRun++;
 	const expected: Array<[string, string]> = [
+		// AGENTS.md is the canonical entry point; CLAUDE.md is how Claude finds it.
+		['CLAUDE.md', 'AGENTS.md'],
 		['.claude/rules', '.agents/rules'],
 		['.claude/skills', '.agents/skills'],
 		['.claude/agents', '.agents/agents'],
-		['.cursorrules', 'CLAUDE.md'],
+		['.cursor/skills', '.agents/skills'],
 	];
+
+	// Cursor discovers rules by `.mdc` file, so it gets one symlink per rule
+	// rather than a directory symlink. A rule without its overlay is silently
+	// unloaded in Cursor while still loading in Claude, which is the worst shape
+	// of failure: the two tools disagree and neither says so.
+	for await (const entry of Deno.readDir(join(ROOT, '.agents/rules'))) {
+		if (!entry.isFile || !entry.name.endsWith('.md')) continue;
+		const stem = entry.name.replace(/\.md$/, '');
+		expected.push([`.cursor/rules/${stem}.mdc`, `.agents/rules/${entry.name}`]);
+	}
+
+	// And no stale overlay for a rule that no longer exists.
+	for await (const entry of Deno.readDir(join(ROOT, '.cursor/rules'))) {
+		if (!entry.isFile && !entry.isSymlink) continue;
+		if (!entry.name.endsWith('.mdc')) continue;
+		const canonical = join(ROOT, '.agents/rules', entry.name.replace(/\.mdc$/, '.md'));
+		if (!await exists(canonical)) {
+			fail('overlay-symlinks', `.cursor/rules/${entry.name}`, 'has no canonical rule under .agents/rules');
+		}
+	}
 
 	for (const [link, target] of expected) {
 		const linkPath = join(ROOT, link);
@@ -261,6 +283,32 @@ async function checkIndexParity(): Promise<void> {
 		if (!agentFiles.has(row)) {
 			fail('index-parity', '.agents/README.md', `Agents table lists agents/${row}, which does not exist`);
 		}
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Check: every rule carries the frontmatter Cursor scopes it by
+// ---------------------------------------------------------------------------
+
+/**
+ * Cursor reads `description` and `globs` from the rule file to decide when to
+ * surface it. The `.mdc` overlay is a symlink, so that frontmatter has to live
+ * in the canonical `.agents/rules/*.md`. A rule without it still loads for
+ * Claude and goes quiet in Cursor.
+ */
+async function checkRuleFrontmatter(): Promise<void> {
+	checksRun++;
+	for await (const entry of Deno.readDir(join(ROOT, '.agents/rules'))) {
+		if (!entry.isFile || !entry.name.endsWith('.md')) continue;
+		const rel = `.agents/rules/${entry.name}`;
+		const text = await readText(join(ROOT, '.agents/rules', entry.name));
+		const front = text.match(/^---\n([\s\S]*?)\n---/);
+		if (!front) {
+			fail('rule-frontmatter', rel, 'missing the description/globs frontmatter Cursor scopes rules by');
+			continue;
+		}
+		if (!/^description:\s*\S/m.test(front[1]!)) fail('rule-frontmatter', rel, 'frontmatter has no description:');
+		if (!/^globs:\s*\S/m.test(front[1]!)) fail('rule-frontmatter', rel, 'frontmatter has no globs:');
 	}
 }
 
@@ -828,7 +876,7 @@ async function checkProseBans(files: string[]): Promise<void> {
 		}
 
 		// Agent scaffolding must not leak into human first-read pages.
-		if (!isRule && relPath !== 'CONTRIBUTING.md' && relPath !== 'CLAUDE.md') {
+		if (!isRule && relPath !== 'CONTRIBUTING.md' && relPath !== 'AGENTS.md') {
 			if (HUMAN_PREFIXES.some((p) => relPath === p || relPath.startsWith(p))) {
 				for (const match of raw.matchAll(/\]\([^)]*\.agents\//g)) {
 					fail(
@@ -843,22 +891,22 @@ async function checkProseBans(files: string[]): Promise<void> {
 }
 
 // ---------------------------------------------------------------------------
-// Check: CLAUDE.md stays a routing table
+// Check: AGENTS.md stays a routing table
 // ---------------------------------------------------------------------------
 
 /**
- * CLAUDE.md loads in full every session, so it is the surface the token budget
+ * AGENTS.md loads in full every session, so it is the surface the token budget
  * binds hardest. Procedure belongs in a skill and constraint belongs in a rule.
  */
 async function checkEntryPointBudget(): Promise<void> {
 	checksRun++;
 	const LIMIT = 200;
-	const path = join(ROOT, 'CLAUDE.md');
+	const path = join(ROOT, 'AGENTS.md');
 	const lines = (await readText(path)).split('\n').length;
 	if (lines > LIMIT) {
 		fail(
 			'entry-point-budget',
-			'CLAUDE.md',
+			'AGENTS.md',
 			`is ${lines} lines (limit ${LIMIT}). It loads every session: move procedure into a skill and constraint into a rule under .agents/.`,
 		);
 	}
@@ -874,6 +922,7 @@ async function main(): Promise<void> {
 	await checkOverlaySymlinks();
 	await checkIndexParity();
 	await checkSkillFrontmatter();
+	await checkRuleFrontmatter();
 	await checkAgentFrontmatter();
 	await checkLivingStateRegistry();
 	await checkRelativeLinks(files);

@@ -51,8 +51,8 @@ site.ignore('packages/@local');
 site.ignore('packages/@jim/spandex/test');
 
 // Ignore AI assistant configuration
-site.ignore('CLAUDE.md');
-site.ignore('**/.cursorrules');
+site.ignore('AGENTS.md');
+site.ignore('**/AGENTS.md');
 site.ignore('**/CLAUDE.md');
 
 // Plugins
