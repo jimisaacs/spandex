@@ -42,6 +42,36 @@ interface AggregatedResult {
 	runs: number[];
 }
 
+/** How many times faster the winner of one scenario was than the runner-up. */
+interface ScenarioMargin {
+	scenario: string;
+	winner: string;
+	runnerUp: string;
+	margin: number;
+	/** True when the two 95% confidence intervals do not overlap. */
+	separated: boolean;
+}
+
+/**
+ * A win counts as decisive once it clears the practical-significance threshold
+ * this report applies everywhere else. The methodology prose below is written
+ * from this constant, so the two cannot drift apart.
+ */
+const DECISIVE_MARGIN = 1.1;
+
+/**
+ * Half-width of the 95% confidence interval on a mean.
+ *
+ * The threshold above is only half of the significance rule this report states:
+ * a difference has to be both large and stable. On a noisy machine a wide
+ * margin can still be noise, so the margin is paired with this interval and a
+ * win counts only when the two intervals stay apart.
+ */
+function confidenceHalfWidth(stddev: number, runs: number): number {
+	if (runs < 2) return 0;
+	return 1.96 * (stddev / Math.sqrt(runs));
+}
+
 async function runBenchmark(runNumber: number, totalRuns: number): Promise<BenchmarkResult[]> {
 	// Progress indicator
 	const progressBar = (current: number, total: number, width: number = 30): string => {
@@ -121,6 +151,74 @@ function computeStats(values: number[]): {
 	const max = Math.max(...values);
 
 	return { mean, stddev, cv, min, max };
+}
+
+/**
+ * The average that suits ratios. Two speedups of 2x and 8x average to 4x here,
+ * where an arithmetic mean would say 5x and let the lopsided scenario set the
+ * number on its own.
+ */
+function geometricMean(values: number[]): number {
+	if (values.length === 0) return 0;
+	const sumOfLogs = values.reduce((sum, value) => sum + Math.log(value), 0);
+	return Math.exp(sumOfLogs / values.length);
+}
+
+function median(values: number[]): number {
+	if (values.length === 0) return 0;
+	const sorted = [...values].sort((a, b) => a - b);
+	const mid = Math.floor(sorted.length / 2);
+	return sorted.length % 2 === 0 ? (sorted[mid - 1]! + sorted[mid]!) / 2 : sorted[mid]!;
+}
+
+/**
+ * For each scenario, how far ahead of the runner-up the winner finished. A
+ * scenario with fewer than two implementations has no margin to report.
+ */
+function computeMargins(byScenario: Map<string, AggregatedResult[]>): ScenarioMargin[] {
+	const margins: ScenarioMargin[] = [];
+
+	for (const [scenario, results] of byScenario) {
+		const ranked = [...results].sort((a, b) => a.mean - b.mean);
+		const winner = ranked[0];
+		const runnerUp = ranked[1];
+		if (!winner || !runnerUp || winner.mean <= 0) continue;
+
+		const winnerCeiling = winner.mean + confidenceHalfWidth(winner.stddev, winner.runs.length);
+		const runnerUpFloor = runnerUp.mean - confidenceHalfWidth(runnerUp.stddev, runnerUp.runs.length);
+
+		margins.push({
+			scenario,
+			winner: winner.implementation,
+			runnerUp: runnerUp.implementation,
+			margin: runnerUp.mean / winner.mean,
+			separated: winnerCeiling < runnerUpFloor,
+		});
+	}
+
+	return margins;
+}
+
+/**
+ * For each implementation, how far behind the winner it finished in every
+ * scenario it did not win.
+ */
+function computeLossRatios(byScenario: Map<string, AggregatedResult[]>): Map<string, number[]> {
+	const losses = new Map<string, number[]>();
+
+	for (const [, results] of byScenario) {
+		const ranked = [...results].sort((a, b) => a.mean - b.mean);
+		const best = ranked[0];
+		if (!best || best.mean <= 0) continue;
+
+		for (const result of ranked.slice(1)) {
+			const ratios = losses.get(result.implementation) ?? [];
+			ratios.push(result.mean / best.mean);
+			losses.set(result.implementation, ratios);
+		}
+	}
+
+	return losses;
 }
 
 async function main() {
@@ -284,6 +382,112 @@ async function main() {
 	}
 	console.log('```');
 
+	// Margin of victory: how much the winner won by, not just that it won
+	const margins = computeMargins(byScenario);
+	const lossRatios = computeLossRatios(byScenario);
+
+	// Both halves of the significance rule: a large enough difference, measured
+	// stably enough to tell the two apart.
+	const isDecisive = (entry: ScenarioMargin) => entry.margin >= DECISIVE_MARGIN && entry.separated;
+
+	const marginsByWinner = new Map<string, ScenarioMargin[]>();
+	for (const entry of margins) {
+		const won = marginsByWinner.get(entry.winner) ?? [];
+		won.push(entry);
+		marginsByWinner.set(entry.winner, won);
+	}
+
+	const tooClose = margins
+		.filter((entry) => entry.margin < DECISIVE_MARGIN)
+		.sort((a, b) => a.margin - b.margin);
+	const tooNoisy = margins
+		.filter((entry) => entry.margin >= DECISIVE_MARGIN && !entry.separated)
+		.sort((a, b) => a.margin - b.margin);
+
+	const marginRows = rankedImpls
+		.filter(([impl]) => (marginsByWinner.get(impl) ?? []).length > 0)
+		.map(([impl]) => {
+			const won = marginsByWinner.get(impl)!;
+			const ratios = won.map((entry) => entry.margin);
+			return {
+				impl,
+				wins: won.length,
+				decisive: won.filter(isDecisive).length,
+				typical: geometricMean(ratios),
+				median: median(ratios),
+				tightest: Math.min(...ratios),
+				widest: Math.max(...ratios),
+			};
+		});
+
+	const marginCaveats = (() => {
+		const listOf = (entries: ScenarioMargin[]) =>
+			entries.map((entry) => `- ${entry.scenario} — ${entry.winner} by ${entry.margin.toFixed(2)}x`)
+				.join('\n');
+
+		const parts: string[] = [];
+		if (tooClose.length > 0) {
+			parts.push(
+				`Too close to call, where the margin never reaches ${DECISIVE_MARGIN.toFixed(2)}x:\n\n${
+					listOf(tooClose)
+				}`,
+			);
+		}
+		if (tooNoisy.length > 0) {
+			parts.push(
+				`Too noisy to call, where the margin clears the threshold but the two confidence intervals still overlap:\n\n${
+					listOf(tooNoisy)
+				}`,
+			);
+		}
+		return parts.length === 0 ? 'Every win satisfied both conditions.' : parts.join('\n\n');
+	})();
+
+	const marginBands: { label: string; holds: (margin: number) => boolean }[] = [
+		{ label: 'Under 1.10x, a tie', holds: (margin) => margin < 1.1 },
+		{ label: '1.10x to 1.50x', holds: (margin) => margin >= 1.1 && margin < 1.5 },
+		{ label: '1.50x to 3x', holds: (margin) => margin >= 1.5 && margin < 3 },
+		{ label: '3x to 10x', holds: (margin) => margin >= 3 && margin < 10 },
+		{ label: '10x and above', holds: (margin) => margin >= 10 },
+	];
+
+	const lossRows = Array.from(lossRatios.entries())
+		.map(([impl, ratios]) => ({
+			impl,
+			losses: ratios.length,
+			typical: geometricMean(ratios),
+			median: median(ratios),
+			worst: Math.max(...ratios),
+		}))
+		.sort((a, b) => a.typical - b.typical);
+
+	console.log('\n\nMargin of Victory (winner vs runner-up):');
+	console.log('```');
+	console.log('Implementation          Wins  Decisive  Typical   Median  Tightest    Widest');
+	console.log('-'.repeat(78));
+	for (const row of marginRows) {
+		console.log(
+			`${row.impl.padEnd(22)} ${row.wins.toString().padStart(4)}  ${row.decisive.toString().padStart(8)}  ${
+				(row.typical.toFixed(2) + 'x').padStart(7)
+			}  ${(row.median.toFixed(2) + 'x').padStart(7)}  ` +
+				`${(row.tightest.toFixed(2) + 'x').padStart(8)}  ${(row.widest.toFixed(2) + 'x').padStart(8)}`,
+		);
+	}
+	console.log('```');
+
+	console.log('\n\nCost of Choosing Wrong (behind the winner when it loses):');
+	console.log('```');
+	console.log('Implementation        Losses   Typical   Median      Worst');
+	console.log('-'.repeat(60));
+	for (const row of lossRows) {
+		console.log(
+			`${row.impl.padEnd(22)} ${row.losses.toString().padStart(4)}  ${
+				(row.typical.toFixed(2) + 'x').padStart(8)
+			}  ${(row.median.toFixed(2) + 'x').padStart(7)}  ${(row.worst.toFixed(2) + 'x').padStart(9)}`,
+		);
+	}
+	console.log('```');
+
 	// Statistical quality check
 	console.log('\n\nStatistical Quality (Coefficient of Variation):');
 	console.log('```');
@@ -355,6 +559,67 @@ ${
 				const winRate = ((wins / byScenario.size) * 100).toFixed(0);
 				return `| ${impl} | ${wins} | ${winRate}% | ${avgTime.toFixed(1)} |`;
 			}).join('\n')
+		}
+
+### Margin of Victory
+
+Winning a scenario says nothing about by how much. The margin below is how many
+times faster the winner was than the runner-up in that scenario. A margin of
+1.05x is a photo finish where either implementation would have served, and 4x is
+a scenario where the choice decided the outcome.
+
+| Implementation | Wins | Decisive | Typical margin | Median | Tightest | Widest |
+| -------------- | ---- | -------- | -------------- | ------ | -------- | ------ |
+${
+			marginRows.map((row) =>
+				`| ${row.impl} | ${row.wins} | ${row.decisive} | ${row.typical.toFixed(2)}x | ${
+					row.median.toFixed(2)
+				}x | ${row.tightest.toFixed(2)}x | ${row.widest.toFixed(2)}x |`
+			).join('\n')
+		}
+
+A win counts as decisive only when it meets both halves of the significance rule
+stated above. Its margin has to clear ${((DECISIVE_MARGIN - 1) * 100).toFixed(0)}%, and the two 95% confidence
+intervals have to stay apart, so that the ordering survives the run-to-run
+variation rather than resting on it. A wide margin measured on a noisy machine
+fails the second test even though it passes the first.
+
+The typical margin is a geometric mean, which is the average that suits ratios:
+a 2x win and an 8x win give 4x rather than the 5x an ordinary average reports,
+so one lopsided scenario cannot set the figure by itself.
+
+${marginCaveats}
+
+### Cost of Choosing Wrong
+
+The same measurements read from the other side. For every scenario an
+implementation did not win, this is how far behind the winner it finished, so it
+answers what a default costs you when the workload turns out to suit something
+else.
+
+| Implementation | Losses | Typical | Median | Worst |
+| -------------- | ------ | ------- | ------ | ----- |
+${
+			lossRows.map((row) =>
+				`| ${row.impl} | ${row.losses} | ${row.typical.toFixed(2)}x | ${row.median.toFixed(2)}x | ${
+					row.worst.toFixed(2)
+				}x |`
+			).join('\n')
+		}
+
+Where only two implementations ever take first place, one's typical loss is the
+other's typical win by construction. The two tables above are then the same
+measurements seen from opposite ends rather than independent evidence, and an
+implementation that never wins a scenario appears only in this second table.
+
+### How Much the Choice Matters
+
+| Margin | Scenarios |
+| ------ | --------- |
+${
+			marginBands.map((band) =>
+				`| ${band.label} | ${margins.filter((entry) => band.holds(entry.margin)).length} |`
+			).join('\n')
 		}
 
 ### Statistical Quality
