@@ -41,11 +41,11 @@ console.log(`Overlaps: ${overlapping}`);
 
 **Expected fragmentation**:
 
-- **Per overlap**: ≤4 fragments created when one rectangle overlaps another
-- **Cumulative worst-case**: ≤4n rectangles after n inserts (theoretical maximum, rarely reached)
-- **Empirical typical**: ~2.3n rectangles (validated via adversarial patterns)
-
-**Example**: 100 inserts typically results in 230 stored rectangles, worst-case 400.
+- **Per overlap**: ≤4 fragments when one rectangle overlaps another
+- **Typical**: ~2.3n stored rectangles, so 100 inserts hold about 230
+- **Worst case**: Θ(n²), reached by interleaving full-width rows with full-height
+  columns. That shape holds 2550 rectangles at n=100, so watch for it if your
+  writes look like whole rows and whole columns.
 
 **Fix**:
 
@@ -225,7 +225,13 @@ import { createMortonLinearScanIndex } from '@jim/spandex';
 import createMortonLinearScanIndex from '@jim/spandex/index/mortonlinearscan';
 ```
 
-**Bundle sizes**: Morton ~2.3KB, R*-tree ~5.9KB.
+**Bundle sizes** (minified, dependencies inlined): Morton 3.3KB, R*-tree 11.5KB,
+Lazy Partitioned 3.3KB.
+
+The R*-tree is larger because it carries the full R* heuristics plus
+`getTreeQualityMetrics` and `structuralViolations`. Those are methods on the
+returned index, so a bundler cannot drop them even unused. Reach for Morton where
+bundle size is the binding constraint.
 
 ## Development
 

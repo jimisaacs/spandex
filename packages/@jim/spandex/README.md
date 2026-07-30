@@ -88,9 +88,24 @@ type Rectangle = [xmin: number, ymin: number, xmax: number, ymax: number];
 type QueryResult<T> = readonly [bounds: Readonly<Rectangle>, value: T];
 ```
 
-A `Rectangle` you build is an ordinary mutable tuple, so you can construct one
-however you like. What comes back out of `query` is readonly, because those
-bounds belong to the index.
+A `Rectangle` you build is an ordinary mutable tuple. What comes out of `query` is
+frozen at runtime as well as readonly in the types, because writing to one would
+grow a stored rectangle over its neighbour and the index cannot notice.
+
+`query` evaluates as you pull, so stopping early does not cost a full search, and
+it throws if you insert while it is open:
+
+```typescript
+// Wrong: the iterator is still open when the insert lands.
+for (const [bounds, value] of index.query()) {
+	if (value === 'stale') index.insert(bounds, 'fresh'); // throws
+}
+
+// Right: read everything first, then write.
+for (const [bounds, value] of Array.from(index.query())) {
+	if (value === 'stale') index.insert(bounds, 'fresh');
+}
+```
 
 ## Coordinate Semantics
 
@@ -138,12 +153,16 @@ const html = createRenderer().render(index, { legend, showCoordinates: true });
 
 ## Performance
 
-| n     | Algorithm | Performance                                                         |
-| ----- | --------- | ------------------------------------------------------------------- |
-| < 100 | Morton    | Up to ~5x faster on write-heavy inserts; slower on query-heavy work |
-| ≥ 100 | R*-tree   | 9-19x faster than Morton at n≈2500                                  |
+| n                 | Algorithm | Measured                                                     |
+| ----------------- | --------- | ------------------------------------------------------------ |
+| < 100             | Morton    | About 2x faster on write-heavy inserts                       |
+| ≥ 100             | R*-tree   | 4-7x faster than Morton at n≈2500 on grid or sequential data |
+| Any, high overlap | Either    | Close; Morton was slightly ahead at n≈1250 overlapping       |
 
-The crossover is around n≈100 on write-heavy workloads; on query-heavy workloads the R*-tree leads from about n≈15. See [BENCHMARKS.md](https://github.com/jimisaacs/spandex/blob/main/BENCHMARKS.md) for current measurements.
+Overlap decides more than size does. On grid and sequential data the R*-tree pulls
+ahead well before n=2500; on heavily overlapping data decomposition dominates and
+the two stay within about 20% of each other at n≈1250.
+See [BENCHMARKS.md](https://github.com/jimisaacs/spandex/blob/main/BENCHMARKS.md) for current measurements.
 
 ## Implementation-Specific Methods
 
@@ -160,6 +179,7 @@ morton.size(); // Count of stored rectangles (O(1))
 const rtree = createRStarTreeIndex<'header' | 'data'>();
 rtree.size(); // Count of stored rectangles (O(1))
 rtree.getTreeQualityMetrics(); // { depth, overlapArea, deadSpace, nodeCount }
+rtree.structuralViolations(); // [] when the tree is well formed, one sentence per problem otherwise
 
 const partitioned = createLazyPartitionedIndex<{ color?: 'red' | 'blue' }>(createMortonLinearScanIndex);
 partitioned.keys(); // Iterator of partition keys

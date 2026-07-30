@@ -57,14 +57,27 @@ export interface ExtentResult {
 /**
  * SpatialIndex: Core interface for 2D spatial indexing with last-writer-wins semantics.
  *
- * **Operations**: insert (LWW), query (intersection), extent (MBR)
- * **Guarantees**: Disjoint partition, ≤4n fragments after n insertions (worst case)
- * **Query**: Returns iterator for memory-efficient streaming and early termination
+ * **Guarantees**: stored rectangles stay pairwise disjoint with no duplicate
+ * `(bounds, value)` pair, and one insert splits each rectangle it overlaps into
+ * at most 4 fragments. That does not make the store grow linearly: interleaving
+ * n/2 rows with n/2 columns builds the whole grid they induce, which is Θ(n²)
+ * (2550 rectangles at n=100, not 400). Growth is near-linear on the patterns in
+ * `test/adversarial.test.ts`.
+ *
+ * **Query**: an iterator evaluated as it is pulled, so stopping early does not
+ * cost a full search. `insert` invalidates it — implementations throw rather than
+ * keep yielding, since an insert renumbers stored positions and a half-stale walk
+ * answers with rectangles that were never stored together. Finish iterating, or
+ * collect into an array, before inserting.
  */
 export interface SpatialIndex<T, Bounds = Readonly<Rectangle>> {
 	/** Insert value at bounds (last-writer-wins on overlap) */
 	insert(bounds: Bounds, value: T): void;
-	/** Query ranges intersecting bounds, or all ranges if bounds undefined */
+	/**
+	 * Query ranges intersecting bounds, or all ranges if bounds undefined. The
+	 * returned rectangles are frozen: mutating one would break disjointness from
+	 * outside, where no check can intervene.
+	 */
 	query(bounds?: Bounds): IterableIterator<QueryResult<T>>;
 	/** Get extent result (finite MBR + infinity edges + empty flag) */
 	extent(): ExtentResult;

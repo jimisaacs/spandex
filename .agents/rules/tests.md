@@ -72,6 +72,29 @@ implementation pass.
 A new implementation is not done until it runs the full axiom suite. The pattern
 is in [IMPLEMENTATION-LIFECYCLE](../../docs/IMPLEMENTATION-LIFECYCLE.md).
 
+## A New Test Is Validated By Breaking The Code
+
+A test that passes on a healthy tree has shown nothing: the tree was already
+healthy. Before landing a new axiom, property test, or quality assertion, break
+the code it targets once per defect class it claims to cover, and confirm the
+test fails each time. An escape is a finding about the test, not about the code.
+
+This bites hardest on assertions with a numeric threshold, because a ceiling
+chosen by taste usually passes everything. Calibrate it against measured
+alternatives — the working implementation, the implementation with the heuristic
+removed, the implementation with it broken — and record those numbers in the
+test, so the next reader knows what the number separates and can tell a real
+regression from a moved baseline.
+
+Record in the test's header which defects it was validated against and which it
+was measured _not_ to catch. A green run then means exactly what those two lists
+say, and no more. `test/index/rstartree/structure.test.ts` carries a worked
+example of both.
+
+To inject a defect safely, copy the file beside the scratchpad first and restore
+from that copy. Never restore with `git checkout` or `git restore`, which are
+working-tree writes and will destroy other uncommitted work.
+
 ## Claims Need Tests
 
 Any claim about decomposition behavior, disjointness, last-writer-wins ordering,

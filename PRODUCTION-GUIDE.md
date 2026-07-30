@@ -24,8 +24,8 @@ The library currently provides these implementations (auto-discovered from `pack
 
 **Core implementations:**
 
-- **MortonLinearScan** - O(n) linear scan with Z-order spatial locality optimization
-- **RStarTree** - O(log n) hierarchical indexing with R* split algorithm
+- **MortonLinearScan** - O(n) linear scan, ordered along a Z-order curve
+- **RStarTree** - O(log n) hierarchical index with the full R* heuristics (Beckmann 1990)
 - **LazyPartitionedIndex** - Wrapper that maintains separate indexes per attribute (spatial join pattern)
 
 **To see all available:**
@@ -45,15 +45,20 @@ import createLazyPartitionedIndex from '@jim/spandex/index/lazypartitionedindex'
 ## Algorithm Details
 
 **Morton Linear Scan** - O(n), uses Z-order curve for spatial locality\
-Bundle: ~2.3KB (minified)\
-Best for: < 100 rectangles (2-8x faster than R-tree at sparse sizes)
+Bundle: 3.3KB (minified)\
+Best for: < 100 rectangles, and write-heavy work above that
 
-**R-Star Tree** - O(log n), hierarchical with smart splits (Beckmann 1990)\
-Bundle: ~5.9KB (minified)\
-Best for: ≥ 100 rectangles (2x faster than linear scan at n=2500, scales better)
+**R-Star Tree** - O(log n), the full R* heuristics from Beckmann and colleagues (1990)\
+Bundle: 11.5KB (minified)\
+Best for: ≥ 100 rectangles, and read-heavy work from about n=15
+
+It descends by least overlap enlargement, splits on the axis with the smallest
+summed perimeter, and on a node's first overflow reinserts that node's outermost
+children from the root instead of splitting. Reinsertion buys query speed with
+insert time, the trade the paper describes.
 
 **Lazy Partitioned** - Separate indexes per attribute, spatial join on query\
-Bundle: ~2.1KB (minified, wraps another index)\
+Bundle: 3.3KB (minified, wraps another index)\
 Best for: Independent attributes (spreadsheet cells, GIS layers)
 
 ## Performance Data

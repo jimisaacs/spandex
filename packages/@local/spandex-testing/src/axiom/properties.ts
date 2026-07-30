@@ -162,6 +162,54 @@ export async function testPropertyAxioms(
 		assertArrayIncludes(stored, ['0,0,4,4'], 'stored bounds must not follow the caller array');
 	});
 
+	await t.step('A query iterator does not survive a mutation', () => {
+		// An insert renumbers stored positions, so an iterator that keeps going
+		// reads one generation's positions against another: it yields rectangles
+		// that were never stored together and skips ones that were. Nothing
+		// downstream can detect that, so an implementation must refuse.
+		const index = implementation();
+		for (let i = 0; i < 30; i++) index.insert(r.make(i * 10, 0, i * 10 + 5, 5), `v${i}`);
+
+		const iterator = index.query();
+		assertFalse(iterator.next().done, 'the iterator should yield at least one result before the mutation');
+
+		index.insert(r.ALL, 'universe');
+
+		let refused = false;
+		try {
+			iterator.next();
+		} catch {
+			refused = true;
+		}
+		assert(refused, 'continuing a query iterator after an insert must throw, not answer from a stale store');
+		assertInvariants(index, 'after refusing a stale iterator');
+	});
+
+	await t.step('Stored bounds cannot be mutated through a query result', () => {
+		// The other half of the ownership contract. `insert` copies the caller's
+		// array, but decomposition fragments are built inside the index and handed
+		// out by `query`. If those are writable the hole reopens from the other
+		// side: a fragment grown over its neighbours is still one stored rectangle
+		// as far as the store knows.
+		const index = implementation();
+		index.insert(r.make(0, 0, 9, 9), 'base');
+		index.insert(r.make(4, 4, 5, 5), 'punch');
+
+		const fragment = Array.from(index.query()).find(([, value]) => value === 'base');
+		assert(fragment, 'punching a hole in a rectangle must leave fragments behind');
+
+		let refused = false;
+		try {
+			(fragment[0] as Rectangle)[2] = 5000;
+			(fragment[0] as Rectangle)[3] = 5000;
+		} catch {
+			refused = true;
+		}
+
+		assert(refused, 'a rectangle handed out by query must not be writable');
+		assertInvariants(index, 'after attempting to mutate a query result');
+	});
+
 	await t.step('Non-integer coordinates are rejected', () => {
 		const index = implementation();
 

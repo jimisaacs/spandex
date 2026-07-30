@@ -1,42 +1,14 @@
 /**
  * @module
  *
- * Attribute-Partitioned Spatial Index
+ * One spatial index per attribute, created on first write, joined on query.
  *
- * Manages independent spatial indexes per attribute. Lazy creation, spatial join on query.
+ * This is vertical partitioning, the column-store shape, with a spatial join over
+ * the partitions. Each key K carries its own value type T[K], checked at compile
+ * time. Query results are grid cells cut at partition boundaries rather than the
+ * rectangles that went in, so cell counts differ from a plain index.
  *
- * **Pattern**: Vertical partitioning (column-store) + spatial join
- * **Type safety**: Each key K → type T[K], enforced at compile time
- * **Academic basis**: Column stores (Stonebraker et al., 2005) + layered GIS (PostGIS)
- *
- * @template T - Record type where each key maps to its value type
- *
- * @example
- * ```typescript
- * import createLazyPartitionedIndex from './lazypartitionedindex.ts';
- * import createMortonLinearScanIndex from './mortonlinearscan.ts';
- *
- * type CellProperties = {
- *   background?: string;
- *   fontColor?: string;
- *   fontSize?: number;
- * };
- *
- * // Create with factory for underlying partition indexes
- * const index = createLazyPartitionedIndex<CellProperties>(
- *   createMortonLinearScanIndex
- * );
- *
- * // Type-safe inserts (TypeScript knows fontColor is string)
- * index.set([0, 0, 9, 9], 'background', 'red');
- * index.set([0, 0, 9, 9], 'fontColor', 'blue');
- * index.set([0, 0, 9, 9], 'fontSize', 12);
- *
- * // Query performs spatial join across all active partitions
- * for (const [bounds, attributes] of index.query([0, 0, 4, 4])) {
- *   console.log(bounds, attributes.background);
- * }
- * ```
+ * See the factory at the bottom of this file for usage.
  */
 
 import { computeExtent } from '../extent.ts';
@@ -65,6 +37,11 @@ import type {
  * @param partitionResults - Results from each partition's query
  * @returns Iterator yielding partitioned query results (tuples)
  */
+/** Numeric sort order, hoisted so the join does not mint a comparator per query. */
+function ascending(a: number, b: number): number {
+	return a - b;
+}
+
 /** Index of the last band whose start is <= `value`, clamped to 0. */
 function lastBandAtOrBefore(sorted: number[], value: number): number {
 	let lo = 0, hi = sorted.length - 1, best = 0;
@@ -87,6 +64,13 @@ function firstBandAfter(sorted: number[], value: number): number {
 	return best;
 }
 
+/**
+ * Plane sweep across partition boundaries: collect every distinct row and column
+ * boundary, then merge the attributes covering each cell of the grid they define.
+ *
+ * O(R × C × k × m) for R row and C column boundaries, k partitions, and m results
+ * each. R and C are bounded by 2km, so this is the term that dominates a query.
+ */
 function* spatialJoin<T extends Record<string, unknown>>(
 	partitionResults: Map<keyof T, Array<QueryResult<unknown>>>,
 	queryBounds: Readonly<Rectangle>,
@@ -106,8 +90,8 @@ function* spatialJoin<T extends Record<string, unknown>>(
 	}
 
 	// Sort boundaries for sweep
-	const sortedRows = Array.from(rowBoundaries).sort((a, b) => a - b);
-	const sortedCols = Array.from(colBoundaries).sort((a, b) => a - b);
+	const sortedRows = Array.from(rowBoundaries).sort(ascending);
+	const sortedCols = Array.from(colBoundaries).sort(ascending);
 
 	// Phase 2: For each cell in the grid defined by boundaries,
 	// find which partitions cover it and merge their attributes
@@ -131,197 +115,111 @@ function* spatialJoin<T extends Record<string, unknown>>(
 			const cellXmax = sortedCols[j + 1]! - 1;
 			if (cellXmin > qXmax || cellXmax < qXmin) continue;
 
-			const bounds: Readonly<Rectangle> = [cellXmin, cellYmin, cellXmax, cellYmax];
-			const attributes: Partial<T> = {};
-
-			// Check which partitions cover this cell
-			let covered = false;
-			for (const [key, results] of partitionResults.entries()) {
-				for (const result of results) {
-					if (r.contains(result[0], bounds)) {
+			// Most cells are covered by no partition, so nothing is allocated
+			// until one is found. The rectangle and the record used to be built
+			// first and thrown away, once per candidate cell.
+			let attributes: Partial<T> | null = null;
+			for (const [key, results] of partitionResults) {
+				for (let i = 0; i < results.length; i++) {
+					const result = results[i]!;
+					const [rx1, ry1, rx2, ry2] = result[0];
+					if (r.covers(rx1, ry1, rx2, ry2, cellXmin, cellYmin, cellXmax, cellYmax)) {
+						if (attributes === null) attributes = {};
 						attributes[key] = result[1] as T[keyof T];
-						covered = true;
 						break;
 					}
 				}
 			}
 
-			if (covered) {
-				yield [bounds, attributes];
+			if (attributes) {
+				yield [[cellXmin, cellYmin, cellXmax, cellYmax], attributes];
 			}
 		}
 	}
 }
 
-/**
- * Lazy Partitioned Index with additional introspection methods.
- *
- * Extends `PartitionedSpatialIndex<T>` with partition management methods.
- */
+/** `PartitionedSpatialIndex<T>` plus partition management. */
 export interface LazyPartitionedIndex<T extends Record<string, unknown>> extends PartitionedSpatialIndex<T> {
-	/**
-	 * Get all active partition keys (attributes that have been written to).
-	 *
-	 * @returns Iterable iterator of attribute keys that have partitions
-	 */
+	/** Attributes that have been written to. */
 	keys(): IterableIterator<keyof T>;
-	/**
-	 * Get the number of ranges stored in a specific partition.
-	 *
-	 * @param key - Attribute key
-	 * @returns Number of ranges in that partition, or 0 if partition doesn't exist
-	 */
+	/** Ranges stored under one attribute, or 0 if it has no partition. */
 	sizeOf(key: keyof T): number;
-	/**
-	 * True if no partitions exist or all partitions are empty.
-	 */
+	/** True when no partition exists, or every one is empty. */
 	readonly isEmpty: boolean;
-	/**
-	 * Remove all partitions and reset to empty state.
-	 */
+	/** Remove every partition. */
 	clear(): void;
 }
 
 /**
- * Lazy Partitioned Spatial Index Implementation
+ * Partitions are created on first write to an attribute, so sparse data with many
+ * never-written attributes costs nothing for them.
  *
- * **Implementation Strategy**: Lazy-on-write vertical partitioning
- *
- * Partitions are created lazily on first write to each attribute. This minimizes
- * memory overhead for sparse data where many attributes may never be written.
- *
- * **Responsibilities**:
- * - Lazy instantiation of per-attribute spatial indexes (created on first write)
- * - Type-safe attribute access (key K → type T[K])
- * - Spatial join across active partitions on query
- * - Unified interface over multiple underlying indexes (Facade pattern)
- *
- * **Complexity**:
- * - `set()`: O(n) where n = ranges in target partition
- * - `query()`: O(k × (log n + m) + R × C × k × m) where:
- *   - k = active partitions
- *   - n = ranges per partition
- *   - m = query results per partition
- *   - R, C = unique row/column boundaries (spatial join cost)
+ * `set` is O(n) in the target partition. `query` is
+ * O(k × (log n + m) + R × C × k × m), where the join term dominates.
  */
 class LazyPartitionedIndexImpl<T extends Record<string, unknown>> implements LazyPartitionedIndex<T> {
 	// Extent cache for the index
 	private extentCached: ExtentResult | null = null;
+	/** Bumped by every mutation, so an open query iterator can tell it went stale. */
+	private version = 0;
 	/** Attribute → spatial index. Created lazily on first write. */
 	private readonly partitions = new Map<keyof T, SpatialIndex<unknown>>();
 	/** Factory function for creating partition indexes. */
 	private readonly indexFactory: <T>() => SpatialIndex<T>;
 
 	/**
-	 * Creates a new lazy partitioned spatial index.
-	 *
-	 * **Lazy instantiation**: Partitions are created on first write to each attribute,
-	 * minimizing memory overhead for sparse multi-attribute data.
-	 *
-	 * @param indexFactory - Factory function for creating partition indexes.
-	 *                       Called once per attribute on first write (lazy).
-	 *
-	 * @example
-	 * ```typescript
-	 * import createMortonLinearScanIndex from '@jim/spandex/index/mortonlinearscan';
-	 * import createLazyPartitionedIndex from '@jim/spandex/index/lazypartitionedindex';
-	 *
-	 * const index = createLazyPartitionedIndex<CellProps>(
-	 *   createMortonLinearScanIndex
-	 * );
-	 *
-	 * // Factory not called yet - no partitions exist
-	 * console.log(index.keys()); // []
-	 *
-	 * // First write to 'background' creates partition via factory
-	 * index.set([0, 0, 4, 4], 'background', 'red');
-	 * console.log(index.keys()); // ['background']
-	 * ```
+	 * @param indexFactory - Called once per attribute, on that attribute's first
+	 *                       write.
 	 */
 	constructor(indexFactory: <T>() => SpatialIndex<T>) {
 		this.indexFactory = indexFactory;
 	}
 
-	/**
-	 * Gets or creates the spatial index partition for the given attribute.
-	 * Lazy instantiation - partition created on first access.
-	 *
-	 * @param key - Attribute key
-	 * @returns The spatial index for this attribute
-	 */
+	/** The partition for this attribute, created on first use. */
 	private getOrCreatePartition<K extends keyof T>(key: K): SpatialIndex<T[K]> {
-		if (!this.partitions.has(key)) {
-			this.partitions.set(key, this.indexFactory<T[K]>());
+		// One lookup on the common path. `has` then `set` then `get` cost three.
+		let partition = this.partitions.get(key);
+		if (!partition) {
+			partition = this.indexFactory<T[K]>();
+			this.partitions.set(key, partition);
 		}
-		return this.partitions.get(key) as SpatialIndex<T[K]>;
+		return partition as SpatialIndex<T[K]>;
 	}
 
 	/**
-	 * Insert a value for a specific attribute across a spatial range.
-	 *
-	 * **Semantics**: Last-writer-wins within each partition independently.
-	 * This operation only affects the partition for the specified attribute.
-	 *
-	 * @param bounds - Spatial bounds
-	 * @param key - Attribute key (type-safe, must be keyof T)
-	 * @param value - Value to insert (type-safe, must be T[K])
-	 *
-	 * @example
-	 * ```typescript
-	 * index.set([0, 0, 4, 4], 'background', 'red');
-	 * index.set([0, 2, 4, 6], 'fontColor', 'blue');
-	 * ```
+	 * Insert a value for one attribute. Last-writer-wins applies within that
+	 * attribute's partition only, so the others are untouched.
 	 */
 	set<K extends keyof T>(bounds: Readonly<Rectangle>, key: K, value: T[K]): void {
+		// Validated before the partition exists. Creating it first meant a rejected
+		// write left the key behind, so `keys()` reported an attribute as written
+		// while `isEmpty` said the index was empty.
+		bounds = r.validated(bounds);
 		const partition = this.getOrCreatePartition(key);
 		partition.insert(bounds, value);
 		this.extentCached = null;
+		this.version++;
 	}
 
-	/**
-	 * Insert a value for all attributes across a spatial range.
-	 *
-	 * @param bounds - Spatial bounds
-	 * @param value - Value to insert (type-safe, must be Partial<T>)
-	 */
+	/** Insert a value for every attribute the record carries. */
 	insert(bounds: Readonly<Rectangle>, value: Partial<T>): void {
-		for (const [key, val] of Object.entries(value) as [keyof T, T[keyof T]][]) {
-			this.set(bounds, key, val);
+		// Walked by key rather than through `Object.entries`, which allocates an
+		// array plus a two-element array per attribute only to be destructured.
+		// The own-property test keeps that identical to what `entries` returned.
+		for (const key in value) {
+			if (Object.hasOwn(value, key)) this.set(bounds, key, value[key] as T[keyof T]);
 		}
 	}
 
 	/**
-	 * Query all attributes across a spatial range using spatial join.
+	 * Query every attribute over a range, yielding one cell per distinct region
+	 * with the attributes covering it.
 	 *
-	 * **Returns iterator** for memory efficiency and early-exit support.
-	 * Results are yielded incrementally as the spatial join computes them.
-	 *
-	 * **Algorithm**: For each active partition, query independently, then perform
-	 * spatial join to combine results. The join finds all distinct spatial regions
-	 * and merges attributes from all partitions for each region.
-	 *
-	 * **Complexity**: O(k × (log n + m)) where:
-	 * - k = number of active partitions
-	 * - n = ranges per partition
-	 * - m = results per partition
-	 *
-	 * @param bounds - Spatial bounds to query
-	 * @returns Iterator yielding partitioned query results (tuples)
-	 *
-	 * @example
-	 * ```typescript
-	 * // Iterate lazily
-	 * for (const [bounds, attributes] of index.query([0, 0, 9, 9])) {
-	 *   console.log(bounds, attributes);
-	 * }
-	 *
-	 * // Or collect all results
-	 * const results = Array.from(index.query([0, 0, 9, 9]));
-	 * // Returns: [
-	 * //   [[0, 0, 4, 4], { background: 'red' }],
-	 * //   [[0, 5, 9, 9], { background: 'red', fontColor: 'blue' }]
-	 * // ]
-	 * ```
+	 * O(k × (log n + m) + R × C × k × m) for k active partitions, n ranges each, m
+	 * results each, and R, C boundaries swept. The join term dominates and is not
+	 * linear: R and C are bounded by 2km, so a full-extent query over heavily
+	 * fragmented partitions is cubic in km. Query a window where you can, since
+	 * the sweep only covers the bands it touches.
 	 */
 	*query(bounds: Readonly<Rectangle> = r.ALL): IterableIterator<PartitionedQueryResult<T>> {
 		const partitionResults = new Map<keyof T, Array<QueryResult<unknown>>>();
@@ -335,22 +233,32 @@ class LazyPartitionedIndexImpl<T extends Record<string, unknown>> implements Laz
 		if (!partitionResults.size) {
 			return;
 		}
-		yield* spatialJoin(partitionResults, bounds);
+
+		// The join needs every partition's results at once to find the cell
+		// boundaries, so it cannot defer the search the way a single index does.
+		// It owes the same invalidation contract anyway: continuing across a write
+		// answers from a snapshot the index no longer holds.
+		const stamp = this.version;
+		for (const result of spatialJoin(partitionResults, bounds)) {
+			if (this.version !== stamp) {
+				throw new Error(
+					'Query iterator invalidated: the index was modified while this query was being iterated.',
+				);
+			}
+			yield result;
+		}
 	}
 
 	/**
-	 * Extent of the joined view.
+	 * Extent of the joined view, derived from `query()` rather than folded from the
+	 * partitions' own extents.
 	 *
-	 * This must be derived from `query()`, not folded from the partitions' own
-	 * extents. The spatial join introduces boundary coordinates that no stored
-	 * rectangle carries: two partitions covering [1,3] and [0,inf) yield a cell
-	 * starting at 4, so 4 is a real coordinate of the joined view and of nothing
-	 * else. A fold over `partition.extent()` cannot see it and reports a smaller
-	 * extent than the results this index actually yields.
-	 *
-	 * The cost is therefore a full join per uncached call. Making that cheap means
-	 * first deciding whether `extent()` describes the joined view or the stored
-	 * rectangles, which is a change to a published observable.
+	 * The join introduces coordinates no stored rectangle carries: partitions
+	 * covering [1,3] and [0,inf) yield a cell starting at 4, which belongs to the
+	 * joined view and nothing else. A fold over `partition.extent()` cannot see it
+	 * and under-reports. The cost is a full join per uncached call, and making it
+	 * cheap means first deciding whether `extent()` describes the joined view or
+	 * the stored rectangles, which changes a published observable.
 	 */
 	extent(): ExtentResult {
 		return this.extentCached ??= computeExtent(this.query());
@@ -372,6 +280,11 @@ class LazyPartitionedIndexImpl<T extends Record<string, unknown>> implements Laz
 		return this.partitions.keys();
 	}
 
+	/**
+	 * Number of rectangles in one partition, O(n) because counting is the only
+	 * thing a `SpatialIndex` can be asked: neither shipped implementation exposes
+	 * a size on that interface, only on its own concrete type.
+	 */
 	sizeOf(key: keyof T): number {
 		const partition = this.partitions.get(key);
 		if (!partition) return 0;
@@ -383,20 +296,17 @@ class LazyPartitionedIndexImpl<T extends Record<string, unknown>> implements Laz
 	clear(): void {
 		this.partitions.clear();
 		this.extentCached = null;
+		this.version++;
 	}
 }
 
 /**
- * Create a lazy partitioned spatial index for managing per-attribute ranges.
+ * Create a partitioned spatial index, one partition per attribute.
  *
- * **Use case**: Spreadsheet cell properties (background, font, borders, etc.)
- * where each property has independent spatial coverage.
+ * Best for properties with independent spatial coverage, such as spreadsheet cell
+ * backgrounds, fonts, and borders.
  *
- * **Pattern**: Vertical partitioning - each attribute gets its own spatial index,
- * automatically created on first use. Query performs spatial join across partitions.
- *
- * @param indexFactory - Factory function to create underlying spatial indices for each partition
- * @returns New partitioned spatial index instance
+ * @param indexFactory - Creates the underlying index for each partition
  *
  * @example
  * ```typescript

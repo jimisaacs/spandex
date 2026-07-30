@@ -154,6 +154,51 @@ export async function testPartitionedAxioms(
 		assert(threw, 'fractional coordinates should be rejected at the boundary');
 	});
 
+	await t.step('A rejected write leaves no partition behind', () => {
+		// Validating after creating the partition left the attribute registered
+		// even though nothing was stored under it, so the index reported an
+		// attribute as written to while also reporting itself empty. Two
+		// observables that cannot both be right.
+		const index = make();
+		try {
+			index.set([5, 0, 0, 0], 'background', 'red');
+		} catch {
+			// The rejection is the point; what matters is the state it leaves.
+		}
+		assertEquals(Array.from(index.query()).length, 0, 'a rejected write must store nothing');
+		assertEquals(index.extent().empty, true, 'a rejected write must leave the index empty');
+
+		const listable = index as PartitionedSpatialIndex<Props> & { keys?(): Iterable<keyof Props> };
+		if (listable.keys) {
+			assertEquals(
+				Array.from(listable.keys()),
+				[],
+				'a rejected write must not register the attribute it tried to write',
+			);
+		}
+	});
+
+	await t.step('A query iterator does not survive a mutation', () => {
+		// The joined view is built from a snapshot of every partition, so an
+		// iterator held across a write would keep answering from a store the
+		// index no longer has. That reads as fresh, which is worse than failing.
+		const index = make();
+		for (let i = 0; i < 8; i++) index.set([i * 4, 0, i * 4 + 2, 2], 'background', `c${i}`);
+
+		const iterator = index.query();
+		assertFalse(iterator.next().done, 'the iterator should yield a cell before the mutation');
+
+		index.set([0, 8, 40, 10], 'fontColor', 'blue');
+
+		let refused = false;
+		try {
+			iterator.next();
+		} catch {
+			refused = true;
+		}
+		assert(refused, 'continuing a joined query iterator after a write must throw');
+	});
+
 	await t.step('Infinite ranges join cleanly', () => {
 		const index = make();
 		index.set([1, 1, 3, 3], 'background', 'red');

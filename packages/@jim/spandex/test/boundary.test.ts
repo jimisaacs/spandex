@@ -58,19 +58,17 @@ Deno.test('RStarTree - Large coordinates', () => {
 	assertEquals(results2.length > 0, true);
 });
 
-Deno.test('MortonLinearScan - Negative coordinates wrap', () => {
+Deno.test('MortonLinearScan - negative coordinates are stored and queried exactly', () => {
 	const index = createMortonLinearScanIndex<'negative'>();
 
-	// Negative coordinates also wrap via bitwise AND
-	// -1 & 0xFFFF = 65535
 	index.insert([-1, -1, 0, 0], 'negative');
 
-	// The stored rectangle is actually [65535, 65535, 0, 0]
-	// But this is an invalid rectangle (min > max), so behavior is undefined
-	// This test documents current behavior, not prescriptive correctness
-
-	const results = Array.from(index.query());
-	assertEquals(results.length >= 0, true); // Don't assert specific behavior for invalid input
+	// Only the Morton code is masked to 16 bits. The bounds themselves are never
+	// rewritten, so a negative coordinate loses spatial locality in the ordering
+	// and nothing else: the rectangle is stored and matched exactly.
+	assertEquals(Array.from(index.query()), [[[-1, -1, 0, 0], 'negative']]);
+	assertEquals(Array.from(index.query([-1, -1, -1, -1])).length, 1);
+	assertEquals(Array.from(index.query([1, 1, 5, 5])).length, 0);
 });
 
 Deno.test('Degenerate rectangles - zero area', () => {

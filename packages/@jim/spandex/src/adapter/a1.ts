@@ -31,9 +31,6 @@ export type A1RowRange = `${number}:${number}`;
 export type A1Cell = `${A1Column}${number}`;
 /** Any valid A1 notation range type */
 export type A1SheetRange = A1Cell | A1CellRange | A1ColumnRange | A1RowRange;
-// Future: higher-level range types
-//export type A1SpreadsheetRange<Sheet extends string> = `${Sheet}!${A1SheetRange}`;
-//export type A1Notation<Sheet extends string = string> = A1SheetRange | A1SpreadsheetRange<Sheet>;
 
 /**
  * Convert 0-based column index to spreadsheet letter notation.

@@ -53,7 +53,7 @@ INSERT(R, v):
 
 **Complexity**: O(n) insert, O(n²) for n sequential inserts
 
-**Space**: O(n) entries (≈4n worst case)
+**Space**: O(n) entries typically, Θ(n²) worst case
 
 **Best for**: write-heavy sparse data (n < 100)
 
@@ -128,9 +128,12 @@ R* Split (Beckmann et al., 1990): Choose axis minimizing perimeter sum, choose s
 
 **Cumulative fragmentation**:
 
-- Theoretical worst-case: ≤4n rectangles after n inserts
+- Per insert: ≤4 fragments per rectangle overlapped. This is a per-overlap bound,
+  not a bound on the store.
+- Worst case: Θ(n²). Interleaving n/2 full-width rows with n/2 full-height columns
+  builds the entire grid arrangement they induce, and n axis-aligned rectangles
+  induce Θ(n²) faces. Measured: 2550 stored rectangles at n=100.
 - Empirical typical: ~2.3n rectangles (validated in analyses/adversarial-patterns.md)
-- Practical bound: O(n) due to spatial locality and geometric constraints
 
 ∎
 
@@ -154,12 +157,12 @@ R* Split (Beckmann et al., 1990): Choose axis minimizing perimeter sum, choose s
 
 ### Linear Scan Implementations
 
-| Operation      | Time  | Space | Notes                       |
-| -------------- | ----- | ----- | --------------------------- |
-| Insert         | O(n)  | O(1)  | n = existing rectangles     |
-| Query (all)    | O(n)  | O(n)  | Return all rectangles       |
-| Query (region) | O(n)  | O(k)  | k = matching rectangles     |
-| n Inserts      | O(n²) | O(4n) | Worst case: each splits all |
+| Operation      | Time  | Space | Notes                        |
+| -------------- | ----- | ----- | ---------------------------- |
+| Insert         | O(n)  | O(1)  | n = existing rectangles      |
+| Query (all)    | O(n)  | O(n)  | Return all rectangles        |
+| Query (region) | O(n)  | O(k)  | k = matching rectangles      |
+| n Inserts      | O(n²) | O(n²) | Worst case: grid arrangement |
 
 ### R-tree Implementation
 
@@ -201,14 +204,17 @@ Repeat n times
 
 **Practical bounds**:
 
-- **Linear worst-case**: O(n) to O(4n) rectangles after n inserts
+- **Worst case**: Θ(n²), reached by interleaving full-width rows with full-height
+  columns. Measured at 2550 rectangles for n=100.
 - **Empirical typical**: ~2.3n (k ≈ 2.3 overlaps per insert, validated via adversarial patterns)
-- **Example**: 100 pathological inserts → 232 ranges (2.3x), not 4^100
+- **Example**: 100 pathological inserts of the overlapping kind produce 232 ranges,
+  not 4^100
 
 Stated formally: the rectangles are disjoint and each covers at least `A_min`
 area, so a grid of area `A` holds at most `A / A_min` of them. A grid of 10^6
-cells therefore caps out at 10^6 rectangles, nowhere near 4^100 ≈ 10^60. The
-practical bound is O(n).
+cells therefore caps out at 10^6 rectangles, nowhere near 4^100 ≈ 10^60. So
+exponential growth is impossible, but quadratic is not, and the row-and-column
+arrangement above reaches it.
 
 ---
 

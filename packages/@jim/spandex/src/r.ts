@@ -66,6 +66,16 @@ export function canonical(a: Readonly<Rectangle>): Readonly<Rectangle> {
 	return isEqual(a, ZERO) ? ZERO : isEqual(a, ALL) ? ALL : a;
 }
 
+/** Refuse a coordinate outside the domain: the integers plus the two infinities. */
+function assertCell(c: number): void {
+	if (!Number.isInteger(c) && c !== negInf && c !== posInf) {
+		throw new Error(
+			`Invalid rectangle: coordinate ${c} is not an integer. ` +
+				`Coordinates address discrete cells; use ±Infinity for unbounded edges.`,
+		);
+	}
+}
+
 /**
  * Validate and canonicalize rectangle (public API entry point).
  *
@@ -84,20 +94,19 @@ export function validated(a: Readonly<Rectangle>): Readonly<Rectangle> {
 	// when coordinates are whole. A fractional bound makes that arithmetic
 	// produce an inverted or gap-leaving fragment, so it is refused here rather
 	// than stored as a rectangle this function would itself reject.
-	// The domain is the integers plus the two infinities. Testing for that
-	// directly also refuses NaN, which no ordering comparison can catch: every
-	// comparison against NaN is false, so an inverted-bounds check passes it and
-	// so does the disjointness axiom. A NaN rectangle reaches decomposition,
-	// where the full-cover test and all four fragment guards are equally false,
-	// and the overlapping rectangle is dropped without being covered.
-	for (const c of a) {
-		if (!Number.isInteger(c) && c !== negInf && c !== posInf) {
-			throw new Error(
-				`Invalid rectangle: coordinate ${c} is not an integer. ` +
-					`Coordinates address discrete cells; use ±Infinity for unbounded edges.`,
-			);
-		}
-	}
+	// The domain is the integers plus the two infinities. Testing that directly
+	// also refuses NaN, which no ordering comparison can catch: every comparison
+	// against NaN is false, so both the inverted-bounds check and the disjointness
+	// axiom pass it, and decomposition then drops the overlapping rectangle
+	// without covering it.
+	//
+	// One coordinate at a time rather than iterating the tuple: this runs on every
+	// insert and query, and a `for…of` over four already-destructured values
+	// allocates an iterator to read them again.
+	assertCell(xmin);
+	assertCell(ymin);
+	assertCell(xmax);
+	assertCell(ymax);
 	// An unbounded edge has to open outward. `xmin` at +∞ or `xmax` at -∞ passes
 	// the ordering check when both ends share an infinity, but names no cell at
 	// all, and every consumer then drops it silently.
@@ -154,6 +163,26 @@ export function make(xmin = negInf, ymin = negInf, xmax = posInf, ymax = posInf)
 }
 
 /**
+ * Whether rectangle A fully contains rectangle B, as loose coordinates.
+ *
+ * A hot-path caller usually holds the coordinates already and has not decided
+ * whether it needs a rectangle at all, so building one to ask would allocate
+ * before the answer is known. `contains` is the tuple-shaped wrapper.
+ */
+export function covers(
+	ax1: number,
+	ay1: number,
+	ax2: number,
+	ay2: number,
+	bx1: number,
+	by1: number,
+	bx2: number,
+	by2: number,
+): boolean {
+	return ax1 <= bx1 && ay1 <= by1 && ax2 >= bx2 && ay2 >= by2;
+}
+
+/**
  * Test if rectangle `a` fully contains rectangle `b`.
  *
  * @param a Container rectangle
@@ -161,9 +190,7 @@ export function make(xmin = negInf, ymin = negInf, xmax = posInf, ymax = posInf)
  * @returns True if `a` spatially contains `b` (all bounds of `b` within `a`)
  */
 export function contains(a: Readonly<Rectangle>, b: Readonly<Rectangle>): boolean {
-	const [ax, ay, ax2, ay2] = a;
-	const [bx, by, bx2, by2] = b;
-	return ax <= bx && ay <= by && ax2 >= bx2 && ay2 >= by2;
+	return covers(a[0], a[1], a[2], a[3], b[0], b[1], b[2], b[3]);
 }
 
 /** No edges are infinite (all bounds are finite) */

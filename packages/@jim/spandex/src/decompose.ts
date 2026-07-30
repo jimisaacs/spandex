@@ -19,10 +19,25 @@
  * force them to rebuild arrays purely to make the call. `subtractInto` appends
  * into a caller-owned array so a caller can reuse one scratch buffer across
  * inserts instead of allocating a fresh list per overlap.
+ *
+ * **Ownership**: fragments are frozen before they leave. Implementations store
+ * them directly and hand them back out of `query`, so an unfrozen fragment lets
+ * a consumer grow one stored rectangle over its neighbours from outside. Same
+ * hazard `r.owned` closes for a caller's array, same answer.
  */
 
 import * as r from './r.ts';
 import type { Rectangle } from './types.ts';
+
+/**
+ * Canonicalize a fragment this module just built and freeze it in place. `r.owned`
+ * copies first because its argument belongs to the caller; these arrays are ours,
+ * so freezing in place is enough.
+ */
+function sealed(a: Rectangle): Readonly<Rectangle> {
+	const c = r.canonical(a);
+	return c === a ? Object.freeze(a) : c;
+}
 
 /**
  * True when rectangles A and B share at least one cell.
@@ -72,16 +87,16 @@ export function subtractInto(
 	const before = out.length;
 
 	// Strip above B.
-	if (ay1 < by1) out.push(r.canonical([ax1, ay1, ax2, by1 - 1]));
+	if (ay1 < by1) out.push(sealed([ax1, ay1, ax2, by1 - 1]));
 	// Strip below B.
-	if (ay2 > by2) out.push(r.canonical([ax1, by2 + 1, ax2, ay2]));
+	if (ay2 > by2) out.push(sealed([ax1, by2 + 1, ax2, ay2]));
 
 	// Side strips, clipped to the rows A and B share.
 	const yMin = ay1 > by1 ? ay1 : by1;
 	const yMax = ay2 < by2 ? ay2 : by2;
 	if (yMin <= yMax) {
-		if (ax1 < bx1) out.push(r.canonical([ax1, yMin, bx1 - 1, yMax]));
-		if (ax2 > bx2) out.push(r.canonical([bx2 + 1, yMin, ax2, yMax]));
+		if (ax1 < bx1) out.push(sealed([ax1, yMin, bx1 - 1, yMax]));
+		if (ax2 > bx2) out.push(sealed([bx2 + 1, yMin, ax2, yMax]));
 	}
 
 	return out.length - before;

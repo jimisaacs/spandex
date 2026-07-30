@@ -90,8 +90,8 @@ JavaScript.
 archived both times as slower; see
 [IMPLEMENTATION-HISTORY](../../archive/IMPLEMENTATION-HISTORY.md).
 
-**Bundle sizes**: measured on every regeneration with `deno bundle --minify` and
-reported in [BENCHMARKS.md](../../BENCHMARKS.md).
+**Bundle sizes**: measured with `deno bundle --minify` (dependencies inlined) and
+quoted under Algorithms below.
 
 ### 7. Test Coverage (35 Benchmark Scenarios)
 
@@ -101,7 +101,7 @@ reported in [BENCHMARKS.md](../../BENCHMARKS.md).
 - **User patterns**: Single cells, columns, rows, diagonal, striping, merge-like blocks
 - **Workloads**: Write-heavy (80/20), query-only (10k queries), mixed
 
-**Adversarial validation**: Pathological patterns (concentric, diagonal, checkerboard) validate O(n) fragmentation bound. Empirical k ≈ 2.3 overlaps per insert.
+**Adversarial validation**: Pathological patterns (concentric, diagonal, checkerboard) show near-linear growth, k ≈ 2.3 overlaps per insert. They do not bound the store: interleaved rows and columns reach Θ(n²).
 
 See [adversarial-patterns.md](../analyses/adversarial-patterns.md) and [benchmark-statistics.md](../analyses/benchmark-statistics.md).
 
@@ -117,11 +117,12 @@ current three.
 
 **Linear Scan** (O(n)): flat array in Morton order. Best for write-heavy work
 below n=100. The proposed mechanism is cache locality from that ordering, which
-no experiment has isolated. Bundle: 3.0KB minified.
+no experiment has isolated. Bundle: 3.3KB minified.
 
-**R-tree** (O(log n)): hierarchical index with R* split (Beckmann 1990). Best for
-read-heavy work at any size, and for everything above n=600. Bundle: 7.2KB
-minified.
+**R-tree** (O(log n)): hierarchical index with the R* heuristics (Beckmann 1990),
+meaning overlap-minimizing descent, perimeter-and-overlap splits, and forced
+reinsertion. Best for read-heavy work at any size, and for everything above
+n=600. Bundle: 11.5KB minified.
 
 See `packages/@jim/spandex/src/index/` for implementations.
 

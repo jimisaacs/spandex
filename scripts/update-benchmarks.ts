@@ -302,8 +302,10 @@ const sections: string[] = [
 
 > Last updated: ${now} | Deno ${denoVersion}
 >
-> **⚠️ Note**: These benchmarks run in GitHub Actions CI (shared runners). Results show relative performance
-> but may have high variability (CV% >20%). For research-grade measurements, run on dedicated hardware.
+> Regenerate with \`deno task bench:update\`. Compare implementations **within** one
+> run, never across runs: absolute times depend on the machine, and CI regenerates
+> this file on shared runners where CV% often exceeds 20%. For research-grade
+> numbers, run on dedicated hardware and say so.
 
 ## Performance Comparison
 
