@@ -41,7 +41,7 @@ const implementationNames = new Set<string>();
 const scenarioNames = new Set<string>();
 
 for (const line of lines) {
-	const pattern = /^\|\s*([\w-]+)\s+-\s+(.+?)\s+\|\s*([\d.]+)\s*(µs|ns|ms)\s*\|/;
+	const pattern = /^\|\s*([\w-]+)\s+-\s+(.+?)\s+\|\s*([\d.]+)\s*(ns|µs|ms|s)\s*\|/;
 	const match = line.match(pattern);
 	if (match) {
 		// Regex guarantees these captures exist when match is truthy
@@ -63,6 +63,7 @@ for (const line of lines) {
 		let timeInMs = parseFloat(timeStr);
 		if (unitStr === 'µs') timeInMs /= 1000;
 		else if (unitStr === 'ns') timeInMs /= 1_000_000;
+		else if (unitStr === 's') timeInMs *= 1000;
 		results[scenarioName][implName] = timeInMs;
 	}
 }

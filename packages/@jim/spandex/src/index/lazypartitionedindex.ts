@@ -27,12 +27,14 @@ import type {
  *
  * **Algorithm**:
  * 1. Collect boundaries from all partitions → grid cells
- * 2. For each cell, merge attributes from overlapping partitions
+ * 2. Convert partition results into row-band start events
+ * 3. Fill and emit one active row band at a time
  *
- * **Complexity**: O(R × C × k × m)
+ * **Complexity**: O(km log km + A + G)
  * - R, C = unique row/column boundaries
  * - k = partitions, m = results per partition
- * - Typical: R,C ≈ 10-100, k ≈ 5-10, m ≈ 1-10 → acceptable
+ * - A = covered grid-cell assignments across all partition results
+ * - G = swept grid cells
  *
  * @param partitionResults - Results from each partition's query
  * @returns Iterator yielding partitioned query results (tuples)
@@ -41,6 +43,9 @@ import type {
 function ascending(a: number, b: number): number {
 	return a - b;
 }
+
+/** Below this, the old direct scan is smaller work than building sweep state. */
+const SMALL_JOIN_RESULT_COUNT = 16;
 
 /** Index of the last band whose start is <= `value`, clamped to 0. */
 function lastBandAtOrBefore(sorted: number[], value: number): number {
@@ -64,28 +69,46 @@ function firstBandAfter(sorted: number[], value: number): number {
 	return best;
 }
 
+interface PartitionSnapshot<T extends Record<string, unknown>> {
+	key: keyof T;
+	results: Array<QueryResult<unknown>>;
+}
+
+interface Coverage<T extends Record<string, unknown>> {
+	key: keyof T;
+	value: unknown;
+	colStart: number;
+	colEnd: number;
+	rowEnd: number;
+}
+
 /**
  * Plane sweep across partition boundaries: collect every distinct row and column
  * boundary, then merge the attributes covering each cell of the grid they define.
  *
- * O(R × C × k × m) for R row and C column boundaries, k partitions, and m results
- * each. R and C are bounded by 2km, so this is the term that dominates a query.
+ * The old join visited every cell and then searched every partition result for
+ * a covering rectangle. This one indexes each result to the grid bands it covers
+ * once, then emits the filled cells in row-major boundary order.
  */
 function* spatialJoin<T extends Record<string, unknown>>(
-	partitionResults: Map<keyof T, Array<QueryResult<unknown>>>,
+	partitionResults: Array<PartitionSnapshot<T>>,
 	queryBounds: Readonly<Rectangle>,
 ): IterableIterator<PartitionedQueryResult<T>> {
 	// Phase 1: Collect all unique row and column boundaries
 	const rowBoundaries = new Set<number>();
 	const colBoundaries = new Set<number>();
+	let resultCount = 0;
 
-	for (const results of partitionResults.values()) {
-		for (const result of results) {
+	for (let i = 0; i < partitionResults.length; i++) {
+		const results = partitionResults[i]!.results;
+		for (let j = 0; j < results.length; j++) {
+			const result = results[j]!;
 			const [xmin, ymin, xmax, ymax] = result[0];
 			colBoundaries.add(xmin);
 			colBoundaries.add(xmax + 1); // +1 for sweep to capture edges
 			rowBoundaries.add(ymin);
 			rowBoundaries.add(ymax + 1);
+			resultCount++;
 		}
 	}
 
@@ -105,35 +128,110 @@ function* spatialJoin<T extends Record<string, unknown>>(
 	const colStart = lastBandAtOrBefore(sortedCols, qXmin);
 	const colEnd = firstBandAfter(sortedCols, qXmax);
 
-	for (let i = rowStart; i < rowEnd; i++) {
-		const cellYmin = sortedRows[i]!;
-		const cellYmax = sortedRows[i + 1]! - 1;
-		if (cellYmin > qYmax || cellYmax < qYmin) continue;
+	const rowCount = rowEnd - rowStart;
+	const colCount = colEnd - colStart;
+	if (rowCount <= 0 || colCount <= 0) return;
 
-		for (let j = colStart; j < colEnd; j++) {
-			const cellXmin = sortedCols[j]!;
-			const cellXmax = sortedCols[j + 1]! - 1;
-			if (cellXmin > qXmax || cellXmax < qXmin) continue;
+	if (resultCount <= SMALL_JOIN_RESULT_COUNT) {
+		for (let i = rowStart; i < rowEnd; i++) {
+			const cellYmin = sortedRows[i]!;
+			const cellYmax = sortedRows[i + 1]! - 1;
+			if (cellYmin > qYmax || cellYmax < qYmin) continue;
 
-			// Most cells are covered by no partition, so nothing is allocated
-			// until one is found. The rectangle and the record used to be built
-			// first and thrown away, once per candidate cell.
-			let attributes: Partial<T> | null = null;
-			for (const [key, results] of partitionResults) {
-				for (let i = 0; i < results.length; i++) {
-					const result = results[i]!;
-					const [rx1, ry1, rx2, ry2] = result[0];
-					if (r.covers(rx1, ry1, rx2, ry2, cellXmin, cellYmin, cellXmax, cellYmax)) {
-						if (attributes === null) attributes = {};
-						attributes[key] = result[1] as T[keyof T];
-						break;
+			for (let j = colStart; j < colEnd; j++) {
+				const cellXmin = sortedCols[j]!;
+				const cellXmax = sortedCols[j + 1]! - 1;
+				if (cellXmin > qXmax || cellXmax < qXmin) continue;
+
+				let attributes: Partial<T> | null = null;
+				for (let p = 0; p < partitionResults.length; p++) {
+					const { key, results } = partitionResults[p]!;
+					for (let n = 0; n < results.length; n++) {
+						const result = results[n]!;
+						const [rx1, ry1, rx2, ry2] = result[0];
+						if (r.covers(rx1, ry1, rx2, ry2, cellXmin, cellYmin, cellXmax, cellYmax)) {
+							if (attributes === null) attributes = {};
+							attributes[key] = result[1] as T[keyof T];
+							break;
+						}
 					}
 				}
-			}
 
-			if (attributes) {
-				yield [[cellXmin, cellYmin, cellXmax, cellYmax], attributes];
+				if (attributes) yield [[cellXmin, cellYmin, cellXmax, cellYmax], attributes];
 			}
+		}
+		return;
+	}
+
+	// Phase 2: Create start events for the row bands each result covers. This
+	// keeps memory proportional to results plus one row, not the whole grid.
+	const startEvents: Array<Array<Coverage<T>> | undefined> = new Array(rowCount);
+
+	for (let i = 0; i < partitionResults.length; i++) {
+		const { key, results } = partitionResults[i]!;
+		for (let j = 0; j < results.length; j++) {
+			const result = results[j]!;
+			const [xmin, ymin, xmax, ymax] = result[0];
+
+			let localRowStart = lastBandAtOrBefore(sortedRows, ymin) - rowStart;
+			let localRowEnd = firstBandAfter(sortedRows, ymax) - rowStart;
+			let localColStart = lastBandAtOrBefore(sortedCols, xmin) - colStart;
+			let localColEnd = firstBandAfter(sortedCols, xmax) - colStart;
+
+			if (localRowStart < 0) localRowStart = 0;
+			if (localColStart < 0) localColStart = 0;
+			if (localRowEnd > rowCount) localRowEnd = rowCount;
+			if (localColEnd > colCount) localColEnd = colCount;
+			if (localRowStart >= localRowEnd || localColStart >= localColEnd) continue;
+
+			const events = startEvents[localRowStart] ??= [];
+			events.push({
+				key,
+				value: result[1],
+				colStart: localColStart,
+				colEnd: localColEnd,
+				rowEnd: localRowEnd,
+			});
+		}
+	}
+
+	// Phase 3: Sweep row bands, filling and emitting one row at a time.
+	const active: Array<Coverage<T>> = [];
+	const rowAttributes: Array<Partial<T> | undefined> = new Array(colCount);
+
+	for (let row = 0; row < rowCount; row++) {
+		let activeWrite = 0;
+		for (let i = 0; i < active.length; i++) {
+			const coverage = active[i]!;
+			if (coverage.rowEnd > row) active[activeWrite++] = coverage;
+		}
+		active.length = activeWrite;
+
+		const starting = startEvents[row];
+		if (starting) {
+			for (let i = 0; i < starting.length; i++) active.push(starting[i]!);
+		}
+
+		for (let i = 0; i < active.length; i++) {
+			const coverage = active[i]!;
+			for (let col = coverage.colStart; col < coverage.colEnd; col++) {
+				let attributes = rowAttributes[col];
+				if (attributes === undefined) rowAttributes[col] = attributes = {};
+				attributes[coverage.key] = coverage.value as T[keyof T];
+			}
+		}
+
+		const sourceRow = rowStart + row;
+		const cellYmin = sortedRows[sourceRow]!;
+		const cellYmax = sortedRows[sourceRow + 1]! - 1;
+
+		for (let col = 0; col < colCount; col++) {
+			const attributes = rowAttributes[col];
+			if (attributes === undefined) continue;
+
+			rowAttributes[col] = undefined;
+			const sourceCol = colStart + col;
+			yield [[sortedCols[sourceCol]!, cellYmin, sortedCols[sourceCol + 1]! - 1, cellYmax], attributes];
 		}
 	}
 }
@@ -215,22 +313,21 @@ class LazyPartitionedIndexImpl<T extends Record<string, unknown>> implements Laz
 	 * Query every attribute over a range, yielding one cell per distinct region
 	 * with the attributes covering it.
 	 *
-	 * O(k × (log n + m) + R × C × k × m) for k active partitions, n ranges each, m
-	 * results each, and R, C boundaries swept. The join term dominates and is not
-	 * linear: R and C are bounded by 2km, so a full-extent query over heavily
-	 * fragmented partitions is cubic in km. Query a window where you can, since
-	 * the sweep only covers the bands it touches.
+	 * O(k × (log n + m) + km log km + A + G) for k active partitions, n ranges
+	 * each, m results each, A covered grid-cell assignments, and G swept cells.
+	 * Query a window where you can, since the sweep only covers the bands it
+	 * touches.
 	 */
 	*query(bounds: Readonly<Rectangle> = r.ALL): IterableIterator<PartitionedQueryResult<T>> {
-		const partitionResults = new Map<keyof T, Array<QueryResult<unknown>>>();
+		const partitionResults: Array<PartitionSnapshot<T>> = [];
 
 		for (const [key, partition] of this.partitions.entries()) {
 			const results = Array.from(partition.query(bounds));
 			if (results.length) {
-				partitionResults.set(key, results);
+				partitionResults.push({ key, results });
 			}
 		}
-		if (!partitionResults.size) {
+		if (!partitionResults.length) {
 			return;
 		}
 
