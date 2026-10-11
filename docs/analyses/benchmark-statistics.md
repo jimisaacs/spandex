@@ -4,7 +4,7 @@
 
 # Benchmark Analysis Results
 
-**Date**: 2026-10-04T07:06:23.097Z
+**Date**: 2026-10-11T07:11:14.477Z
 **Runs**: 5
 **Method**: Statistical analysis (mean ± stddev, CV%)
 
@@ -41,9 +41,9 @@
 
 | Implementation       | Wins | Win Rate | Avg Time (µs) |
 | -------------------- | ---- | -------- | ------------- |
-| mortonlinearscan     | 18   | 51%      | 172944.8      |
-| rstartree            | 17   | 49%      | 8922.9        |
-| lazypartitionedindex | 0    | 0%       | 2219158.9     |
+| mortonlinearscan     | 18   | 51%      | 174205.9      |
+| rstartree            | 17   | 49%      | 8904.1        |
+| lazypartitionedindex | 0    | 0%       | 2536981.2     |
 
 ### Margin of Victory
 
@@ -54,8 +54,8 @@ a scenario where the choice decided the outcome.
 
 | Implementation   | Wins | Decisive | Typical margin | Median | Tightest | Widest   |
 | ---------------- | ---- | -------- | -------------- | ------ | -------- | -------- |
-| mortonlinearscan | 18   | 18       | 2.79x          | 2.90x  | 1.15x    | 9.55x    |
-| rstartree        | 17   | 16       | 4.69x          | 1.78x  | 1.00x    | 1809.70x |
+| mortonlinearscan | 18   | 18       | 2.77x          | 2.87x  | 1.13x    | 9.68x    |
+| rstartree        | 17   | 16       | 4.73x          | 1.80x  | 1.00x    | 1801.52x |
 
 A win counts as decisive only when it meets both halves of the significance rule
 stated above. Its margin has to clear 10%, and the two 95% confidence
@@ -80,9 +80,9 @@ else.
 
 | Implementation       | Losses | Typical | Median | Worst     |
 | -------------------- | ------ | ------- | ------ | --------- |
-| rstartree            | 18     | 2.79x   | 2.90x  | 9.55x     |
-| mortonlinearscan     | 17     | 4.69x   | 1.78x  | 1809.70x  |
-| lazypartitionedindex | 35     | 21.65x  | 13.23x | 25881.19x |
+| rstartree            | 18     | 2.77x   | 2.87x  | 9.68x     |
+| mortonlinearscan     | 17     | 4.73x   | 1.80x  | 1801.52x  |
+| lazypartitionedindex | 35     | 21.78x  | 13.00x | 30064.24x |
 
 Where only two implementations ever take first place, one's typical loss is the
 other's typical win by construction. The two tables above are then the same
@@ -103,9 +103,9 @@ implementation that never wins a scenario appears only in this second table.
 
 | Implementation       | Avg CV% | Max CV% | Status      |
 | -------------------- | ------- | ------- | ----------- |
-| lazypartitionedindex | 1.05    | 7.13    | ⚠️ Variable |
-| mortonlinearscan     | 0.61    | 1.26    | ✅ Stable   |
-| rstartree            | 0.98    | 1.79    | ✅ Stable   |
+| lazypartitionedindex | 1.15    | 9.36    | ⚠️ Variable |
+| mortonlinearscan     | 0.64    | 2.01    | ✅ Stable   |
+| rstartree            | 0.89    | 3.61    | ✅ Stable   |
 
 ## Detailed Results
 
@@ -113,281 +113,281 @@ implementation that never wins a scenario appears only in this second table.
 
 | Implementation       | Mean (µs) | ±Stddev | CV% | Relative  |
 | -------------------- | --------- | ------- | --- | --------- |
-| mortonlinearscan ✓   | 8226.9    | ±77.2   | 0.9 | (fastest) |
-| rstartree            | 18475.3   | ±167.3  | 0.9 | 2.25x     |
-| lazypartitionedindex | 108871.1  | ±656.7  | 0.6 | 13.23x    |
+| mortonlinearscan ✓   | 8324.1    | ±84.1   | 1.0 | (fastest) |
+| rstartree            | 18525.9   | ±79.6   | 0.4 | 2.23x     |
+| lazypartitionedindex | 110084.5  | ±1337.0 | 1.2 | 13.22x    |
 
 ### mixed: large-sequential (n=1000) 80/20
 
 | Implementation       | Mean (µs) | ±Stddev | CV% | Relative  |
 | -------------------- | --------- | ------- | --- | --------- |
-| rstartree ✓          | 14248.7   | ±78.3   | 0.5 | (fastest) |
-| mortonlinearscan     | 27609.6   | ±349.1  | 1.3 | 1.94x     |
-| lazypartitionedindex | 205572.7  | ±1388.1 | 0.7 | 14.43x    |
+| rstartree ✓          | 14221.1   | ±69.5   | 0.5 | (fastest) |
+| mortonlinearscan     | 27911.6   | ±190.2  | 0.7 | 1.96x     |
+| lazypartitionedindex | 206706.9  | ±1827.2 | 0.9 | 14.54x    |
 
 ### mixed: sparse-overlapping (n=40) 80/20
 
 | Implementation       | Mean (µs) | ±Stddev | CV% | Relative  |
 | -------------------- | --------- | ------- | --- | --------- |
-| mortonlinearscan ✓   | 103.2     | ±0.9    | 0.9 | (fastest) |
-| rstartree            | 881.7     | ±9.1    | 1.0 | 8.54x     |
-| lazypartitionedindex | 1525.2    | ±3.7    | 0.2 | 14.78x    |
+| mortonlinearscan ✓   | 103.8     | ±0.8    | 0.8 | (fastest) |
+| rstartree            | 879.8     | ±9.2    | 1.0 | 8.48x     |
+| lazypartitionedindex | 1517.8    | ±9.3    | 0.6 | 14.62x    |
 
 ### mixed: sparse-sequential (n=50) 80/20
 
 | Implementation       | Mean (µs) | ±Stddev | CV% | Relative  |
 | -------------------- | --------- | ------- | --- | --------- |
-| mortonlinearscan ✓   | 97.1      | ±0.5    | 0.5 | (fastest) |
-| rstartree            | 301.8     | ±1.5    | 0.5 | 3.11x     |
-| lazypartitionedindex | 854.9     | ±8.0    | 0.9 | 8.80x     |
+| mortonlinearscan ✓   | 99.0      | ±0.4    | 0.4 | (fastest) |
+| rstartree            | 303.1     | ±2.5    | 0.8 | 3.06x     |
+| lazypartitionedindex | 858.8     | ±3.3    | 0.4 | 8.68x     |
 
 ### query-only: large (n=5000, 10k queries)
 
 | Implementation       | Mean (µs)  | ±Stddev    | CV% | Relative  |
 | -------------------- | ---------- | ---------- | --- | --------- |
-| rstartree ✓          | 2402.9     | ±17.9      | 0.7 | (fastest) |
-| mortonlinearscan     | 4348617.1  | ±19846.5   | 0.5 | 1809.70x  |
-| lazypartitionedindex | 62191144.7 | ±4434235.2 | 7.1 | 25881.19x |
+| rstartree ✓          | 2432.5     | ±18.4      | 0.8 | (fastest) |
+| mortonlinearscan     | 4382282.2  | ±16850.5   | 0.4 | 1801.52x  |
+| lazypartitionedindex | 73132620.2 | ±6846040.2 | 9.4 | 30064.24x |
 
 ### query-only: overlapping (n=1000, 10k queries)
 
 | Implementation       | Mean (µs) | ±Stddev  | CV% | Relative  |
 | -------------------- | --------- | -------- | --- | --------- |
-| rstartree ✓          | 13098.9   | ±112.3   | 0.9 | (fastest) |
-| mortonlinearscan     | 530785.3  | ±6348.5  | 1.2 | 40.52x    |
-| lazypartitionedindex | 4899200.5 | ±52130.0 | 1.1 | 374.02x   |
+| rstartree ✓          | 13171.0   | ±130.4   | 1.0 | (fastest) |
+| mortonlinearscan     | 534440.3  | ±4261.0  | 0.8 | 40.58x    |
+| lazypartitionedindex | 4990890.1 | ±59627.0 | 1.2 | 378.93x   |
 
 ### query-only: sequential (n=1000, 10k queries)
 
 | Implementation       | Mean (µs) | ±Stddev  | CV% | Relative  |
 | -------------------- | --------- | -------- | --- | --------- |
-| rstartree ✓          | 2562.8    | ±28.2    | 1.1 | (fastest) |
-| mortonlinearscan     | 441561.4  | ±2526.5  | 0.6 | 172.30x   |
-| lazypartitionedindex | 4093395.0 | ±44848.6 | 1.1 | 1597.24x  |
+| rstartree ✓          | 2569.8    | ±33.8    | 1.3 | (fastest) |
+| mortonlinearscan     | 442621.2  | ±1862.7  | 0.4 | 172.24x   |
+| lazypartitionedindex | 4118958.8 | ±29614.8 | 0.7 | 1602.85x  |
 
 ### read: column-operations (n=20) + 100 queries
 
 | Implementation       | Mean (µs) | ±Stddev | CV% | Relative  |
 | -------------------- | --------- | ------- | --- | --------- |
-| rstartree ✓          | 113.6     | ±1.7    | 1.5 | (fastest) |
-| mortonlinearscan     | 129.0     | ±0.4    | 0.3 | 1.14x     |
-| lazypartitionedindex | 1623.7    | ±19.6   | 1.2 | 14.29x    |
+| rstartree ✓          | 113.1     | ±0.4    | 0.3 | (fastest) |
+| mortonlinearscan     | 130.4     | ±1.0    | 0.7 | 1.15x     |
+| lazypartitionedindex | 1613.4    | ±7.2    | 0.4 | 14.27x    |
 
 ### read: diagonal-selection (n=30) + 100 queries
 
 | Implementation       | Mean (µs) | ±Stddev | CV% | Relative  |
 | -------------------- | --------- | ------- | --- | --------- |
-| mortonlinearscan ✓   | 344.2     | ±1.2    | 0.3 | (fastest) |
-| rstartree            | 500.9     | ±4.0    | 0.8 | 1.46x     |
-| lazypartitionedindex | 3151.8    | ±10.7   | 0.3 | 9.16x     |
+| mortonlinearscan ✓   | 346.1     | ±1.2    | 0.3 | (fastest) |
+| rstartree            | 499.1     | ±3.2    | 0.6 | 1.44x     |
+| lazypartitionedindex | 3177.6    | ±23.5   | 0.7 | 9.18x     |
 
 ### read: large-grid (n=2500) + 100 queries
 
-| Implementation       | Mean (µs) | ±Stddev | CV% | Relative  |
-| -------------------- | --------- | ------- | --- | --------- |
-| rstartree ✓          | 22050.0   | ±154.6  | 0.7 | (fastest) |
-| mortonlinearscan     | 150324.6  | ±668.3  | 0.4 | 6.82x     |
-| lazypartitionedindex | 1325772.2 | ±4992.2 | 0.4 | 60.13x    |
+| Implementation       | Mean (µs) | ±Stddev  | CV% | Relative  |
+| -------------------- | --------- | -------- | --- | --------- |
+| rstartree ✓          | 21959.2   | ±183.1   | 0.8 | (fastest) |
+| mortonlinearscan     | 151609.3  | ±1481.9  | 1.0 | 6.90x     |
+| lazypartitionedindex | 1339504.6 | ±14084.2 | 1.1 | 61.00x    |
 
 ### read: large-overlapping (n=1250) + 100 queries
 
 | Implementation       | Mean (µs) | ±Stddev | CV% | Relative  |
 | -------------------- | --------- | ------- | --- | --------- |
-| mortonlinearscan ✓   | 46594.7   | ±199.3  | 0.4 | (fastest) |
-| rstartree            | 56386.9   | ±333.9  | 0.6 | 1.21x     |
-| lazypartitionedindex | 587706.4  | ±3381.4 | 0.6 | 12.61x    |
+| mortonlinearscan ✓   | 46853.3   | ±369.7  | 0.8 | (fastest) |
+| rstartree            | 56107.0   | ±311.8  | 0.6 | 1.20x     |
+| lazypartitionedindex | 591359.2  | ±7668.5 | 1.3 | 12.62x    |
 
 ### read: large-ranges (n=500) + 100 queries
 
 | Implementation       | Mean (µs) | ±Stddev | CV% | Relative  |
 | -------------------- | --------- | ------- | --- | --------- |
-| rstartree ✓          | 12986.0   | ±125.7  | 1.0 | (fastest) |
-| mortonlinearscan     | 15639.1   | ±88.1   | 0.6 | 1.20x     |
-| lazypartitionedindex | 151961.0  | ±1201.1 | 0.8 | 11.70x    |
+| rstartree ✓          | 12915.2   | ±62.9   | 0.5 | (fastest) |
+| mortonlinearscan     | 15803.6   | ±86.3   | 0.5 | 1.22x     |
+| lazypartitionedindex | 153456.1  | ±1687.1 | 1.1 | 11.88x    |
 
 ### read: large-sequential (n=2500) + 100 queries
 
 | Implementation       | Mean (µs) | ±Stddev | CV% | Relative  |
 | -------------------- | --------- | ------- | --- | --------- |
-| rstartree ✓          | 36602.0   | ±268.6  | 0.7 | (fastest) |
-| mortonlinearscan     | 149971.6  | ±1080.5 | 0.7 | 4.10x     |
-| lazypartitionedindex | 1152877.4 | ±4815.2 | 0.4 | 31.50x    |
+| rstartree ✓          | 36454.3   | ±235.2  | 0.6 | (fastest) |
+| mortonlinearscan     | 151411.3  | ±1145.6 | 0.8 | 4.15x     |
+| lazypartitionedindex | 1166869.5 | ±6879.6 | 0.6 | 32.01x    |
 
 ### read: merge-like-blocks (n=15) + 100 queries
 
 | Implementation       | Mean (µs) | ±Stddev | CV% | Relative  |
 | -------------------- | --------- | ------- | --- | --------- |
-| rstartree ✓          | 53.7      | ±1.0    | 1.8 | (fastest) |
-| mortonlinearscan     | 95.6      | ±0.3    | 0.3 | 1.78x     |
-| lazypartitionedindex | 1070.0    | ±2.2    | 0.2 | 19.91x    |
+| rstartree ✓          | 53.6      | ±0.7    | 1.4 | (fastest) |
+| mortonlinearscan     | 96.2      | ±0.4    | 0.4 | 1.80x     |
+| lazypartitionedindex | 1080.1    | ±4.9    | 0.5 | 20.16x    |
 
 ### read: row-operations (n=20) + 100 queries
 
 | Implementation       | Mean (µs) | ±Stddev | CV% | Relative  |
 | -------------------- | --------- | ------- | --- | --------- |
-| rstartree ✓          | 75.8      | ±1.1    | 1.5 | (fastest) |
-| mortonlinearscan     | 120.2     | ±0.4    | 0.4 | 1.59x     |
-| lazypartitionedindex | 968.0     | ±3.1    | 0.3 | 12.78x    |
+| rstartree ✓          | 75.5      | ±0.8    | 1.1 | (fastest) |
+| mortonlinearscan     | 121.1     | ±0.3    | 0.3 | 1.60x     |
+| lazypartitionedindex | 977.0     | ±4.7    | 0.5 | 12.94x    |
 
 ### read: single-cell-edits (n=50) + 100 queries
 
 | Implementation       | Mean (µs) | ±Stddev | CV% | Relative  |
 | -------------------- | --------- | ------- | --- | --------- |
-| rstartree ✓          | 181.7     | ±1.9    | 1.0 | (fastest) |
-| mortonlinearscan     | 313.7     | ±1.0    | 0.3 | 1.73x     |
-| lazypartitionedindex | 2642.4    | ±10.3   | 0.4 | 14.54x    |
+| rstartree ✓          | 182.5     | ±1.4    | 0.8 | (fastest) |
+| mortonlinearscan     | 316.5     | ±1.2    | 0.4 | 1.73x     |
+| lazypartitionedindex | 2656.9    | ±11.6   | 0.4 | 14.56x    |
 
 ### read: sparse-grid (n=60) + 100 queries
 
 | Implementation       | Mean (µs) | ±Stddev | CV% | Relative  |
 | -------------------- | --------- | ------- | --- | --------- |
-| rstartree ✓          | 265.2     | ±1.9    | 0.7 | (fastest) |
-| mortonlinearscan     | 403.3     | ±1.5    | 0.4 | 1.52x     |
-| lazypartitionedindex | 3472.3    | ±81.4   | 2.3 | 13.09x    |
+| rstartree ✓          | 266.0     | ±1.0    | 0.4 | (fastest) |
+| mortonlinearscan     | 405.6     | ±1.1    | 0.3 | 1.52x     |
+| lazypartitionedindex | 3443.0    | ±23.4   | 0.7 | 12.94x    |
 
 ### read: sparse-large-ranges (n=30) + 100 queries
 
 | Implementation       | Mean (µs) | ±Stddev | CV% | Relative  |
 | -------------------- | --------- | ------- | --- | --------- |
-| rstartree ✓          | 141.7     | ±1.6    | 1.1 | (fastest) |
-| mortonlinearscan     | 175.3     | ±0.4    | 0.2 | 1.24x     |
-| lazypartitionedindex | 1736.6    | ±4.7    | 0.3 | 12.26x    |
+| rstartree ✓          | 141.8     | ±0.2    | 0.2 | (fastest) |
+| mortonlinearscan     | 176.6     | ±0.3    | 0.2 | 1.25x     |
+| lazypartitionedindex | 1751.5    | ±10.4   | 0.6 | 12.35x    |
 
 ### read: sparse-overlapping (n=40) + 100 queries
 
 | Implementation       | Mean (µs) | ±Stddev | CV% | Relative  |
 | -------------------- | --------- | ------- | --- | --------- |
-| mortonlinearscan ✓   | 278.6     | ±1.1    | 0.4 | (fastest) |
-| rstartree            | 876.9     | ±13.8   | 1.6 | 3.15x     |
-| lazypartitionedindex | 3355.0    | ±26.3   | 0.8 | 12.04x    |
+| mortonlinearscan ✓   | 279.6     | ±1.3    | 0.5 | (fastest) |
+| rstartree            | 875.1     | ±8.8    | 1.0 | 3.13x     |
+| lazypartitionedindex | 3366.9    | ±25.5   | 0.8 | 12.04x    |
 
 ### read: sparse-sequential (n=50) + 100 queries
 
 | Implementation       | Mean (µs) | ±Stddev | CV% | Relative  |
 | -------------------- | --------- | ------- | --- | --------- |
-| rstartree ✓          | 312.3     | ±1.3    | 0.4 | (fastest) |
-| mortonlinearscan     | 313.3     | ±1.7    | 0.5 | 1.00x     |
-| lazypartitionedindex | 2272.8    | ±11.2   | 0.5 | 7.28x     |
+| rstartree ✓          | 314.1     | ±3.7    | 1.2 | (fastest) |
+| mortonlinearscan     | 314.8     | ±1.2    | 0.4 | 1.00x     |
+| lazypartitionedindex | 2302.2    | ±27.4   | 1.2 | 7.33x     |
 
 ### read: striping-alternating-rows (n=25) + 100 queries
 
 | Implementation       | Mean (µs) | ±Stddev | CV% | Relative  |
 | -------------------- | --------- | ------- | --- | --------- |
-| rstartree ✓          | 120.7     | ±1.5    | 1.3 | (fastest) |
-| mortonlinearscan     | 147.3     | ±0.2    | 0.2 | 1.22x     |
-| lazypartitionedindex | 1674.0    | ±6.1    | 0.4 | 13.87x    |
+| rstartree ✓          | 120.3     | ±0.9    | 0.8 | (fastest) |
+| mortonlinearscan     | 148.3     | ±0.5    | 0.3 | 1.23x     |
+| lazypartitionedindex | 1693.2    | ±5.4    | 0.3 | 14.08x    |
 
 ### write: column-operations (n=20)
 
 | Implementation       | Mean (µs) | ±Stddev | CV% | Relative  |
 | -------------------- | --------- | ------- | --- | --------- |
-| mortonlinearscan ✓   | 19.3      | ±0.1    | 0.6 | (fastest) |
-| rstartree            | 56.2      | ±0.6    | 1.1 | 2.92x     |
-| lazypartitionedindex | 206.1     | ±3.2    | 1.5 | 10.70x    |
+| mortonlinearscan ✓   | 19.4      | ±0.1    | 0.5 | (fastest) |
+| rstartree            | 56.0      | ±0.4    | 0.7 | 2.88x     |
+| lazypartitionedindex | 205.4     | ±1.1    | 0.5 | 10.58x    |
 
 ### write: diagonal-selection (n=30)
 
 | Implementation       | Mean (µs) | ±Stddev | CV% | Relative  |
 | -------------------- | --------- | ------- | --- | --------- |
-| mortonlinearscan ✓   | 70.2      | ±0.3    | 0.5 | (fastest) |
-| rstartree            | 465.2     | ±2.2    | 0.5 | 6.63x     |
-| lazypartitionedindex | 651.1     | ±6.1    | 0.9 | 9.28x     |
+| mortonlinearscan ✓   | 70.1      | ±0.6    | 0.9 | (fastest) |
+| rstartree            | 463.2     | ±2.1    | 0.5 | 6.61x     |
+| lazypartitionedindex | 649.7     | ±3.4    | 0.5 | 9.27x     |
 
 ### write: large-grid (n=2500)
 
-| Implementation       | Mean (µs) | ±Stddev | CV% | Relative  |
-| -------------------- | --------- | ------- | --- | --------- |
-| rstartree ✓          | 21710.0   | ±139.9  | 0.6 | (fastest) |
-| mortonlinearscan     | 139570.1  | ±883.1  | 0.6 | 6.43x     |
-| lazypartitionedindex | 1229176.9 | ±8353.4 | 0.7 | 56.62x    |
+| Implementation       | Mean (µs) | ±Stddev  | CV% | Relative  |
+| -------------------- | --------- | -------- | --- | --------- |
+| rstartree ✓          | 21653.3   | ±145.5   | 0.7 | (fastest) |
+| mortonlinearscan     | 140421.7  | ±1651.1  | 1.2 | 6.49x     |
+| lazypartitionedindex | 1242721.8 | ±13998.2 | 1.1 | 57.39x    |
 
 ### write: large-overlapping (n=1250)
 
 | Implementation       | Mean (µs) | ±Stddev | CV% | Relative  |
 | -------------------- | --------- | ------- | --- | --------- |
-| mortonlinearscan ✓   | 40581.2   | ±178.6  | 0.4 | (fastest) |
-| rstartree            | 56019.7   | ±390.9  | 0.7 | 1.38x     |
-| lazypartitionedindex | 513942.7  | ±5102.4 | 1.0 | 12.66x    |
+| mortonlinearscan ✓   | 40902.9   | ±262.3  | 0.6 | (fastest) |
+| rstartree            | 56083.8   | ±379.7  | 0.7 | 1.37x     |
+| lazypartitionedindex | 519773.9  | ±6174.9 | 1.2 | 12.71x    |
 
 ### write: large-ranges (n=500)
 
 | Implementation       | Mean (µs) | ±Stddev | CV% | Relative  |
 | -------------------- | --------- | ------- | --- | --------- |
-| mortonlinearscan ✓   | 11308.5   | ±141.4  | 1.3 | (fastest) |
-| rstartree            | 12974.4   | ±161.2  | 1.2 | 1.15x     |
-| lazypartitionedindex | 111632.5  | ±458.1  | 0.4 | 9.87x     |
+| mortonlinearscan ✓   | 11448.4   | ±89.9   | 0.8 | (fastest) |
+| rstartree            | 12938.6   | ±113.1  | 0.9 | 1.13x     |
+| lazypartitionedindex | 113781.0  | ±1785.2 | 1.6 | 9.94x     |
 
 ### write: large-sequential (n=2500)
 
-| Implementation       | Mean (µs) | ±Stddev  | CV% | Relative  |
-| -------------------- | --------- | -------- | --- | --------- |
-| rstartree ✓          | 36587.2   | ±362.2   | 1.0 | (fastest) |
-| mortonlinearscan     | 139202.9  | ±863.2   | 0.6 | 3.80x     |
-| lazypartitionedindex | 1069180.4 | ±10260.7 | 1.0 | 29.22x    |
+| Implementation       | Mean (µs) | ±Stddev | CV% | Relative  |
+| -------------------- | --------- | ------- | --- | --------- |
+| rstartree ✓          | 36409.8   | ±232.7  | 0.6 | (fastest) |
+| mortonlinearscan     | 140080.2  | ±1677.2 | 1.2 | 3.85x     |
+| lazypartitionedindex | 1077388.7 | ±9452.2 | 0.9 | 29.59x    |
 
 ### write: merge-like-blocks (n=15)
 
 | Implementation       | Mean (µs) | ±Stddev | CV% | Relative  |
 | -------------------- | --------- | ------- | --- | --------- |
-| mortonlinearscan ✓   | 13.7      | ±0.1    | 1.0 | (fastest) |
-| rstartree            | 29.9      | ±0.4    | 1.3 | 2.19x     |
-| lazypartitionedindex | 191.4     | ±3.4    | 1.8 | 14.02x    |
+| mortonlinearscan ✓   | 13.6      | ±0.1    | 1.1 | (fastest) |
+| rstartree            | 30.0      | ±0.4    | 1.4 | 2.20x     |
+| lazypartitionedindex | 189.4     | ±1.4    | 0.7 | 13.88x    |
 
 ### write: row-operations (n=20)
 
 | Implementation       | Mean (µs) | ±Stddev | CV% | Relative  |
 | -------------------- | --------- | ------- | --- | --------- |
-| mortonlinearscan ✓   | 19.7      | ±0.2    | 1.0 | (fastest) |
-| rstartree            | 56.8      | ±0.7    | 1.3 | 2.89x     |
-| lazypartitionedindex | 209.1     | ±3.4    | 1.6 | 10.61x    |
+| mortonlinearscan ✓   | 19.9      | ±0.1    | 0.6 | (fastest) |
+| rstartree            | 56.6      | ±0.8    | 1.3 | 2.85x     |
+| lazypartitionedindex | 208.2     | ±2.3    | 1.1 | 10.48x    |
 
 ### write: single-cell-edits (n=50)
 
 | Implementation       | Mean (µs) | ±Stddev | CV% | Relative  |
 | -------------------- | --------- | ------- | --- | --------- |
-| mortonlinearscan ✓   | 82.8      | ±0.5    | 0.5 | (fastest) |
-| rstartree            | 163.8     | ±1.5    | 0.9 | 1.98x     |
-| lazypartitionedindex | 858.8     | ±10.2   | 1.2 | 10.37x    |
+| mortonlinearscan ✓   | 83.2      | ±0.4    | 0.5 | (fastest) |
+| rstartree            | 164.5     | ±1.4    | 0.9 | 1.98x     |
+| lazypartitionedindex | 855.3     | ±3.1    | 0.4 | 10.28x    |
 
 ### write: sparse-grid (n=60)
 
 | Implementation       | Mean (µs) | ±Stddev | CV% | Relative  |
 | -------------------- | --------- | ------- | --- | --------- |
-| mortonlinearscan ✓   | 114.4     | ±0.4    | 0.4 | (fastest) |
-| rstartree            | 232.5     | ±2.3    | 1.0 | 2.03x     |
-| lazypartitionedindex | 973.6     | ±6.7    | 0.7 | 8.51x     |
+| mortonlinearscan ✓   | 116.2     | ±2.3    | 2.0 | (fastest) |
+| rstartree            | 232.9     | ±2.1    | 0.9 | 2.00x     |
+| lazypartitionedindex | 971.3     | ±12.1   | 1.2 | 8.36x     |
 
 ### write: sparse-large-ranges (n=30)
 
 | Implementation       | Mean (µs) | ±Stddev | CV% | Relative  |
 | -------------------- | --------- | ------- | --- | --------- |
-| mortonlinearscan ✓   | 34.9      | ±0.1    | 0.4 | (fastest) |
-| rstartree            | 111.4     | ±1.2    | 1.1 | 3.19x     |
-| lazypartitionedindex | 462.7     | ±6.5    | 1.4 | 13.27x    |
+| mortonlinearscan ✓   | 35.3      | ±0.1    | 0.4 | (fastest) |
+| rstartree            | 111.3     | ±0.9    | 0.8 | 3.16x     |
+| lazypartitionedindex | 458.4     | ±2.9    | 0.6 | 13.00x    |
 
 ### write: sparse-overlapping (n=40)
 
 | Implementation       | Mean (µs) | ±Stddev | CV% | Relative  |
 | -------------------- | --------- | ------- | --- | --------- |
-| mortonlinearscan ✓   | 89.7      | ±0.9    | 1.0 | (fastest) |
-| rstartree            | 856.9     | ±7.8    | 0.9 | 9.55x     |
-| lazypartitionedindex | 1195.9    | ±14.0   | 1.2 | 13.33x    |
+| mortonlinearscan ✓   | 89.3      | ±0.4    | 0.4 | (fastest) |
+| rstartree            | 864.6     | ±7.4    | 0.9 | 9.68x     |
+| lazypartitionedindex | 1219.7    | ±58.3   | 4.8 | 13.65x    |
 
 ### write: sparse-sequential (n=50)
 
 | Implementation       | Mean (µs) | ±Stddev | CV% | Relative  |
 | -------------------- | --------- | ------- | --- | --------- |
-| mortonlinearscan ✓   | 81.9      | ±0.6    | 0.7 | (fastest) |
-| rstartree            | 292.0     | ±2.6    | 0.9 | 3.56x     |
-| lazypartitionedindex | 623.9     | ±6.4    | 1.0 | 7.62x     |
+| mortonlinearscan ✓   | 82.3      | ±0.4    | 0.5 | (fastest) |
+| rstartree            | 294.6     | ±10.6   | 3.6 | 3.58x     |
+| lazypartitionedindex | 623.1     | ±3.7    | 0.6 | 7.57x     |
 
 ### write: striping-alternating-rows (n=25)
 
 | Implementation       | Mean (µs) | ±Stddev | CV% | Relative  |
 | -------------------- | --------- | ------- | --- | --------- |
-| mortonlinearscan ✓   | 27.2      | ±0.2    | 0.9 | (fastest) |
-| rstartree            | 104.6     | ±1.3    | 1.2 | 3.84x     |
-| lazypartitionedindex | 410.0     | ±6.8    | 1.7 | 15.06x    |
+| mortonlinearscan ✓   | 27.4      | ±0.2    | 0.7 | (fastest) |
+| rstartree            | 104.5     | ±1.2    | 1.2 | 3.81x     |
+| lazypartitionedindex | 407.6     | ±1.6    | 0.4 | 14.87x    |
 
 ---
 
